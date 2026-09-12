@@ -491,6 +491,12 @@ expectations can't silently break.
 Healthee is designed to run on a single small VPS. The database is never exposed
 to the internet; the API is reachable only through nginx over TLS.
 
+> **Never done this before?** [**docs/SELF_HOSTING.md**](docs/SELF_HOSTING.md) is
+> the same thing written out in full and in plain language — getting a free Oracle
+> Cloud box, pointing a domain at it, setting up Supabase and OpenRouter, and what
+> each failure looks like when it happens. The section below assumes you already
+> know your way around a server.
+
 ### Prerequisites
 - A Linux VPS with Docker + Docker Compose.
 - A domain name pointing at it (for TLS), e.g. `healtheeapi.example.com`. It goes

@@ -48,6 +48,13 @@ _DEPLOY_ONLY_VARS = frozenset(
         "BACKUP_DIR",  # infra/backup/pg_dump_backup.sh — where dumps are written
         "BACKUP_RETENTION_DAYS",  # …and how long they are kept
         "OFFBOX_CMD",  # …and the optional off-box copy command
+        # infra/nginx/render-vhost.sh — the public DNS name, substituted into the
+        # vhost's `server_name`. Deploy-only on purpose: the app is behind nginx and
+        # never needs to know what it is reached as, so `Settings` reading this would
+        # be a second source of truth for a question the app cannot answer better
+        # than the proxy in front of it. NOT `API_HOST`, which is the bind address
+        # inside the container and IS read.
+        "PUBLIC_HOST",
     }
 )
 
