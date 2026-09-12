@@ -38,7 +38,7 @@ library;
 /// can. Runtime configuration (the paired strap, the signed-in owner, the
 /// selected theme) is Riverpod state; this is not that.
 abstract final class Env {
-  /// Base URL of the Healthee API, e.g. `https://healtheeapi.afk.codes`.
+  /// Base URL of the Healthee API, e.g. `https://healtheeapi.example.com`.
   ///
   /// Defaults to the loopback address a debug build talks to when the server is
   /// running from `infra/docker-compose.yml` on the same machine. It is a

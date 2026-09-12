@@ -17,7 +17,7 @@ the brief wins.)
 cd apps/mobile
 flutter pub get
 dart run build_runner build          # only after editing an annotated file
-flutter run --dart-define=HELIO_API=https://healtheeapi.afk.codes
+flutter run --dart-define=HELIO_API=https://healtheeapi.example.com
 ```
 
 ## Gates (what CI runs)
