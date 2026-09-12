@@ -493,7 +493,8 @@ to the internet; the API is reachable only through nginx over TLS.
 
 ### Prerequisites
 - A Linux VPS with Docker + Docker Compose.
-- A domain name pointing at it (for TLS), e.g. `healtheeapi.example.com`.
+- A domain name pointing at it (for TLS), e.g. `healtheeapi.example.com`. It goes
+  in `infra/.env` as `PUBLIC_HOST`, and everything that needs it reads it from there.
 - The Amazfit Helio Strap + the Flutter app built with your device's pairing key
   (see [Building the app](#6-building-the-app)).
 
@@ -573,15 +574,23 @@ briefing, and is reported to Telegram once at 22:00 local: an analysis of an unr
 night would be the guess this product exists not to make.
 
 ### 3. Put nginx + TLS in front
-Install the provided vhost and get a certificate:
+Set `PUBLIC_HOST` in `infra/.env` once — your domain lives there and nowhere
+else — then render and enable the vhost:
 ```sh
-sudo cp infra/nginx/healtheeapi.conf /etc/nginx/sites-available/healtheeapi.conf
-sudo ln -s /etc/nginx/sites-available/healtheeapi.conf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d healtheeapi.example.com       # adds the TLS block in place
+infra/nginx/render-vhost.sh              # print it first; changes nothing
+infra/nginx/render-vhost.sh --install    # write it, link it, `nginx -t`
+sudo systemctl reload nginx
+sudo certbot --nginx -d "$PUBLIC_HOST"   # adds the TLS block in place
 ```
-The vhost reverse-proxies `https://<domain>` → `127.0.0.1:8765`, trusts Cloudflare
-real-IP ranges, and allows large upload bodies.
+The vhost reverse-proxies `https://$PUBLIC_HOST` → `127.0.0.1:8765`, trusts
+Cloudflare real-IP ranges, rate-limits per IP and sets the security headers.
+
+⛔ **Do not re-render over a live vhost.** certbot rewrites the installed file in
+place, so after step 4 the file serving your traffic is certbot's — with the
+:443 listener and the redirect — while the template here is the plain :80 one.
+`--install` refuses to overwrite a file that already has a 443 listener, and
+`deploy.sh` never touches nginx at all: a code deploy has no business rewriting
+the edge.
 
 ### 4. Updates
 Push to your deploy branch, then on the VPS:

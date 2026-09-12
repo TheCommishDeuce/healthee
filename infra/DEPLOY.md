@@ -348,7 +348,7 @@ record.
    on its own:
    ```sh
    flutter build apk --release \
-     --dart-define=HELIO_API=https://healtheeapi.example.com \
+     --dart-define=HELIO_API="https://$PUBLIC_HOST" \
      --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
      --dart-define=SUPABASE_ANON_KEY=<the anon key, NOT the service_role key>
    ```
@@ -411,14 +411,15 @@ confirm the human and not just a UUID that parsed.
 - [ ] **`/healthz`** →
       `curl -fsS http://127.0.0.1:8765/healthz` (it does a real `SELECT 1`, so a
       200 means the DB is reachable too).
-- [ ] **Public** → `curl -fsS https://healtheeapi.example.com/healthz` (proves
-      nginx → 127.0.0.1:8765 too).
+- [ ] **Public** → `curl -fsS "https://$PUBLIC_HOST/healthz"` (proves nginx →
+      127.0.0.1:8765 too). `PUBLIC_HOST` comes from `infra/.env`, so this line is
+      copy-pasteable on any deployment without editing it.
 - [ ] **The DB role line** → the script's last step. `connected as least-privilege
       role` = RLS is real. `BYPASSES Row-Level Security` = the fallback is active;
       not fatal, but RLS is isolating nothing — go to B2.
       By hand: `$COMPOSE logs api | grep -i 'db pool'`.
 - [ ] **A real authenticated read** →
-      `curl -H "Authorization: Bearer <token>" https://healtheeapi.example.com/api/today`
+      `curl -H "Authorization: Bearer <token>" "https://$PUBLIC_HOST/api/today"`
       → **200**. This is the check that catches the RLS/skipscan failure and any
       tenant-scoping break; `/healthz` cannot. Do it after every Phase 6 deploy.
 - [ ] **Migrations are where you think** →

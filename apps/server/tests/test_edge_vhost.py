@@ -23,13 +23,31 @@ from pathlib import Path
 import pytest
 
 # tests/test_edge_vhost.py → apps/server → apps → repo root.
-_VHOST = Path(__file__).resolve().parents[3] / "infra" / "nginx" / "healtheeapi.conf"
+#
+# The TEMPLATE, which is the only tracked form: the installed vhost is rendered
+# from it by `infra/nginx/render-vhost.sh` with the operator's own `PUBLIC_HOST`,
+# and after certbot the live file is certbot's anyway. Asserting the template is
+# asserting the thing every deployment is actually built from.
+_VHOST = Path(__file__).resolve().parents[3] / "infra" / "nginx" / "healtheeapi.conf.template"
 
 
 @pytest.fixture(scope="module")
 def vhost() -> str:
     assert _VHOST.exists(), f"the tracked vhost moved: {_VHOST}"
     return _VHOST.read_text()
+
+
+def test_the_host_is_a_placeholder_not_somebody_s_domain() -> None:
+    """No real hostname is tracked here — that is what the template is for.
+
+    A rendered vhost committed by accident would put one operator's domain in
+    everybody's clone, which is the thing `render-vhost.sh` exists to prevent.
+    """
+    text = _VHOST.read_text()
+    assert "server_name ${PUBLIC_HOST};" in text, (
+        "server_name is no longer the placeholder — a real host may have been "
+        "committed over the template"
+    )
 
 
 # ── E2: the body limit matches what the API actually accepts ─────────────────

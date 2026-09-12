@@ -108,6 +108,16 @@ set -a
 set +a
 branch="${DEPLOY_BRANCH:-main}"
 ok "deploy branch: $branch"
+# Reported, never required. A deploy that refused to run without a public name
+# would block the one case that needs it least — a box you are still bringing up,
+# where nginx is not in front yet.
+if [ -n "${PUBLIC_HOST:-}" ]; then
+	ok "public host: $PUBLIC_HOST"
+else
+	warn "PUBLIC_HOST is not set in $env_file — the edge check at the end will be skipped.
+    It is what renders the nginx vhost (infra/nginx/render-vhost.sh) and what keeps
+    anybody's real domain out of the repository. See infra/.env.example."
+fi
 # Not `[ … ] && ok …` — that compound returns 1 when dry_run=0, which under
 # `set -e` would exit the script here.
 if [ "$dry_run" -eq 1 ]; then
@@ -227,6 +237,29 @@ else
 		$COMPOSE logs --tail 20 scheduler >&2 || true
 		exit 1
 	fi
+fi
+
+# ── 9b. The edge, from outside ──────────────────────────────────────────
+# 127.0.0.1:8765 answering proves the container is up; it proves nothing about
+# nginx, DNS or the certificate, and those are what an owner's phone actually
+# talks to. This is the check that used to be a curl pasted out of DEPLOY.md,
+# which meant it was run when somebody remembered.
+#
+# A WARNING, never a failure: the app is up either way, and a lapsed certificate
+# or a DNS change is not something this deploy did. Silence would be worse than
+# both — it is how a working API sits behind a broken edge for a day.
+step "Edge check (nginx → TLS → api)"
+if [ -z "${PUBLIC_HOST:-}" ]; then
+	warn "skipped — PUBLIC_HOST is not set."
+elif [ "$dry_run" -eq 1 ]; then
+	printf '  \033[2m$ curl -fsS https://%s/healthz\033[0m\n' "$PUBLIC_HOST"
+elif curl -fsS --max-time 10 "https://$PUBLIC_HOST/healthz" >/dev/null 2>&1; then
+	ok "https://$PUBLIC_HOST/healthz answered"
+else
+	warn "https://$PUBLIC_HOST/healthz did NOT answer, but the container is healthy on
+    127.0.0.1:8765. So the api is fine and something between it and the world is not:
+    nginx down or misconfigured, DNS moved, or the certificate expired. Start with
+    \`sudo nginx -t\` and \`sudo certbot certificates\`."
 fi
 
 # ── 10. Which DB role did the app actually connect as? ──────────────────
