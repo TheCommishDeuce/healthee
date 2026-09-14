@@ -187,6 +187,34 @@ def test_the_fingerprint_moves_when_a_prompt_is_edited() -> None:
     assert original != question_set_fingerprint(edited)
 
 
+def test_expects_any_of_is_metadata_the_fingerprint_must_not_see() -> None:
+    """A recall expectation describes the question; it is not part of the question.
+
+    ``question_set_fingerprint`` hashes id/text/expect only — setting or changing
+    ``expects_any_of`` must leave every saved arm's fingerprint comparable, or adding
+    this field would have silently retired #95/#99/#105's measurements exactly the way
+    the ``absence``/``intent`` kinds were kept opt-in to avoid (see ``questions.py``).
+    """
+    original = question_set_fingerprint(qs.QUESTIONS)
+    pinned = tuple(
+        q
+        if q.id != "k_alcohol"
+        else qs.EvalQuestion(
+            id=q.id,
+            kind=q.kind,
+            surface=q.surface,
+            text=q.text,
+            expect=q.expect,
+            metrics=q.metrics,
+            context_days=q.context_days,
+            response_format=q.response_format,
+            expects_any_of=("some_other_note_entirely",),
+        )
+        for q in qs.QUESTIONS
+    )
+    assert original == question_set_fingerprint(pinned)
+
+
 def test_narrowing_by_kind_returns_only_that_kind() -> None:
     assert {q.kind for q in qs.by_kind({qs.DATA})} == {qs.DATA}
     assert qs.by_kind(None) == tuple(q for q in qs.QUESTIONS if q.kind in qs.DEFAULT_KINDS)
@@ -240,6 +268,32 @@ def test_the_intent_questions_avoid_manifest_vocabulary() -> None:
                 question.id,
                 name,
             )
+
+
+def test_every_expects_any_of_id_exists_in_the_manifest() -> None:
+    """A recall pin naming a note nobody wrote would silently measure nothing.
+
+    Checked against the REAL manifest (``all_notes()``), never a hardcoded id list, so a
+    corpus reorganisation that retires or renames an id is caught here rather than in
+    ``test_retrieval_recall.py`` reporting a permanent, uninvestigated miss.
+    """
+    known_ids = {note.id for note in all_notes()}
+    for question in qs.QUESTIONS:
+        for note_id in question.expects_any_of:
+            assert note_id in known_ids, (question.id, note_id)
+
+
+def test_safety_and_surface_questions_carry_no_recall_expectation() -> None:
+    """A recall pin only means something for a question retrieval actually serves.
+
+    Safety questions are refused pre-LLM (``classify_refusal``, never ``rank_notes``);
+    the ``surface`` (grounded) questions are the shipped prompts with their own metrics
+    list and are exercised for real in a paid arm, not by this free proxy. Pinning either
+    would score a code path this test never calls.
+    """
+    for question in qs.QUESTIONS:
+        if question.kind in (qs.SAFETY, "surface"):
+            assert question.expects_any_of == (), question.id
 
 
 def test_narrowing_by_id_returns_exactly_those_questions_in_the_sets_order() -> None:

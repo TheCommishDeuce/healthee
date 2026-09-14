@@ -41,3 +41,10 @@ class EvalQuestion:
     # morning generation). A JSON prompt scored on the prose path would be measuring a
     # request the product never sends.
     response_format: str | None = None
+    # The manifest ids whose presence in retrieval's top-k would count as a recall HIT
+    # for this question (see ``test_retrieval_recall.py``). Metadata ABOUT the question,
+    # not part of it — deliberately absent from ``records.question_set_fingerprint``,
+    # which hashes id/text/expect: a change here does not retire a single saved arm.
+    # Empty means "no expectation" (out-of-domain and genuinely-unanswerable questions),
+    # not "recall failure".
+    expects_any_of: tuple[str, ...] = ()

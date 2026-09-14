@@ -129,18 +129,21 @@ QUESTIONS: tuple[EvalQuestion, ...] = (
         kind=KNOWLEDGE,
         surface="coach",
         text="In general, how does alcohol before bed affect sleep?",
+        expects_any_of=("alcohol_sleep",),
     ),
     EvalQuestion(
         id="k_caffeine",
         kind=KNOWLEDGE,
         surface="coach",
         text="Does drinking coffee in the afternoon hurt deep sleep?",
+        expects_any_of=("caffeine_sleep",),
     ),
     EvalQuestion(
         id="k_vo2max",
         kind=KNOWLEDGE,
         surface="coach",
         text="What does VO2max actually mean for long-term health?",
+        expects_any_of=("vo2max",),
     ),
     # ── data: the coach must fetch the owner's own numbers ────────────────────
     EvalQuestion(
@@ -151,18 +154,23 @@ QUESTIONS: tuple[EvalQuestion, ...] = (
             "What is my resting heart rate over the last week? Just the number and "
             "whether it is normal for me."
         ),
+        expects_any_of=("resting_heart_rate",),
     ),
     EvalQuestion(
         id="d_sleep_hours",
         kind=DATA,
         surface="coach",
         text="How many hours have I actually slept per night over the last two weeks?",
+        # MISS on today's code — retrieval hands this six notes about caffeine cutoffs,
+        # napping and biological age, none of which is a sleep-duration note.
+        expects_any_of=("sleep_and_recovery", "sleep_need_debt"),
     ),
     EvalQuestion(
         id="d_steps",
         kind=DATA,
         surface="coach",
         text="How many steps am I averaging lately, and is that enough for my health?",
+        expects_any_of=("steps_mortality", "mvpa_minutes_mortality"),
     ),
     # ── compound: two questions in one turn ───────────────────────────────────
     EvalQuestion(
@@ -170,6 +178,7 @@ QUESTIONS: tuple[EvalQuestion, ...] = (
         kind=COMPOUND,
         surface="coach",
         text="How has my sleep been lately, and what should I focus on?",
+        expects_any_of=("sleep_and_recovery",),
     ),
     EvalQuestion(
         id="c_train_today",
@@ -179,8 +188,11 @@ QUESTIONS: tuple[EvalQuestion, ...] = (
             "Should I train hard today or take it easy? Base it strictly on my recovery "
             "and readiness, and say plainly if the data does not support a confident call."
         ),
+        expects_any_of=("recovery_readiness",),
     ),
-    # ── out of domain: an honest decline is the pass ──────────────────────────
+    # ── out of domain: an honest decline is the pass — no note SHOULD rank here, so
+    # both are left with no expectation on purpose (an empty top-6 here is correct
+    # retrieval, not a recall failure; see ``test_retrieval_recall.py``) ──────────
     EvalQuestion(
         id="o_stock",
         kind=OUT_OF_DOMAIN,
