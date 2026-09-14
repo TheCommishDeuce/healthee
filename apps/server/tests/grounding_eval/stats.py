@@ -328,13 +328,23 @@ def is_scored(records: Sequence[RunRecord]) -> bool:
 
 
 def supported_citation_rate(records: Sequence[RunRecord]) -> Rate:
-    """Of the citations a scored answer actually used, how many the NLI judged supported."""
+    """Of the citations a scored answer actually used, how many the NLI judged supported.
+
+    The denominator EXCLUDES unscorable claims (``support_unscorable``) — a claim with
+    literally nothing to test it against (every cited note's passages heading-only, or
+    none at all) is not evidence the model rejected, and counting it in the denominator
+    would silently read "we never asked" as "the answer failed". See
+    :func:`unscorable_claim_count` for the count printed alongside this rate.
+    """
     rows = support_records(records)
-    return Rate(
-        "supported citations",
-        sum(r.support_supported for r in rows),
-        sum(r.support_cited for r in rows),
-    )
+    cited = sum(r.support_cited for r in rows)
+    unscorable = sum(r.support_unscorable for r in rows)
+    return Rate("supported citations", sum(r.support_supported for r in rows), cited - unscorable)
+
+
+def unscorable_claim_count(records: Sequence[RunRecord]) -> int:
+    """How many cited claims across this arm had nothing to test them against at all."""
+    return sum(r.support_unscorable for r in support_records(records))
 
 
 def cited_claim_rate(records: Sequence[RunRecord]) -> Rate:

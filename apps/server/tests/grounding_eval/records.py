@@ -92,6 +92,21 @@ class RunRecord:
     # without re-running the model or the scorer.
     support_unsupported: list[str] = field(default_factory=list)
     support_model: str = ""
+    # Every claim `score` scored, in full — one dict per `support.ClaimSupport`:
+    # {sentence, fragments, cited, best_ref, best_fragment, entailment, contradiction,
+    # supported, interpretive, scorable}. Without this an "unsupported" call can only be
+    # trusted or re-run; with it, anybody can audit which fragment matched which passage
+    # at what score, offline, from the saved arm alone. Defaulted so arms scored before
+    # this field existed — and every unscored arm — still load with `[]`.
+    support_details: list[dict] = field(default_factory=list)
+    # How many of `support_cited`'s claims had literally nothing to test them against
+    # (every cited note's passages were all heading-only, or it carried none) —
+    # `support.ClaimSupport.scorable is False`. A rate computed as `support_supported /
+    # support_cited` silently counts these as failures; the honest denominator is
+    # `support_cited - support_unscorable`. Defaulted so arms scored before this field
+    # existed still load, reading as "nothing was unscorable" rather than erroring —
+    # which is wrong for THOSE arms but matches their own (unfixed) counting at the time.
+    support_unscorable: int = 0
 
 
 @dataclass(frozen=True)

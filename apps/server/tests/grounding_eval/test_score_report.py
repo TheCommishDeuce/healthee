@@ -33,7 +33,9 @@ def _arm(records: list[RunRecord], label: str = "arm") -> EvalRun:
     )
 
 
-def _scored_rec(qid: str, *, cited: int, supported: int, claims: int = 3) -> RunRecord:
+def _scored_rec(
+    qid: str, *, cited: int, supported: int, claims: int = 3, unscorable: int = 0
+) -> RunRecord:
     return RunRecord(
         question_id=qid,
         kind=qs.KNOWLEDGE,
@@ -46,6 +48,7 @@ def _scored_rec(qid: str, *, cited: int, supported: int, claims: int = 3) -> Run
         support_cited=cited,
         support_supported=supported,
         support_threshold=0.5,
+        support_unscorable=unscorable,
     )
 
 
@@ -119,3 +122,23 @@ def test_support_records_only_counts_grounded_and_scored() -> None:
         non_grounded_but_scored,
     ]
     assert stats.support_records(rows) == [rows[0]]
+
+
+def test_supported_citation_rate_excludes_unscorable_claims_from_the_denominator() -> None:
+    """4 cited, 2 supported, 1 unscorable -> denominator is 4 - 1 = 3, not 4. Counting
+    the unscorable claim in the denominator would read "we never asked" as a failure."""
+    rows = [_scored_rec("a", cited=4, claims=4, supported=2, unscorable=1)]
+    rate = stats.supported_citation_rate(rows)
+    assert (rate.successes, rate.n) == (2, 3)
+
+
+def test_summary_prints_the_unscorable_warning_only_when_present() -> None:
+    with_gap = report.summary(
+        _arm([_scored_rec("a", cited=4, claims=4, supported=2, unscorable=1)])
+    )
+    assert "1 cited claim(s) UNSCORABLE" in with_gap
+
+    without_gap = report.summary(
+        _arm([_scored_rec("b", cited=4, claims=4, supported=2, unscorable=0)])
+    )
+    assert "UNSCORABLE" not in without_gap

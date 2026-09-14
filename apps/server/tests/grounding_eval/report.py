@@ -83,6 +83,27 @@ def _mean_line(label: str, values: Sequence[float], unit: str = "") -> str:
     return f"{label:<28} {mean:9.1f}{unit}  [95% CI {lo:.1f} – {hi:.1f}]  n={len(values)}"
 
 
+def _support_lines(records: Sequence[RunRecord]) -> list[str]:
+    """The CITATION SUPPORT block's body — split out of :func:`summary` to keep its
+    own mccabe complexity under the gate."""
+    lines = [
+        "  " + stats.supported_citation_rate(records).line(),
+        "  " + stats.cited_claim_rate(records).line(),
+        "  "
+        + _mean_line(
+            "supported claims / answer",
+            [float(r.support_supported) for r in stats.support_records(records)],
+        ),
+    ]
+    unscorable = stats.unscorable_claim_count(records)
+    if unscorable:
+        lines.append(
+            f"  ⚠ {unscorable} cited claim(s) UNSCORABLE (no non-heading passage to test "
+            "against) — excluded from the rate above, not counted as unsupported"
+        )
+    return lines
+
+
 def summary(run: EvalRun) -> str:
     """The whole arm in one block: rates with intervals, spend, and the weak spots."""
     records = run.records
@@ -140,15 +161,7 @@ def summary(run: EvalRun) -> str:
         )
     if stats.is_scored(records):
         lines += ["", "CITATION SUPPORT (scored answers only — `score` re-checked each claim)"]
-        lines += [
-            "  " + stats.supported_citation_rate(records).line(),
-            "  " + stats.cited_claim_rate(records).line(),
-            "  "
-            + _mean_line(
-                "supported claims / answer",
-                [float(r.support_supported) for r in stats.support_records(records)],
-            ),
-        ]
+        lines += _support_lines(records)
     models = sorted({r.model for r in records if r.model})
     exact = cost_is_exact(records)
     header = "SPEND (measured tokens × each model's published rate)"

@@ -5,11 +5,17 @@ Every test here injects a fake :class:`support.NLI` and monkeypatches
 network, or touches the real corpus — this file must stay fast enough to run in the
 normal suite. The one test that exercises the REAL model is opt-in (see the bottom of
 this file) and is not part of that contract.
+
+Decomposition itself (framing-clause stripping, clause splitting, the owner-data and
+short-fragment drops) is unit-tested in ``test_decompose.py`` with no NLI at all; this
+file tests claim SELECTION (v2's citation-gate) and single-fragment entailment scoring.
+Heading-passage exclusion, multi-fragment claims, and the opt-in real-model smoke test
+live in ``test_support_fragments.py`` (they share this file's fixtures) — split there
+to stay under the 400-line file gate.
 """
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -23,6 +29,7 @@ _EMPTY_ID = "empty_note"  # in the (fake) manifest, carries zero passages
 _UNKNOWN_ID = "unknown_note_not_in_manifest"  # never in the (fake) manifest
 _THREE_ID = "known_note_three"  # carries three passages; the winner sits at index 2
 _SECOND_ID = "second_known_note"  # a second cited note, carrying the true winner
+_HEADING_ID = "heading_only_note"  # carries only heading-shaped passages + one real one
 
 
 @dataclass
@@ -63,65 +70,65 @@ def _fake_corpus(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         support.manifest,
         "note_ids",
-        lambda: {_KNOWN_ID, _EMPTY_ID, _THREE_ID, _SECOND_ID},
+        lambda: {_KNOWN_ID, _EMPTY_ID, _THREE_ID, _SECOND_ID, _HEADING_ID},
     )
+    monkeypatch.setattr(support.passages_mod, "passages", _fake_passages)
 
-    def fake_passages(note_id: str) -> tuple[Passage, ...]:
-        if note_id == _KNOWN_ID:
-            return (
-                Passage(_KNOWN_ID, 0, "Evidence", "Widgets reliably improve grip strength."),
-                Passage(_KNOWN_ID, 1, "Evidence", "Widgets have no effect on grip strength."),
-            )
-        if note_id == _THREE_ID:
-            return (
-                Passage(
-                    _THREE_ID, 0, "Evidence", "Widgets are ineffective and provide no benefit."
-                ),
-                Passage(
-                    _THREE_ID,
-                    1,
-                    "Evidence",
-                    "This passage is unrelated filler about something else.",
-                ),
-                Passage(
-                    _THREE_ID,
-                    2,
-                    "Evidence",
-                    "Widgets have been proven to reliably enhance grip strength.",
-                ),
-            )
-        if note_id == _SECOND_ID:
-            return (
-                Passage(
-                    _SECOND_ID, 0, "Evidence", "Trials confirm the device enhances grip strength."
-                ),
-            )
-        return ()
 
-    monkeypatch.setattr(support.passages_mod, "passages", fake_passages)
+def _fake_passages(note_id: str) -> tuple[Passage, ...]:
+    if note_id == _KNOWN_ID:
+        return (
+            Passage(_KNOWN_ID, 0, "Evidence", "Widgets reliably improve grip strength."),
+            Passage(_KNOWN_ID, 1, "Evidence", "Widgets have no effect on grip strength."),
+        )
+    if note_id == _THREE_ID:
+        return (
+            Passage(_THREE_ID, 0, "Evidence", "Widgets are ineffective and provide no benefit."),
+            Passage(_THREE_ID, 1, "Evidence", "This passage is unrelated filler about something."),
+            Passage(
+                _THREE_ID,
+                2,
+                "Evidence",
+                "Widgets have been proven to reliably enhance grip strength.",
+            ),
+        )
+    if note_id == _SECOND_ID:
+        return (
+            Passage(_SECOND_ID, 0, "Evidence", "Trials confirm the device enhances grip strength."),
+        )
+    if note_id == _HEADING_ID:
+        return (
+            Passage(_HEADING_ID, 0, "", "# Grip strength research"),
+            Passage(_HEADING_ID, 1, "Evidence", "**Key takeaway**"),
+            Passage(
+                _HEADING_ID,
+                2,
+                "Evidence",
+                "Trials show widgets reliably enhance grip strength over eight weeks of training.",
+            ),
+        )
+    return ()
 
 
 def _claim(fake: FakeNLI, text: str, *, threshold: float = 0.5) -> support.SupportScore:
     return support.score_answer(text, threshold=threshold, nli=fake)
 
 
-# ── Claim selection ──────────────────────────────────────────────────────────
+# ── Claim selection (v2: citation-gated, not INTERPRETIVE_RE-gated) ─────────────
 
 
-def test_uncited_claim_counts_as_a_claim_but_not_a_cited_claim(_fake_corpus: None) -> None:
+def test_a_sentence_with_no_citation_at_all_is_not_a_claim(_fake_corpus: None) -> None:
     score = _claim(FakeNLI(), "This may be true but cites no note at all.")
-    assert score.claims == 1
-    assert score.cited_claims == 0
-    assert score.supported == 0
-    assert score.details[0].cited == ()
-    assert score.details[0].best_ref is None
+    assert score == support.SupportScore(
+        claims=0, cited_claims=0, supported=0, threshold=0.5, details=()
+    )
 
 
-def test_citation_to_an_unrecognised_id_is_ignored(_fake_corpus: None) -> None:
+def test_a_citation_to_an_unrecognised_id_is_not_a_claim(_fake_corpus: None) -> None:
+    """The bracket exists in the TEXT but the id is not in the manifest — nothing here
+    is checkable, so it is not selected at all (v1 counted it as an uncited claim)."""
     score = _claim(FakeNLI(), f"Widgets may help grip strength [{_UNKNOWN_ID}].")
-    assert score.claims == 1
-    assert score.cited_claims == 0  # the citation exists in the TEXT but not the manifest
-    assert score.details[0].cited == ()
+    assert score.claims == 0
 
 
 def test_heading_units_never_count_as_claims(_fake_corpus: None) -> None:
@@ -133,11 +140,33 @@ def test_heading_units_never_count_as_claims(_fake_corpus: None) -> None:
     assert score.details[0].sentence.startswith("Widgets may help")
 
 
+def test_a_heading_that_carries_a_real_citation_still_never_counts(_fake_corpus: None) -> None:
+    """Unlike the test above, THIS heading's text carries a real, known citation — the
+    strongest possible case for the heading-skip to matter. If the heading check were
+    ever dropped, this line alone (with no other sentence) would become a claim."""
+    text = "**Widgets may help grip strength [known_note]**"
+    score = _claim(FakeNLI(), text)
+    assert score.claims == 0
+
+
 def test_empty_text_is_a_valid_honest_zero_not_an_error(_fake_corpus: None) -> None:
     score = _claim(FakeNLI(), "")
     assert score == support.SupportScore(
         claims=0, cited_claims=0, supported=0, threshold=0.5, details=()
     )
+
+
+def test_a_cited_sentence_with_no_interpretive_marker_still_counts(_fake_corpus: None) -> None:
+    """v1's whole bug: this sentence carries a real citation and makes a claim, but
+    matches none of `calibration.INTERPRETIVE_RE`'s verbs — v1 would have dropped it."""
+    score = _claim(FakeNLI(), "Widgets are a resistance tool found in most gyms [known_note].")
+    assert score.claims == 1
+    assert score.details[0].interpretive is False
+
+
+def test_interpretive_flag_is_true_for_a_marker_sentence(_fake_corpus: None) -> None:
+    score = _claim(FakeNLI(), "Widgets may improve grip strength [known_note].")
+    assert score.details[0].interpretive is True
 
 
 # ── Entailment scoring ───────────────────────────────────────────────────────
@@ -184,7 +213,7 @@ def test_max_entailment_can_win_from_a_non_zero_index(_fake_corpus: None) -> Non
         rules={
             ("ineffective and provide no benefit", "Widgets"): (0.9, 0.02, 0.08),
             ("unrelated filler", "Widgets"): (0.0, 0.0, 1.0),
-            ("proven to reliably enhance grip strength", "Widgets"): (0.01, 0.95, 0.04),
+            ("proven to reliably enhance grip", "Widgets"): (0.01, 0.95, 0.04),
         }
     )
     score = _claim(fake, f"Widgets may improve grip strength [{_THREE_ID}].")
@@ -203,7 +232,7 @@ def test_max_entailment_can_win_in_a_later_cited_note(_fake_corpus: None) -> Non
         rules={
             ("ineffective and provide no benefit", "Gadgets"): (0.9, 0.02, 0.08),
             ("unrelated filler", "Gadgets"): (0.0, 0.0, 1.0),
-            ("proven to reliably enhance grip strength", "Gadgets"): (0.05, 0.2, 0.75),
+            ("proven to reliably enhance grip", "Gadgets"): (0.05, 0.2, 0.75),
             ("Trials confirm the device enhances grip strength", "Gadgets"): (0.0, 0.97, 0.03),
         }
     )
@@ -221,14 +250,19 @@ def test_threshold_boundary_is_inclusive(_fake_corpus: None) -> None:
     assert _claim(just_under, text, threshold=0.5).details[0].supported is False
 
 
-def test_cited_note_with_zero_passages_is_unsupported_not_skipped(_fake_corpus: None) -> None:
+def test_cited_note_with_zero_passages_is_unscorable_not_silently_dropped(
+    _fake_corpus: None,
+) -> None:
     """`empty_note` is a real id (in the fake manifest) with no passages to entail
-    from — the honest answer is unsupported, never a silently dropped claim."""
+    from — the honest answer is UNSCORABLE (nothing was ever tested), never a silently
+    dropped claim and never conflated with an "unsupported" claim the model rejected."""
     score = _claim(FakeNLI(), f"Widgets may help grip strength [{_EMPTY_ID}].")
     assert score.claims == 1
     assert score.cited_claims == 1  # the citation is real; there is just nothing behind it
     assert score.supported == 0
+    assert score.unscorable == 1
     assert score.details[0].best_ref is None
+    assert score.details[0].scorable is False
     assert score.details[0].entailment == 0.0
 
 
@@ -246,41 +280,5 @@ def test_one_predict_call_covers_every_claim_in_the_answer(_fake_corpus: None) -
     assert len(fake.batches[0]) == 4
 
 
-# ── Opt-in real-model smoke test ─────────────────────────────────────────────
-
-
-def test_real_model_smoke() -> None:
-    """Scores an obviously-entailed pair and an obviously-unrelated pair against a
-    real note passage, on the real ``cross-encoder/nli-deberta-v3-base`` checkpoint.
-
-    Opt-in: skipped unless ``HEALTHEE_SUPPORT_MODEL_TESTS=1`` AND
-    ``sentence_transformers`` actually imports (the ``eval`` dependency group).
-
-    Observed 2026-09-14 on an RTX 3070 Ti (``torch.cuda.is_available()`` True),
-    premise = the `aerobic_decoupling` note's "Cardiovascular drift is real and
-    well-characterised..." passage:
-      * entailed hypothesis ("Cardiovascular drift is a real, well-documented
-        phenomenon during prolonged exercise.") → entailment ≈ **0.9982**
-      * unrelated hypothesis ("Bananas are a good source of potassium for marathon
-        runners.") → entailment ≈ **0.00027**
-    """
-    if os.environ.get("HEALTHEE_SUPPORT_MODEL_TESTS") != "1":
-        pytest.skip("opt-in: set HEALTHEE_SUPPORT_MODEL_TESTS=1 to run against the real model")
-    pytest.importorskip("sentence_transformers")
-    from healthee.insights import passages as real_passages
-
-    nli = support._load_nli()
-    premise = next(
-        p.text
-        for p in real_passages.passages("aerobic_decoupling")
-        if "Cardiovascular drift is real and well-characterised" in p.text
-    )
-    entailed = (
-        "Cardiovascular drift is a real, well-documented phenomenon during prolonged exercise."
-    )
-    unrelated = "Bananas are a good source of potassium for marathon runners."
-    (_, e_entailed, _), (_, e_unrelated, _) = nli.predict(
-        [(premise, entailed), (premise, unrelated)]
-    )
-    assert e_entailed > 0.9
-    assert e_unrelated < 0.1
+# Heading-only-passage exclusion, multi-fragment claims, and the opt-in real-model
+# smoke test continue in `test_support_fragments.py`, sharing this file's fixtures.
