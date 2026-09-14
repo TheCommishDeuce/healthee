@@ -267,6 +267,11 @@ class Settings(BaseSettings):
     map_tile_cache_dir: str = "/var/cache/healthee/tiles"
     map_tile_cache_mb: int = 512
 
+    # Local text embedding (embedding_index.py, Step 2a) — same volume/reasoning as SRTM
+    # above: a torch-free ONNX model whose ~69 MB file must persist across restarts.
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_cache_dir: str = "/var/cache/healthee/embeddings"
+
     # ── Basemap (the tile proxy — core/map_tiles.py) ───────────────────────
     # The upstream template is CONFIGURATION on purpose: the owner may repoint it
     # at a commercial provider or their own rendering stack with no new build of

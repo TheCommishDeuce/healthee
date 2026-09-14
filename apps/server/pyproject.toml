@@ -15,6 +15,11 @@ dependencies = [
     "scipy>=1.18.0",
     "openai>=2.45.0",
     "pyjwt[crypto]>=2.13.0",
+    # Local passage/question embeddings for hybrid retrieval (insights/embedding_index.py).
+    # ONNX Runtime, NOT torch — verified on PyPI 2026-09-14 (fastembed's own requires_dist
+    # has no torch anywhere; the eval group's sentence-transformers pull above is the one
+    # torch dependency in this project, and it must stay opt-in only).
+    "fastembed>=0.8.0",
 ]
 
 [build-system]

@@ -110,6 +110,11 @@ services:
       SRTM_CACHE_DIR: ${SRTM_CACHE_DIR:-/var/cache/healthee/srtm}
       MAP_TILE_CACHE_DIR: ${MAP_TILE_CACHE_DIR:-/var/cache/healthee/tiles}
       MAP_TILE_CACHE_MB: ${MAP_TILE_CACHE_MB:-512}
+      # Local embedding model for hybrid retrieval (Step 2a) — same geocache volume as
+      # the caches above, so the ~69 MB ONNX file is fetched once and survives a
+      # container recreation.
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      EMBEDDING_CACHE_DIR: ${EMBEDDING_CACHE_DIR:-/var/cache/healthee/embeddings}
       # The basemap this deployment proxies, and who it credits. The app talks
       # only to this container; repointing the url needs the attribution changed
       # with it (GET /api/map serves the pair).
@@ -204,6 +209,11 @@ services:
       # container reads and writes the SAME SRTM cache as the api. Sharing the
       # volume is the point: two caches would download every tile twice.
       SRTM_CACHE_DIR: ${SRTM_CACHE_DIR:-/var/cache/healthee/srtm}
+      # The nightly chain's recs/briefing/coach-tool calls go through the same
+      # retrieval ranker as the api, so this container needs the same embedding
+      # cache — sharing the volume, not a second download dir.
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      EMBEDDING_CACHE_DIR: ${EMBEDDING_CACHE_DIR:-/var/cache/healthee/embeddings}
     volumes:
       - healthee-geocache:/var/cache/healthee
     networks:
