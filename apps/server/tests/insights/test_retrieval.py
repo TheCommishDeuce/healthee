@@ -1,4 +1,4 @@
-"""Manifest-ranked retrieval — the fix for legacy dump-all (hole #3).
+"""Manifest-ranked retrieval — the fix for legacy dump-all (hole #3), now hybrid (Step 2a).
 
 Proves a metric's own notes rank to the top and that the full-note count is
 bounded (top-N), with the remainder present only as one-line summaries.
@@ -14,18 +14,39 @@ separators (an alias spelled ``resting-heart-rate`` could not match the phrase "
 heart rate", so the note was unreachable for its own name) and the all-zero tie-break
 (a question no explicit signal covered was answered with the alphabetically-first
 Established notes). The tests for those pin the behaviour AND its bounds — particularly
-that the new weak lexical signal can never outvote an explicit one.
+that neither the lexical signal nor the similarity signal can ever outvote an explicit
+one.
+
+## Step 2a — similarity is ADDITIVE alongside the lexical signal, not a replacement
+
+Measured against the 14 held-out paraphrase probes, the lexical and embedding
+signals catch DIFFERENT probes (the module docstring has the numbers), so both stay:
+``score = explicit + lexical + SIM_WEIGHT * similarity``. Every test in this file that
+does not care about the similarity term runs with it STUBBED to ``{}``
+(:func:`_no_similarity`, autouse) — which makes the hybrid score degrade to exactly the
+pre-Step 2a explicit+lexical score, so every pre-existing test below is unchanged in what it
+proves. Tests that DO care about the similarity signal override the stub explicitly.
+Nothing here reaches the real ``fastembed`` model, network, or disk — see
+``test_embedding_index.py`` for that layer's own tests, and its opt-in real-model smoke
+test.
 """
 
 from __future__ import annotations
 
+import logging
 import re
 
+import pytest
+
+from healthee.insights import retrieval
+from healthee.insights.embedding_index import EmbeddingIndexUnavailableError
 from healthee.insights.manifest import ManifestNote, all_notes
 from healthee.insights.morning import DAILY_ACTION_METRICS, DAILY_ACTION_PROMPT
 from healthee.insights.retrieval import (
     _ALIAS_HIT,
     _LEXICAL_CAP,
+    _METRIC_HIT,
+    SIM_WEIGHT,
     _alias_hits,
     _content_tokens,
     _score,
@@ -33,6 +54,25 @@ from healthee.insights.retrieval import (
     evidence_section,
     rank_notes,
 )
+
+
+@pytest.fixture(autouse=True)
+def _no_similarity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default stub: every note has zero similarity, so hybrid == explicit+lexical.
+
+    A test that wants a real (fake) similarity calls ``monkeypatch.setattr`` again with
+    its own dict or exception — the later patch wins, exactly like any other fixture
+    override in this test suite.
+    """
+    monkeypatch.setattr(retrieval.embedding_index, "note_scores", lambda _q: {})
+    retrieval.reset_embedding_warning()
+
+
+def _relevance(note_id: str, question: str, metrics: tuple[str, ...] = ()) -> float:
+    note = next(n for n in all_notes() if n.id == note_id)
+    return _score(
+        note, _tokens(question), question.lower(), set(metrics), _content_tokens(question), {}
+    )
 
 
 def test_metric_notes_rank_to_the_top() -> None:
@@ -55,16 +95,16 @@ def test_evidence_section_bounds_full_notes() -> None:
 
 
 def test_evidence_section_is_empty_without_a_corpus_match_still_lists_notes() -> None:
+    """``evidence_section`` embeds top-N UNCONDITIONALLY (no relevance floor, Step 2a).
+
+    A floor was tried and measured: the on-topic/off-topic similarity bands overlap
+    (~0.62–0.65 either way over the 44-question task report), so a threshold there can
+    silently starve a genuine question of every note. Every note stays reachable —
+    the ranker only ever reorders.
+    """
     md, top_ids = evidence_section("anything", metrics=[])
     assert top_ids  # notes are always available to cite (ranker only reorders)
     assert "# EVIDENCE NOTES" in md
-
-
-def _relevance(note_id: str, question: str, metrics: tuple[str, ...] = ()) -> int:
-    note = next(n for n in all_notes() if n.id == note_id)
-    return _score(
-        note, _tokens(question), question.lower(), set(metrics), _content_tokens(question)
-    )
 
 
 def test_a_single_letter_alias_does_not_match_inside_a_word() -> None:
@@ -154,6 +194,10 @@ def test_a_plain_question_no_longer_retrieves_the_alphabetically_first_notes() -
     cadence_intensity, caffeine_sleep, critical_speed and environmental_stress — ~30k
     tokens of full notes, selected by spelling. The honest fallback it produced was the
     right output for that evidence, which is why this reads as a grounding fix.
+
+    Run with the similarity stub still at ``{}`` (no Step 2a signal at all) — this is the
+    EXPLICIT+LEXICAL guarantee the alias pass already bought, unaffected by hybrid
+    scoring, and exactly what the fallback path degrades to when the model is down.
     """
     question = "Should I train hard today or take it easy? Base it on my recovery."
     top = [n.id for n in rank_notes(question)[:6]]
@@ -187,7 +231,7 @@ def test_the_lexical_signal_can_never_outvote_an_alias_hit() -> None:
         path="",
         category="x",
     )
-    args = (_tokens(question), question.lower(), set(), _content_tokens(question))
+    args = (_tokens(question), question.lower(), set(), _content_tokens(question), {})
     assert _score(wordy, *args) == _LEXICAL_CAP
     assert _score(named, *args) > _score(wordy, *args)
 
@@ -201,7 +245,9 @@ def test_function_words_alone_score_nothing() -> None:
     notes on any prompt containing it (the shipped ``metric_insight`` prompt says "If
     it's off my baseline"). Word boundaries could never have caught that one — "if" is a
     whole word. An alias that is a function word is now dropped, so this reads as
-    written.
+    written. Run with the similarity stub at ``{}`` — a real embedding rarely scores
+    exactly 0.0, so this guarantee lives at the explicit+lexical layer, same as before
+    Step 2a existed.
     """
     question = "what should I do about this and that, if you could tell me?"
     assert _content_tokens(question) == frozenset()
@@ -222,3 +268,97 @@ def test_the_embedded_notes_carry_no_bibliography() -> None:
     """The evidence section embeds ``prompt_body``: no note is citable by paper."""
     md, _ids = evidence_section("how are my steps", metrics=["steps_total"])
     assert not re.search(r"^##\s+(?:key\s+)?references\b", md, re.I | re.M)
+
+
+# ── Step 2a · the similarity signal is additive, bounded, and falls back honestly ──
+
+
+def test_a_similarity_hit_reorders_otherwise_tied_notes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two notes with zero explicit AND zero lexical signal: the model's pick wins."""
+    all_ids = [n.id for n in all_notes()]
+    a, b = all_ids[0], all_ids[1]
+    monkeypatch.setattr(retrieval.embedding_index, "note_scores", lambda _q: {a: 0.9, b: 0.1})
+    ranked = rank_notes("zzqx flurbnop wibbleplex")
+    assert ranked[0].id == a
+
+
+def test_the_similarity_signal_can_never_outvote_a_metric_or_id_hit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Step 2a's whole safety argument: however strong the similarity, it cannot beat an
+    explicit metric hit, let alone an id hit — this is what makes it safe to trust a
+    real (if imperfect) model instead of hand-tuned vocabulary alone."""
+    named = ManifestNote(
+        id="named", name="Named", grade="Established", summary="", path="", category="x"
+    )
+    monkeypatch.setattr(retrieval.embedding_index, "note_scores", lambda _q: {"named": 1.0})
+    q_tokens, q_text = _tokens("does this matter"), "does this matter"
+    q_content = _content_tokens("does this matter")
+    max_sim_score = _score(named, q_tokens, q_text, set(), q_content, {"named": 1.0})
+    assert max_sim_score == pytest.approx(SIM_WEIGHT)
+    assert max_sim_score < _METRIC_HIT
+    metric_note = ManifestNote(
+        id="metric_note",
+        name="Metric",
+        grade="Established",
+        summary="",
+        path="",
+        category="x",
+        applies_to_metrics=("steps_total",),
+    )
+    metric_score = _score(metric_note, q_tokens, q_text, {"steps_total"}, q_content, {})
+    assert metric_score > max_sim_score
+
+
+def test_a_strong_similarity_is_worth_about_one_alias_hit() -> None:
+    """Calibration point named in the module docstring: 0.6 cosine ≈ one alias hit."""
+    note = ManifestNote(id="n", name="N", grade="Established", summary="", path="", category="x")
+    contribution = _score(note, set(), "", set(), frozenset(), {"n": 0.6})
+    assert contribution == pytest.approx(_ALIAS_HIT, abs=1.0)
+
+
+def test_embedder_unavailable_falls_back_to_the_explicit_and_lexical_ranking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fallback is TODAY'S shipped ranking (explicit + lexical), not the alphabet —
+    Step 2a's similarity term simply drops out, leaving the alias pass's own protection."""
+
+    def _boom(_question: str) -> dict[str, float]:
+        raise EmbeddingIndexUnavailableError("simulated: no model file, no network")
+
+    monkeypatch.setattr(retrieval.embedding_index, "note_scores", _boom)
+    question = "Should I train hard today or take it easy? Base it on my recovery."
+    fallback_ranking = [n.id for n in rank_notes(question)]
+
+    monkeypatch.setattr(retrieval.embedding_index, "note_scores", lambda _q: {})
+    explicit_and_lexical_ranking = [n.id for n in rank_notes(question)]
+    assert fallback_ranking == explicit_and_lexical_ranking
+    assert "recovery_readiness" in fallback_ranking[:6]
+    assert "alcohol_sleep" not in fallback_ranking[:6]
+
+
+def test_the_fallback_warning_is_logged_once_per_process(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def _boom(_question: str) -> dict[str, float]:
+        raise EmbeddingIndexUnavailableError("simulated: no model file, no network")
+
+    monkeypatch.setattr(retrieval.embedding_index, "note_scores", _boom)
+    with caplog.at_level(logging.WARNING, logger="healthee.insights.retrieval"):
+        rank_notes("first question")
+        rank_notes("second question")
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "embedding index unavailable" in warnings[0].message
+
+
+def test_an_unrelated_exception_is_not_swallowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only ``EmbeddingIndexUnavailableError`` degrades gracefully — anything else
+    (a real bug) must propagate, per the module docstring's failure policy."""
+
+    def _boom(_question: str) -> dict[str, float]:
+        raise ValueError("simulated corpus/numpy bug, not a model-load failure")
+
+    monkeypatch.setattr(retrieval.embedding_index, "note_scores", _boom)
+    with pytest.raises(ValueError, match="simulated corpus/numpy bug"):
+        rank_notes("does this propagate")

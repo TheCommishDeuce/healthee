@@ -43,6 +43,11 @@ scratch/
 .turbo/
 *.tsbuildinfo
 
+# local test cache for the Step 2a embedding index (tests/conftest.py points
+# EMBEDDING_CACHE_DIR here so the recall tests reuse a real build across runs
+# instead of re-downloading/re-embedding every session)
+apps/server/.cache/
+
 # os / editor
 .DS_Store
 .idea/

@@ -9,11 +9,33 @@ the alias list cannot move this number, and a genuine embedding/ranking improvem
 exactly what would.
 
 Measured 2026-09-14 at commit 3ba0c60 (the tip this file was written against — retrieval
-itself is untouched by anyone as of this measurement): recall@6 = 10/14 = 0.714 (71.4%),
+itself is untouched by anyone as of that measurement): recall@6 = 10/14 = 0.714 (71.4%),
 with four real misses: ``pp_dragging``, ``pp_shut_eye``, ``pp_espresso``, ``pp_desk_job``.
-Deliberately NOT tuned into hits — a miss here is this test doing its job, and closing it
-is what the next retrieval change is FOR (the same ratchet discipline as the pinned set's
-own miss targets, one level higher: this time immune to an alias-only fix).
+
+## Step 2a — hybrid retrieval: similarity ADDED alongside the lexical signal
+
+The first hybrid cut REPLACED the lexical tie-break with a real cosine-similarity
+signal (``insights/embedding_index.py``, ``BAAI/bge-small-en-v1.5``) and measured a net
+LOSS here (9/14 — it fixed ``pp_espresso``/``pp_desk_job`` but lost three probes the
+lexical signal alone already caught: ``pp_hrv_spelled``, ``pp_five_hours``,
+``pp_grumpy_morning``). Restored as an ADDITIVE third signal instead (explicit +
+lexical + similarity, see ``retrieval.py``'s module docstring) — re-measured
+2026-09-14: recall@6 = **11/14 = 0.786 (78.6%)**, a clean gain over the documented
+baseline with NO probe the baseline hit now missing: all three lexical-only wins are
+back, plus ``pp_desk_job`` newly hit by similarity.
+
+``pp_espresso`` is now a regression relative to the similarity-only cut (not relative
+to the baseline, which already missed it) — inspected directly: ``caffeine_sleep``
+carries the HIGHEST raw similarity (0.741) of any note for "Does an afternoon espresso
+wreck my night?", but zero lexical overlap, while ``napping`` shares two lexical terms
+("afternoon", "night" — both real words, neither a stopword) worth +2 on top of its own
+0.686 similarity, enough to outscore it (7.49 vs 5.93). A measured interaction between
+two additive weak signals, not a bug in either one; not tuned against, per instruction.
+
+``pp_dragging`` and ``pp_shut_eye`` remain misses under every configuration tried so
+far — closing them is what a genuine passage-level or entailment-aware improvement is
+for (``embedding_index.py``'s own docstring names this as the next step), not a
+retrieval.py weight tweak.
 """
 
 from __future__ import annotations
@@ -39,6 +61,7 @@ _PINNED_HITS: frozenset[str] = frozenset(
         "pp_ticker",
         "pp_hrv_spelled",
         "pp_snooze",
+        "pp_desk_job",
         "pp_overtraining",
         "pp_late_dinner",
         "pp_five_hours",
@@ -46,12 +69,11 @@ _PINNED_HITS: frozenset[str] = frozenset(
     }
 )
 
-# Named for the report: these four miss on today's ranker, on purpose (see module
-# docstring) — the targets a genuine retrieval improvement (not another alias) should
-# turn into hits.
-_KNOWN_MISSES: frozenset[str] = frozenset(
-    {"pp_dragging", "pp_shut_eye", "pp_espresso", "pp_desk_job"}
-)
+# Named for the report: these three miss on today's (additive hybrid) ranker, on
+# purpose (see module docstring). ``pp_dragging``/``pp_shut_eye`` are the still-open
+# originals; ``pp_espresso`` is a measured interaction between the lexical and
+# similarity signals (see module docstring) — none of the three is a weight to tune.
+_KNOWN_MISSES: frozenset[str] = frozenset({"pp_dragging", "pp_shut_eye", "pp_espresso"})
 
 
 def _phrase_in_text(phrase: str, text: str) -> bool:
@@ -135,7 +157,7 @@ def test_paraphrase_recall_matches_the_pinned_baseline() -> None:
 
 
 def test_the_known_misses_are_exactly_the_unpinned_probes() -> None:
-    """The four misses named in the module docstring are named ON PURPOSE, not left
+    """The three misses named in the module docstring are named ON PURPOSE, not left
     implicit as "everything not in _PINNED_HITS" — a probe added later with no opinion
     recorded either way would otherwise silently join this set unexamined."""
     all_ids = {probe.id for probe in PARAPHRASE_PROBES}

@@ -10,13 +10,40 @@ tokens, so the same "top 6" measured between 18k and 41k tokens across our surfa
 this section is 65–83% of every prompt the product sends.
 
 The ranking signals, strongest first: the note's id named literally · a metric in play ·
-an intervention named · an alias matched as a word (separator-insensitive) · content
-words shared with the note's name/aliases/summary, capped well below an alias hit. The
-last one exists because the four above are all EXPLICIT: when none of them fires the
-score is zero for every note in the corpus, and the deterministic id fallback then chose
-the top-6 alphabetically. A question can be perfectly clear to a person and score zero
-here — "Should I train hard today or take it easy?" did — so the weak signal is what
-stands between a plain question and the alphabet.
+an intervention named · an alias matched as a word (separator-insensitive) · a bounded
+SIMILARITY signal (Step 2a, below) · content words shared with the note's name/aliases/
+summary, capped well below one alias hit. The last two exist because the first four are
+all EXPLICIT: when none of them fires, a question can still be perfectly clear to a
+person and score zero here — "Should I train hard today or take it easy?" did — so the
+weak signals are what stand between a plain question and the alphabet.
+
+## Step 2a — hybrid: a real similarity signal, ADDED alongside the lexical one
+
+An embedding similarity (``embedding_index.note_scores`` — a local, torch-free ONNX
+model, the max cosine similarity over a note's passages) was first built to REPLACE the
+lexical tie-break, on the theory that a weak word-overlap count was strictly worse than
+a real semantic signal. Measured against the 14 held-out paraphrase probes, that theory
+was only half true: the two signals catch **different** probes. Lexical alone (today's
+shipped ranking, no similarity) already hits ``pp_hrv_spelled``, ``pp_five_hours`` and
+``pp_grumpy_morning`` on vocabulary the note's own name/summary happens to share;
+similarity alone hits ``pp_espresso`` and ``pp_desk_job``, which share no vocabulary at
+all with their target notes. Replacing one with the other traded a net LOSS (10/14 →
+9/14) for a gain the corpus didn't actually need to give up. So both signals are
+additive: ``score = explicit + LEXICAL_HIT * lexical_hits + SIM_WEIGHT * similarity``.
+An explicit hit still dominates both, by construction: :data:`SIM_WEIGHT` tops out at
+8.0, :data:`_LEXICAL_HIT` is capped at 4 (:data:`_LEXICAL_CAP`), and one metric or
+intervention hit alone (10) already outweighs either at its maximum.
+
+This also means the FALLBACK path — the local embedding model unavailable, similarity
+term forced to zero (see :func:`_note_similarities`) — degrades to exactly the ranking
+that shipped before this file added similarity at all, lexical tie-break included, not
+to the pre-alias-pass alphabet. ``evidence_section`` embeds the top-N notes
+unconditionally, as it always has: a bounded-relevance "floor" that would withhold every
+note below some similarity threshold was tried and measured (task report) to sit inside
+a band where genuinely off-topic and genuinely on-topic questions overlap (~0.62–0.65
+either way) — a mechanism that cannot do its job and can silently starve a real question
+of every note is worse than none. Out-of-domain questions are the deterministic
+pre-classifier's job (INTELLIGENCE.md section 3), not retrieval's.
 """
 
 from __future__ import annotations
@@ -24,7 +51,12 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
+from healthee.core.logging import get_logger
+from healthee.insights import embedding_index
+from healthee.insights.embedding_index import EmbeddingIndexUnavailableError
 from healthee.insights.manifest import GRADE_RANK, ManifestNote, all_notes, prompt_body
+
+log = get_logger(__name__)
 
 DEFAULT_TOP_N = 6
 
@@ -36,6 +68,19 @@ _LEXICAL_HIT = 1  # a content word shared with the note's name/aliases/summary
 # The lexical signal is CAPPED below one alias hit on purpose: it exists to order notes
 # that the explicit signals cannot tell apart, and must never outvote a real one.
 _LEXICAL_CAP = 4
+
+# The similarity signal's weight (Step 2a). Calibrated at 0.6 cosine ≈ one alias hit:
+# 0.6 * 8.0 = 4.8. Measured over the 30 eval questions + 14 paraphrase probes (Step 2a task
+# report), 0.6 sits near the BOTTOM of the on-topic range, not the top —
+# bge-small-en-v1.5's cosine similarity against this corpus runs high for almost any
+# plausible English sentence (min 0.622, median 0.743, max 0.845 across all 44), so the
+# useful discriminative range this weight has to work with is narrow — roughly 4.8 to
+# 6.8 points of "excess" score above that baseline. At its theoretical maximum (a
+# perfect 1.0, never actually observed) it contributes 8.0 — still below one metric or
+# intervention hit (10) and nowhere near an id hit (100), so an explicit signal always
+# outranks similarity alone, exactly like the lexical signal's own cap.
+SIM_WEIGHT = 8.0
+
 _WORD = re.compile(r"[a-z0-9_]+")
 
 # English function words only — deliberately NOT a health-domain stoplist. The whole
@@ -156,8 +201,43 @@ def _lexical_hits(note: ManifestNote, q_content: frozenset[str]) -> int:
 
     Weak by construction (:data:`_LEXICAL_CAP` sits below one alias hit): it may order
     notes the explicit signals cannot distinguish, and may never outrank one of them.
+    Kept ADDITIVE alongside Step 2a's similarity signal (see the module docstring) rather
+    than replaced by it — measured, the two catch different held-out paraphrases.
     """
     return min(len(q_content & _lexical_terms(note)), _LEXICAL_CAP)
+
+
+_warned_embedding_unavailable = False
+
+
+def _note_similarities(question: str) -> dict[str, float]:
+    """Best-passage cosine similarity per note for ``question`` — ``{}`` on fallback.
+
+    ``{}`` specifically when the local embedding model is unavailable: logged once per
+    process at WARNING (naming the fix), never re-raised. A health-answer surface that
+    cannot load the ONNX model must still answer from explicit + lexical signals rather
+    than go down — see the module docstring on why that fallback is the pre-Step 2a ranking,
+    not the pre-alias-pass alphabet. Any OTHER exception (a corrupt passage, a numpy
+    shape bug) is a real bug in this product's own code and propagates unchanged.
+    """
+    global _warned_embedding_unavailable
+    try:
+        return embedding_index.note_scores(question)
+    except EmbeddingIndexUnavailableError as exc:
+        if not _warned_embedding_unavailable:
+            log.warning(
+                "embedding index unavailable (%s) — retrieval falls back to "
+                "explicit + lexical ranking only for the rest of this process",
+                exc,
+            )
+            _warned_embedding_unavailable = True
+        return {}
+
+
+def reset_embedding_warning() -> None:
+    """Test seam only: clears the once-per-process fallback-warning latch."""
+    global _warned_embedding_unavailable
+    _warned_embedding_unavailable = False
 
 
 def _score(
@@ -166,15 +246,17 @@ def _score(
     q_text: str,
     metrics: set[str],
     q_content: frozenset[str],
-) -> int:
+    note_sim: dict[str, float],
+) -> float:
     """Relevance of one note to the question + active metrics (higher = better)."""
-    score = 0
+    score = 0.0
     if note.id and note.id in q_tokens:
         score += _DIRECT_ID
     score += _METRIC_HIT * len(metrics.intersection(note.applies_to_metrics))
     score += _INTERVENTION_HIT * sum(1 for iv in note.applies_to_interventions if iv in q_tokens)
     score += _ALIAS_HIT * _alias_hits(note, q_text)
     score += _LEXICAL_HIT * _lexical_hits(note, q_content)
+    score += SIM_WEIGHT * note_sim.get(note.id, 0.0)
     return score
 
 
@@ -193,10 +275,11 @@ def rank_notes(question: str, metrics: list[str] | None = None) -> list[Manifest
     q_tokens = _tokens(question)
     q_content = _content_tokens(question)
     metric_set = set(metrics or [])
+    note_sim = _note_similarities(question)
     return sorted(
         all_notes(),
         key=lambda n: (
-            -_score(n, q_tokens, q_text, metric_set, q_content),
+            -_score(n, q_tokens, q_text, metric_set, q_content, note_sim),
             -GRADE_RANK.get(n.grade, 0),
             n.id,
         ),

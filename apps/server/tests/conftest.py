@@ -41,6 +41,7 @@ from uuid import UUID
 import psycopg
 import pytest
 from psycopg import sql
+from tests._embedding_cache import _embedding_cache_is_reachable  # noqa: F401 - autouse fixture
 from tests._isolation import TEST_APP_ROLE, TEST_DATABASE, create_database, drop_database
 
 from healthee.core import db as db_module
