@@ -109,3 +109,76 @@ def test_a_second_grant_replaces_the_first_rather_than_erroring(clean: None) -> 
         )
         row = cur.fetchone()
     assert row == ("comp_24mo", "fable")
+
+
+# ── the per-owner coach cap (0022) ────────────────────────────────────────────
+
+
+def _row() -> tuple[object, ...] | None:
+    """``(plan, current_period_end, coach_questions)`` for the seeded owner, or None."""
+    with admin_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT plan, current_period_end, coach_questions FROM subscription WHERE user_id = %s",
+            (SENTINEL_USER_ID,),
+        )
+        return cur.fetchone()
+
+
+def test_a_grant_can_set_the_owner_coach_cap(clean: None) -> None:  # noqa: ARG001
+    owner = str(SENTINEL_USER_ID)
+    assert grant_premium.main([owner, "--months", "12", "--coach-questions", "20", "--apply"]) == 0
+    row = _row()
+    assert row is not None
+    assert row[2] == 20
+
+
+def test_a_cap_only_change_leaves_the_term_exactly_as_found(clean: None) -> None:  # noqa: ARG001
+    """How an operator lifts their own cap without re-dating a comp that runs to 2036."""
+    owner = str(SENTINEL_USER_ID)
+    grant_premium.main([owner, "--months", "12", "--apply"])
+    before = _row()
+    assert grant_premium.main([owner, "--coach-questions", "unlimited", "--apply"]) == 0
+    after = _row()
+    assert before is not None and after is not None
+    assert after[:2] == before[:2], "a cap-only change re-dated or re-planned the grant"
+    assert after[2] == 0
+
+
+def test_renewing_without_the_flag_keeps_the_cap(clean: None) -> None:  # noqa: ARG001
+    """A renewal that nulled the cap would hand a capped guest the default on every renew."""
+    owner = str(SENTINEL_USER_ID)
+    grant_premium.main([owner, "--months", "1", "--coach-questions", "5", "--apply"])
+    grant_premium.main([owner, "--months", "24", "--apply"])
+    row = _row()
+    assert row is not None
+    assert row[0] == "comp_24mo"
+    assert row[2] == 5, "renewing the term quietly reset the owner's cap"
+
+
+def test_default_hands_the_owner_back_to_the_deployment_cap(clean: None) -> None:  # noqa: ARG001
+    owner = str(SENTINEL_USER_ID)
+    grant_premium.main([owner, "--months", "12", "--coach-questions", "5", "--apply"])
+    assert grant_premium.main([owner, "--coach-questions", "default", "--apply"]) == 0
+    row = _row()
+    assert row is not None
+    assert row[2] is None
+
+
+def test_a_cap_only_change_refuses_an_owner_with_no_grant(clean: None) -> None:  # noqa: ARG001
+    """There is no grant to cap — and a refusal must not leave a half-row behind."""
+    owner = str(SENTINEL_USER_ID)
+    assert grant_premium.main([owner, "--coach-questions", "20", "--apply"]) == 2
+    assert _row() is None, "a refused cap change still created a subscription row"
+
+
+@pytest.mark.parametrize("raw", ["-1", "lots", ""])
+def test_it_refuses_a_cap_that_is_not_a_cap(clean: None, raw: str) -> None:  # noqa: ARG001
+    owner = str(SENTINEL_USER_ID)
+    assert grant_premium.main([owner, "--months", "12", "--coach-questions", raw, "--apply"]) == 2
+    assert _row() is None, f"a refused cap {raw!r} still wrote the grant"
+
+
+def test_the_dry_run_with_a_cap_writes_nothing(clean: None) -> None:  # noqa: ARG001
+    owner = str(SENTINEL_USER_ID)
+    assert grant_premium.main([owner, "--months", "12", "--coach-questions", "3"]) == 0
+    assert _row() is None

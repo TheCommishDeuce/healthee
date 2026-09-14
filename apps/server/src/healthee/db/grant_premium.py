@@ -3,6 +3,8 @@
     uv run python -m healthee.db.grant_premium <user-uuid> --months 12          # DRY RUN
     uv run python -m healthee.db.grant_premium <user-uuid> --months 12 --apply
     uv run python -m healthee.db.grant_premium <user-uuid> --revoke --apply
+    uv run python -m healthee.db.grant_premium <user-uuid> --months 12 --coach-questions 20 --apply
+    uv run python -m healthee.db.grant_premium <user-uuid> --coach-questions unlimited --apply
 
 A committed ops module, run like the migration runner and modelled on
 ``db/claim_sentinel.py`` — same dry-run-by-default shape, same argument, same reason:
@@ -24,6 +26,17 @@ When 6.6b lands, a signature-verified webhook writes the same row with
 ``provider``/``provider_ref`` set; this stays for comps, support, and the operator's
 own account. Both write the SAME table, which is the point — one source of truth
 (§12.7), not a config flag the webhook path would not know about.
+
+## The coach cap is per owner too (0022)
+
+``--coach-questions`` writes ``subscription.coach_questions``: a number is that many
+questions per rolling window, ``unlimited`` (or ``0``) removes the cap, and ``default``
+hands the owner back to the deployment's ``PREMIUM_COACH_QUESTIONS``. Leave the flag off
+and the stored value is kept, so renewing a term never quietly resets somebody's cap.
+
+Alone (no ``--months``, no ``--revoke``) it changes the cap and nothing else, which is
+how an operator lifts their own cap without re-dating a comp. That form needs an existing
+row, because otherwise there is no grant to put a cap on.
 
 ## What it refuses
 
@@ -74,12 +87,53 @@ _UPSERT_SQL = (
 )
 
 _READ_SQL = (
-    "SELECT status, plan, trial_end, current_period_end FROM subscription WHERE user_id = %s"
+    "SELECT status, plan, trial_end, current_period_end, coach_questions "
+    "FROM subscription WHERE user_id = %s"
 )
+
+# The cap is its own statement rather than a column in the upsert, so a grant that did
+# not ask to change it leaves the stored value alone instead of nulling it.
+_CAP_SQL = "UPDATE subscription SET coach_questions = %s, updated_at = now() WHERE user_id = %s"
 
 
 class GrantRefusedError(Exception):
     """The grant cannot be made safely — refuse rather than guess at the owner."""
+
+
+@dataclass(frozen=True)
+class CapChange:
+    """A requested change to one owner's coach cap. ``value`` None = the deployment default."""
+
+    value: int | None
+
+
+def parse_coach_questions(raw: str) -> CapChange:
+    """``--coach-questions``: a count, ``unlimited``, or ``default``.
+
+    Anything else is refused rather than guessed at — a cap is a spend decision, and a
+    misread one is somebody else's questions on the operator's bill.
+    """
+    word = raw.strip().lower()
+    if word == "default":
+        return CapChange(None)
+    if word == "unlimited":
+        return CapChange(0)
+    try:
+        value = int(word)
+    except ValueError as exc:
+        raise GrantRefusedError(
+            f"--coach-questions takes a number, 'unlimited' or 'default', not {raw!r}"
+        ) from exc
+    if value < 0:
+        raise GrantRefusedError("--coach-questions cannot be negative (0 or 'unlimited' = no cap)")
+    return CapChange(value)
+
+
+def cap_label(value: int | None) -> str:
+    """How a stored cap reads to an operator."""
+    if value is None:
+        return "deployment default"
+    return "unlimited" if value == 0 else f"{value} per rolling window"
 
 
 @dataclass(frozen=True)
@@ -90,8 +144,12 @@ class GrantPlan:
     email: str | None
     status: str
     plan: str | None
-    current_period_end: datetime
+    current_period_end: datetime | None
     before: str
+    # False for a cap-only change: the term the row already has is left exactly as found.
+    writes_term: bool = True
+    # None when the cap is not being changed; otherwise what it becomes.
+    cap: CapChange | None = None
 
 
 def _identity(cur: Cursor[TupleRow], user_id: UUID) -> tuple[bool, str | None]:
@@ -104,19 +162,40 @@ def _identity(cur: Cursor[TupleRow], user_id: UUID) -> tuple[bool, str | None]:
     return (row is not None, row[0] if row else None)
 
 
-def _current(cur: Cursor[TupleRow], user_id: UUID) -> str:
-    """A one-line description of the entitlement being replaced."""
+def _stored(cur: Cursor[TupleRow], user_id: UUID) -> Subscription | None:
+    """The row as it stands before this run, or None."""
     cur.execute(_READ_SQL, (user_id,))
     row = cur.fetchone()
     if row is None:
+        return None
+    return Subscription(
+        status=row[0],
+        plan=row[1],
+        trial_end=row[2],
+        current_period_end=row[3],
+        coach_questions=row[4],
+    )
+
+
+def _describe(stored: Subscription | None) -> str:
+    """A one-line description of the entitlement being replaced."""
+    if stored is None:
         return "no subscription row"
-    stored = Subscription(status=row[0], plan=row[1], trial_end=row[2], current_period_end=row[3])
     verdict = evaluate(stored)
-    return f"{stored.status} (premium={verdict.premium}, ends {stored.current_period_end})"
+    return (
+        f"{stored.status} (premium={verdict.premium}, ends {stored.current_period_end}, "
+        f"coach: {cap_label(stored.coach_questions)})"
+    )
 
 
 def plan_grant(
-    cur: Cursor[TupleRow], user_id: UUID, months: int, *, revoke: bool, now: datetime
+    cur: Cursor[TupleRow],
+    user_id: UUID,
+    months: int,
+    *,
+    revoke: bool,
+    now: datetime,
+    coach_questions: str | None = None,
 ) -> GrantPlan:
     """What would change, or raise ``GrantRefusedError``. Never writes."""
     exists, email = _identity(cur, user_id)
@@ -126,17 +205,39 @@ def plan_grant(
             "unverified UUID is a typo away from paying for a stranger; provision them "
             "first (sign in once with Supabase), then re-run."
         )
+    cap = parse_coach_questions(coach_questions) if coach_questions is not None else None
+    stored = _stored(cur, user_id)
+    before = _describe(stored)
     if revoke:
-        return GrantPlan(user_id, email, "canceled", None, now, _current(cur, user_id))
+        return GrantPlan(user_id, email, "canceled", None, now, before, cap=cap)
     if months < 1:
-        raise GrantRefusedError("--months must be at least 1 (or use --revoke)")
+        if cap is None:
+            raise GrantRefusedError("--months must be at least 1 (or use --revoke)")
+        if stored is None:
+            raise GrantRefusedError(
+                f"{user_id} has no subscription row, so there is no grant to put a cap on. "
+                "Grant a term with --months (the cap can go in the same command), or leave "
+                "them on PREMIUM_COACH_QUESTIONS, where every owner without a cap of their "
+                "own already is."
+            )
+        return GrantPlan(
+            user_id=user_id,
+            email=email,
+            status=stored.status,
+            plan=stored.plan,
+            current_period_end=stored.current_period_end,
+            before=before,
+            writes_term=False,
+            cap=cap,
+        )
     return GrantPlan(
         user_id=user_id,
         email=email,
         status="active",
         plan=f"comp_{months}mo",
         current_period_end=now + timedelta(days=months * _DAYS_PER_MONTH),
-        before=_current(cur, user_id),
+        before=before,
+        cap=cap,
     )
 
 
@@ -147,20 +248,37 @@ def _report(grant_plan: GrantPlan, *, applied: bool) -> None:
     )
     log.info("  email:   %s", grant_plan.email or "(none — the sentinel owner has no email)")
     log.info("  before:  %s", grant_plan.before)
-    log.info("  after:   %s (plan=%s)", grant_plan.status, grant_plan.plan or "-")
-    log.info("  through: %s", grant_plan.current_period_end.isoformat())
+    if grant_plan.writes_term:
+        log.info("  after:   %s (plan=%s)", grant_plan.status, grant_plan.plan or "-")
+        through = grant_plan.current_period_end
+        log.info("  through: %s", through.isoformat() if through else "-")
+    else:
+        log.info("  term:    unchanged")
+    if grant_plan.cap is None:
+        log.info("  coach:   unchanged")
+    else:
+        log.info("  coach:   %s", cap_label(grant_plan.cap.value))
     if not applied:
         log.info("Re-run with --apply to write it. Nothing has changed.")
 
 
 def run(
-    user_id: UUID, months: int, *, revoke: bool, apply: bool, granted_by: str, note: str
+    user_id: UUID,
+    months: int,
+    *,
+    revoke: bool,
+    apply: bool,
+    granted_by: str,
+    note: str,
+    coach_questions: str | None = None,
 ) -> int:
     """Plan the grant, report it, and write it only when ``apply``. Returns an exit code."""
     now = datetime.now(tz=UTC)
     with admin_connection() as conn, conn.cursor() as cur:
-        grant_plan = plan_grant(cur, user_id, months, revoke=revoke, now=now)
-        if apply:
+        grant_plan = plan_grant(
+            cur, user_id, months, revoke=revoke, now=now, coach_questions=coach_questions
+        )
+        if apply and grant_plan.writes_term:
             cur.execute(
                 _UPSERT_SQL,
                 (
@@ -172,6 +290,9 @@ def run(
                     note or None,
                 ),
             )
+        # After the upsert, so a first grant has a row for the cap to land on.
+        if apply and grant_plan.cap is not None:
+            cur.execute(_CAP_SQL, (grant_plan.cap.value, grant_plan.user_id))
     _report(grant_plan, applied=apply)
     return 0
 
@@ -186,6 +307,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--apply", action="store_true", help="actually write it (default: dry run)")
     parser.add_argument("--by", default="ops", help="who granted it — stored in granted_by")
     parser.add_argument("--note", default="", help="why — stored in note")
+    parser.add_argument(
+        "--coach-questions",
+        default=None,
+        metavar="N|unlimited|default",
+        help="this owner's coach cap; on its own changes only the cap (default: keep it)",
+    )
     return parser
 
 
@@ -201,6 +328,7 @@ def main(argv: list[str] | None = None) -> int:
             apply=args.apply,
             granted_by=args.by,
             note=args.note,
+            coach_questions=args.coach_questions,
         )
     except GrantRefusedError as exc:
         log.error("refused: %s", exc)

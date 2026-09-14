@@ -214,7 +214,9 @@ def test_a_feature_capped_later_appears_without_anyone_editing_the_endpoint(
     too, the day it was forgotten a paying owner would hit a limit that no surface admits
     exists.
     """
-    monkeypatch.setattr(gate, "premium_allowance", lambda: {gate.COACH: 20, gate.NOTABLE: 3})
+    monkeypatch.setattr(
+        gate, "premium_allowance", lambda _coach_questions=None: {gate.COACH: 20, gate.NOTABLE: 3}
+    )
     by_feature = {entry["feature"]: entry for entry in _included(bed)}
     assert set(by_feature) == {gate.COACH, gate.NOTABLE}
     assert by_feature[gate.NOTABLE]["limit"] == 3

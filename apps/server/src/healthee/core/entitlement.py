@@ -101,18 +101,23 @@ SOURCE_SELF_HOST = "self_host"
 SOURCE_NONE = "none"
 
 _READ_SQL = (
-    "SELECT status, plan, trial_end, current_period_end FROM subscription WHERE user_id = %s"
+    "SELECT status, plan, trial_end, current_period_end, coach_questions "
+    "FROM subscription WHERE user_id = %s"
 )
 
 
 @dataclass(frozen=True)
 class Subscription:
-    """The stored entitlement row, reduced to the four fields the rule reads."""
+    """The stored entitlement row, reduced to the fields the rule and the coach cap read."""
 
     status: str
     plan: str | None
     trial_end: datetime | None
     current_period_end: datetime | None
+    # This owner's coach cap: None defers to the deployment's PREMIUM_COACH_QUESTIONS,
+    # 0 is unlimited, N is N per rolling window (0022). Defaulted, so a row built by
+    # hand for the status matrix does not have to say anything about the coach.
+    coach_questions: int | None = None
 
 
 @dataclass(frozen=True)
@@ -129,6 +134,9 @@ class Entitlement:
     source: str
     plan: str | None
     expires_at: datetime | None
+    # The owner's own cap, carried to the gate and the meter so both take it from the
+    # ONE row read that decided `premium`, rather than asking the table a second time.
+    coach_questions: int | None = None
 
 
 def evaluate(row: Subscription | None, now: datetime | None = None) -> Entitlement:
@@ -146,6 +154,7 @@ def evaluate(row: Subscription | None, now: datetime | None = None) -> Entitleme
             source=SOURCE_SELF_HOST,
             plan=row.plan if row else None,
             expires_at=None,  # a self-hosted unlock has no term — there is nothing to renew
+            coach_questions=row.coach_questions if row else None,
         )
     if row is None:
         return Entitlement(False, NO_SUBSCRIPTION, SOURCE_NONE, None, None)
@@ -157,6 +166,7 @@ def evaluate(row: Subscription | None, now: datetime | None = None) -> Entitleme
         source=SOURCE_SUBSCRIPTION if premium else SOURCE_NONE,
         plan=row.plan,
         expires_at=deadline,
+        coach_questions=row.coach_questions,
     )
 
 
@@ -205,7 +215,13 @@ def read_subscription(user_id: UUID) -> Subscription | None:
         row = cur.fetchone()
     if row is None:
         return None
-    return Subscription(status=row[0], plan=row[1], trial_end=row[2], current_period_end=row[3])
+    return Subscription(
+        status=row[0],
+        plan=row[1],
+        trial_end=row[2],
+        current_period_end=row[3],
+        coach_questions=row[4],
+    )
 
 
 def entitlement_of(user_id: UUID, now: datetime | None = None) -> Entitlement:

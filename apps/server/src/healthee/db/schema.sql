@@ -491,6 +491,8 @@ CREATE TABLE IF NOT EXISTS subscription (
   current_period_end TIMESTAMPTZ,                     -- premium requires now() < this
   granted_by         TEXT,                            -- hand-made grants: who
   note               TEXT,                            -- …and why
+  coach_questions    INTEGER,                         -- NULL = deployment default,
+                                                      --   0 = unlimited (0022)
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

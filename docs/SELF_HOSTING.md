@@ -248,6 +248,11 @@ COACH_MODEL=<the stronger model id>
 
 Need random strings? `openssl rand -base64 32` gives you one.
 
+> **Letting friends in?** `PREMIUM_COACH_QUESTIONS` is the default for everyone.
+> Set it to `20`, and lift only your own account once you have signed in:
+> `python -m healthee.db.grant_premium <your-uuid> --months 1200 --coach-questions unlimited --apply`
+> — your guests stay at 20, and you do not.
+
 > **`PUBLIC_HOST` is not `API_HOST`.** `API_HOST` is already in the file and means
 > the address *inside* the container — leave it as `0.0.0.0`. `PUBLIC_HOST` is the
 > name the world types. Two questions that both sound like "the host", which is why

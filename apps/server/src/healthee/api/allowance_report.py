@@ -54,7 +54,7 @@ from pydantic import BaseModel, ConfigDict
 
 from healthee.api import gate
 from healthee.core import allowance
-from healthee.core.entitlement import is_premium
+from healthee.core.entitlement import entitlement_of
 from healthee.core.supabase_auth import RequestUser
 
 
@@ -91,9 +91,12 @@ def included_allowances(user: RequestUser) -> list[IncludedAllowance]:
     travels on ``locked``. Empty as well for a premium owner while nothing is capped,
     which is the honest reading of an empty ``PREMIUM_ALLOWANCE``: unlimited everywhere.
     """
-    if not is_premium(user.id):
+    current = entitlement_of(user.id)
+    if not current.premium:
         return []
-    allowed = gate.premium_allowance()
+    # The owner's own cap from the row just read, so the meter shows the number the gate
+    # enforces for THIS owner and not the deployment default.
+    allowed = gate.premium_allowance(current.coach_questions)
     return [_meter(user, feature, limit) for feature, limit in allowed.items()]
 
 

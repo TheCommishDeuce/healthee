@@ -63,7 +63,7 @@ from fastapi import Depends, HTTPException, Request
 
 from healthee.core import allowance
 from healthee.core.config import get_settings
-from healthee.core.entitlement import is_premium
+from healthee.core.entitlement import entitlement_of, is_premium
 from healthee.core.logging import get_logger
 from healthee.core.request_auth import CurrentUser
 from healthee.core.supabase_auth import RequestUser
@@ -131,7 +131,7 @@ FREE_ALLOWANCE: dict[str, int] = {
 PREMIUM_COACH_QUESTIONS = 20
 
 
-def premium_allowance() -> dict[str, int]:
+def premium_allowance(coach_questions: int | None = None) -> dict[str, int]:
     """What a PREMIUM owner gets, per feature, per rolling window.
 
     A function, not a constant: the coach cap is deployment config, and
@@ -139,8 +139,14 @@ def premium_allowance() -> dict[str, int]:
     unlimited and is expressed by ABSENCE**, the way this module already expresses
     it — a `0` left in the mapping would read as "capped at zero", which is the
     exact confusion `AIGate` warns about at its `.get`.
+
+    ``coach_questions`` is ONE owner's cap from their row (0022). None defers to the
+    deployment; anything else replaces it in either direction, so a deployment capped at
+    20 can leave its operator unlimited and an unlimited one can cap a guest. Passed in,
+    not read here, so the gate and the meter use the row they already hold.
     """
-    capped = get_settings().premium_coach_questions
+    default = get_settings().premium_coach_questions
+    capped = default if coach_questions is None else coach_questions
     return {COACH: capped} if capped > 0 else {}
 
 
@@ -241,17 +247,20 @@ class AIGate:
         Entitlement first, always: it is what keeps the two tables from ever both
         applying to one request.
         """
-        if is_premium(user.id):
-            return self._premium(request, user)
+        current = entitlement_of(user.id)
+        if current.premium:
+            return self._premium(request, user, current.coach_questions)
         return self._free(request, user)
 
-    def _premium(self, request: Request, user: RequestUser) -> RequestUser:
+    def _premium(
+        self, request: Request, user: RequestUser, coach_questions: int | None = None
+    ) -> RequestUser:
         """A paying owner: straight through, unless this feature carries an included cap.
 
         ``.get`` returning ``None`` means UNLIMITED, so this reads it with ``is None`` and
         not a falsy check — which would turn "not capped" into "capped at zero".
         """
-        limit = premium_allowance().get(self.feature)
+        limit = premium_allowance(coach_questions).get(self.feature)
         if limit is None:
             return user
         verdict = allowance.spend(

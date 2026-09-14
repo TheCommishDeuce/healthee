@@ -145,6 +145,7 @@ class Settings(BaseSettings):
     # OpenRouter key — the same argument `self_host_unlocked` above already makes.
     # It is a separate switch because the two are separable: a box can be somebody's
     # own and still want a bound on spend.
+    # The DEFAULT only: `subscription.coach_questions` (0022) overrides it per owner.
     premium_coach_questions: int = 20
     # Where a locked card sends someone. Carried in the 402 body and by
     # `/api/entitlement` so the upgrade destination is deployment config rather than a
