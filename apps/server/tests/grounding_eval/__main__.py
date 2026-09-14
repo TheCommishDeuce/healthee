@@ -137,6 +137,50 @@ def _claim_detail(claim: ClaimSupport) -> dict:
     }
 
 
+def _calibrate(args: argparse.Namespace) -> int:
+    """Sample a labelling sheet from a scored arm, or report precision/recall/F1 from one.
+
+    Two disjoint modes, chosen by ``--report``: sampling reads a v2-scored arm's
+    ``support_details`` and writes ``--out`` for a human to fill in; reporting reads
+    those filled-in ``--labels`` back and scores the scorer against them, optionally at
+    a second checkpoint (``--model``) with no re-run of the paid arm at all.
+    """
+    if args.report:
+        return _calibrate_report(args)
+    if not args.arm or not args.out:
+        print(
+            "calibrate: sampling needs an arm AND --out, or --labels ... --report",
+            file=sys.stderr,
+        )
+        return 2
+    from tests.grounding_eval import calibrate  # lazy: same reason as `support` in `_score`
+
+    run = records.load(Path(args.arm))
+    sheet = calibrate.sample(run, n=args.sample, seed=args.seed)
+    calibrate.write_sheet(sheet, Path(args.out))
+    print(f"written: {args.out} ({len(sheet)} claims)")
+    return 0
+
+
+def _calibrate_report(args: argparse.Namespace) -> int:
+    if not args.labels:
+        print("calibrate --report needs --labels sheet.json", file=sys.stderr)
+        return 2
+    from tests.grounding_eval import calibrate
+
+    labels = calibrate.load_sheet(Path(args.labels))
+    model = os.environ.get("HEALTHEE_SUPPORT_MODEL") or "the arm's as-scored model"
+    print(f"-- {model} (as scored) --")
+    print(calibrate.report(labels))
+    if args.model:
+        from tests.grounding_eval import support
+
+        nli = support._load_nli_for(args.model)
+        print(f"\n-- {args.model} (re-scored) --")
+        print(calibrate.report(labels, nli=nli))
+    return 0
+
+
 def _compare(args: argparse.Namespace) -> int:
     first, second = records.load(Path(args.before)), records.load(Path(args.after))
     print(report.summary(first) + "\n\n" + report.summary(second) + "\n")
@@ -178,6 +222,20 @@ def main(argv: list[str]) -> int:
         help="entailment threshold for 'supported' (default 0.5)",
     )
     score_cmd.set_defaults(func=_score)
+
+    calib_cmd = sub.add_parser(
+        "calibrate", help="sample a labelling sheet from a v2-scored arm, or report on one"
+    )
+    calib_cmd.add_argument("arm", nargs="?", help="a v2-scored arm JSON to sample claims from")
+    calib_cmd.add_argument("--sample", type=int, default=40, help="claims to sample (default 40)")
+    calib_cmd.add_argument("--out", help="where to write the labelling sheet")
+    calib_cmd.add_argument("--seed", type=int, default=1, help="RNG seed (same seed, same sample)")
+    calib_cmd.add_argument("--labels", help="a hand-labelled sheet to score, with --report")
+    calib_cmd.add_argument(
+        "--report", action="store_true", help="print precision/recall/F1 from --labels"
+    )
+    calib_cmd.add_argument("--model", help="also re-score --labels at this NLI checkpoint")
+    calib_cmd.set_defaults(func=_calibrate)
 
     args = parser.parse_args(argv)
     return int(args.func(args))
