@@ -32,6 +32,13 @@ dev = [
     "pyright>=1.1.390",
     "pyyaml>=6.0.3",
 ]
+# The grounding eval's SUPPORT (entailment) scorer only — a local cross-encoder NLI
+# model, which pulls torch. NOT a default group: CI's `uv sync --frozen` must never
+# download it (tests/grounding_eval/support.py imports it lazily for the same reason).
+# `uv sync --group eval` from apps/server to run the real scorer or its opt-in smoke test.
+eval = [
+    "sentence-transformers>=6.0.1",
+]
 
 # ── Ruff — exactly per Engineering Standards §2 ──────────────────────────
 [tool.ruff]
