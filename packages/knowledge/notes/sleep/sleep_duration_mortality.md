@@ -5,7 +5,7 @@ topic: Sleep duration and all-cause mortality (U-shaped curve)
 category: sleep
 grade: Established
 summary: "Habitual sleep shows a U-shaped tie to mortality — both short and long sleep carry higher risk than each cohort's own normal-sleep reference (pooled RR 1.12 short, 1.30 long) — but Cappuccio 2010 states NO reference band, and it is observational, self-reported, and a population signal, never a single-night verdict. Where a recommended band is needed the citation is NSF 2015 (7–9 h for 18–64), not this paper."
-aliases: ["sleep duration", "sleep and mortality", "sleep longevity", "u-shaped sleep mortality", "sleep_duration"]
+aliases: ["sleep duration", "sleep and mortality", "sleep longevity", "u-shaped sleep mortality", "sleep_duration", "hours of sleep", "hours slept", "sleep hours"]
 applies_to_metrics: ["sleep_health_score_4dim"]
 applies_to_interventions: []
 population: general

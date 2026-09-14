@@ -4,7 +4,7 @@ name: "Sleep & Recovery"
 category: metrics
 grade: Probable
 summary: "The most potent recovery process; protect 7–9 h, treat short nights as cumulative debt, and never design plans that require sleep restriction."
-aliases: ["sleep-and-recovery", "sleep", "sleep hygiene", "sleep extension", "sleep debt", "sleep deprivation", "sleep quality", "recovery", "rest", "REM", "slow-wave sleep", "deep sleep", "sleep stages", "recovery sleep", "sleep loss", "banking sleep", "sleep duration"]
+aliases: ["sleep-and-recovery", "sleep", "sleep hygiene", "sleep extension", "sleep debt", "sleep deprivation", "sleep quality", "recovery", "rest", "REM", "slow-wave sleep", "deep sleep", "sleep stages", "recovery sleep", "sleep loss", "banking sleep", "sleep duration", "hours of sleep", "hours slept", "sleep hours", "wiped out", "exhausted", "no energy", "feeling tired", "sleep better", "fall asleep", "trouble falling asleep", "slept"]
 applies_to_metrics: ["recovery_score", "sleep_health_score_4dim", "sleep_need_min", "sleep_debt_min", "tst_min"]
 applies_to_interventions: []
 population: runners

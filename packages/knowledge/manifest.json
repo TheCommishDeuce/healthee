@@ -35,7 +35,13 @@
         "alcohol before bed",
         "nightcap",
         "alcohol and sleep",
-        "alcohol and hrv"
+        "alcohol and hrv",
+        "drinks",
+        "a couple of drinks",
+        "a few drinks",
+        "booze",
+        "wine",
+        "beer"
       ],
       "applies_to_interventions": [
         "alcohol"
@@ -367,7 +373,11 @@
         "minimum exercise",
         "15 minutes exercise",
         "physical activity mortality",
-        "exercise_mortality"
+        "exercise_mortality",
+        "exercising",
+        "working out",
+        "exercise more",
+        "working out more"
       ],
       "applies_to_interventions": [
         "exercise"
@@ -1022,7 +1032,9 @@
         "150 minutes",
         "who activity guidelines",
         "vilpa",
-        "mvpa_minutes_mortality"
+        "mvpa_minutes_mortality",
+        "walk",
+        "walking"
       ],
       "applies_to_interventions": [
         "exercise"
@@ -1382,7 +1394,15 @@
         "wellness check",
         "am I ready to train",
         "recovery",
-        "recovery_readiness"
+        "recovery_readiness",
+        "wiped out",
+        "exhausted",
+        "no energy",
+        "feeling tired",
+        "push hard",
+        "take it easy",
+        "train hard",
+        "should i train today"
       ],
       "applies_to_interventions": [],
       "applies_to_metrics": [
@@ -1543,7 +1563,10 @@
         "sitting time",
         "sedentary behaviour",
         "prolonged sitting",
-        "sedentary_mortality"
+        "sedentary_mortality",
+        "sitting too much",
+        "sitting all day",
+        "sit too much"
       ],
       "applies_to_interventions": [
         "exercise"
@@ -1606,7 +1629,18 @@
         "recovery sleep",
         "sleep loss",
         "banking sleep",
-        "sleep duration"
+        "sleep duration",
+        "hours of sleep",
+        "hours slept",
+        "sleep hours",
+        "wiped out",
+        "exhausted",
+        "no energy",
+        "feeling tired",
+        "sleep better",
+        "fall asleep",
+        "trouble falling asleep",
+        "slept"
       ],
       "applies_to_interventions": [],
       "applies_to_metrics": [
@@ -1662,7 +1696,10 @@
         "sleep and mortality",
         "sleep longevity",
         "u-shaped sleep mortality",
-        "sleep_duration"
+        "sleep_duration",
+        "hours of sleep",
+        "hours slept",
+        "sleep hours"
       ],
       "applies_to_interventions": [],
       "applies_to_metrics": [
@@ -1717,7 +1754,14 @@
         "catch-up sleep",
         "sleep banking",
         "recovery sleep",
-        "NSF sleep recommendation"
+        "NSF sleep recommendation",
+        "hours of sleep",
+        "hours slept",
+        "sleep hours",
+        "wiped out",
+        "exhausted",
+        "no energy",
+        "feeling tired"
       ],
       "applies_to_interventions": [],
       "applies_to_metrics": [
@@ -1896,7 +1940,11 @@
         "10000 steps",
         "steps mortality",
         "step plateau",
-        "steps_mortality"
+        "steps_mortality",
+        "walk",
+        "walking",
+        "walk more",
+        "walking more"
       ],
       "applies_to_interventions": [
         "exercise"

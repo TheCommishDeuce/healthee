@@ -5,7 +5,7 @@ topic: Daily step count and all-cause mortality (benefit plateaus at 8,000–10,
 category: activity
 grade: Established
 summary: "Higher daily steps track progressively lower all-cause mortality, roughly log-linear with a plateau — ~8,000–10,000/day under age 60, ~6,000–8,000 for 60+; the 10,000-step target is a marketing artifact, and step intensity adds no mortality benefit beyond total volume."
-aliases: ["daily steps", "step count", "10000 steps", "steps mortality", "step plateau", "steps_mortality"]
+aliases: ["daily steps", "step count", "10000 steps", "steps mortality", "step plateau", "steps_mortality", "walk", "walking", "walk more", "walking more"]
 tags: ["daily steps", "step count", "10000 steps", "steps mortality", "step plateau", "steps_mortality"]
 applies_to_metrics: ["steps_total", "distance_m_daily"]
 applies_to_interventions: ["exercise"]

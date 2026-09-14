@@ -5,7 +5,7 @@ topic: Daily recovery / readiness from wearable autonomic + sleep markers
 category: recovery
 grade: Probable
 summary: "No peer-reviewed formula combines HRV+RHR+sleep into one recovery number, so recovery_score ships as a transparent 0-100 evidence-weighted estimate ALWAYS shown with its per-factor breakdown; triangulate ≥3 inputs, let no single input decide, and never let a green score clear a fatigued or ill user."
-aliases: ["readiness", "readiness score", "daily readiness", "training readiness", "recovery score", "recovery status", "body battery", "go no-go", "green light", "autoregulation", "morning check-in", "wellness check", "am I ready to train", "recovery", "recovery_readiness"]
+aliases: ["readiness", "readiness score", "daily readiness", "training readiness", "recovery score", "recovery status", "body battery", "go no-go", "green light", "autoregulation", "morning check-in", "wellness check", "am I ready to train", "recovery", "recovery_readiness", "wiped out", "exhausted", "no energy", "feeling tired", "push hard", "take it easy", "train hard", "should i train today"]
 tags: ["readiness", "readiness score", "daily readiness", "training readiness", "recovery score", "recovery status", "body battery", "go no-go", "green light", "autoregulation", "morning check-in", "wellness check", "am I ready to train", "recovery", "recovery_readiness"]
 applies_to_metrics: ["recovery_score"]
 applies_to_interventions: []

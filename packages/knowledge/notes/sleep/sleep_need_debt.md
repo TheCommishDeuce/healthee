@@ -5,7 +5,7 @@ topic: Personal sleep need (age-based) and rolling cumulative sleep debt — the
 category: sleep
 grade: Probable
 summary: "Set nightly sleep need from the NSF 2015 age bands (18–64 → 8 h midpoint, 65+ → 7.5 h) and track a rolling 14-night cumulative debt (surplus repays at 0.5×), because sleep restriction's neurobehavioural cost accumulates (Van Dongen 2003) — an evidence-grounded alternative to proprietary 'sleep need/debt', not a composite score."
-aliases: ["sleep need", "sleep debt", "sleep deficit", "how much sleep do I need", "sleep target", "cumulative sleep debt", "catch-up sleep", "sleep banking", "recovery sleep", "NSF sleep recommendation"]
+aliases: ["sleep need", "sleep debt", "sleep deficit", "how much sleep do I need", "sleep target", "cumulative sleep debt", "catch-up sleep", "sleep banking", "recovery sleep", "NSF sleep recommendation", "hours of sleep", "hours slept", "sleep hours", "wiped out", "exhausted", "no energy", "feeling tired"]
 applies_to_metrics: ["sleep_need_min", "sleep_debt_min", "tst_min", "sleep_health_score_4dim"]
 applies_to_interventions: []
 population: general

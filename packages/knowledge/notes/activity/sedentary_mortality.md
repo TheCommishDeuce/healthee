@@ -5,7 +5,7 @@ topic: Prolonged sedentary time tracks with higher mortality, especially in low-
 category: activity
 grade: Established
 summary: "Prolonged sedentary time independently tracks with higher all-cause mortality, but the harm is largely offset by physical activity and light-activity breaks — high activity nearly eliminates the excess risk of normal sitting; the message is 'break up sitting and stay generally active', not 'never sit'."
-aliases: ["sedentary time", "sitting time", "sedentary behaviour", "prolonged sitting", "sedentary_mortality"]
+aliases: ["sedentary time", "sitting time", "sedentary behaviour", "prolonged sitting", "sedentary_mortality", "sitting too much", "sitting all day", "sit too much"]
 tags: ["sedentary time", "sitting time", "sedentary behaviour", "prolonged sitting", "sedentary_mortality"]
 applies_to_metrics: ["steps_total", "distance_m_daily", "total_calories"]
 applies_to_interventions: ["exercise"]

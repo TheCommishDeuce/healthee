@@ -5,7 +5,7 @@ topic: Moderate-to-vigorous physical activity minutes (MVPA) and the 150 min/wee
 category: activity
 grade: Established
 summary: "Weekly MVPA minutes is one of the most robust modifiable mortality predictors, with a clear dose-response; the WHO target is ≥150–300 min/week moderate OR ≥75–150 vigorous, most of the benefit banked in the first 150; vigorous bouts as short as 1–2 min count, and MVPA captures intensity that raw steps miss."
-aliases: ["mvpa", "moderate-to-vigorous physical activity", "150 minutes", "who activity guidelines", "vilpa", "mvpa_minutes_mortality"]
+aliases: ["mvpa", "moderate-to-vigorous physical activity", "150 minutes", "who activity guidelines", "vilpa", "mvpa_minutes_mortality", "walk", "walking"]
 tags: ["mvpa", "moderate-to-vigorous physical activity", "150 minutes", "who activity guidelines", "vilpa", "mvpa_minutes_mortality"]
 applies_to_metrics: ["moderate_min", "vigorous_min", "mvpa_min", "steps_per_minute"]
 applies_to_interventions: ["exercise"]
