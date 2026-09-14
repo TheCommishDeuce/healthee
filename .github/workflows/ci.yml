@@ -180,6 +180,11 @@ jobs:
         run: uv sync --frozen
       - name: Regenerate manifest in check mode (fails on drift)
         run: uv run python ../../packages/knowledge/tools/gen_manifest.py --check
+      - name: Embedding index artifact is current (Step 2a — hash-only, no model download)
+        env:
+          POSTGRES_PASSWORD: ci-check
+          ALLOW_ADMIN_DB_FALLBACK: "true"
+        run: uv run python -m healthee.insights.embedding_index --check
 
   # ── Secret scanning (Addendum §H) ──────────────────────────────────────
   secrets:

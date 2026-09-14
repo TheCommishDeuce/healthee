@@ -89,6 +89,22 @@ the pool being on a role that **BYPASSES Row-Level Security**.
 - **Health check failed** → the script dumps the last api + scheduler logs and
   exits 1. Start there.
 
+### The embedding index artifact (Step 2a hybrid retrieval)
+
+Step 8b (`$COMPOSE exec -T api python -m healthee.insights.embedding_index --check`)
+is a HASH COMPARISON ONLY — no model load, no network, no embedding pass. The passage
+matrix itself is a **committed artifact** (`packages/knowledge/embeddings/`, built on a
+dev machine and checked into git like the manifest): this box's headroom (4 CPUs, 5 GB
+RAM, under 1 GB free, no swap) cannot safely run the embedding pass itself, so `deploy.sh`
+never builds it here. `--check` just confirms the deployed corpus still matches the
+committed key. **Warn-only by design**: `insights/retrieval.py` falls back to
+explicit+lexical ranking (today's ranking, minus the similarity term) if the artifact is
+ever missing or stale, so a failed check here never blocks a deploy — you'll see a `⚠`
+naming the fix (regenerate on a dev machine with `--build`, commit the result) and the
+api keeps serving. The ONNX model FILE itself still downloads to the `healthee-geocache`
+volume on first use (query embedding needs a live model regardless of the artifact) —
+that part is unchanged and small enough (69 MB, one-time) to not need special handling.
+
 ### Rollback
 
 **There are no down-migrations.** Once `0002`→`0008` have applied, rolling the

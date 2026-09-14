@@ -214,6 +214,28 @@ step "Recreating api + scheduler"
 run $COMPOSE up -d --force-recreate api scheduler
 ok "compose up"
 
+# ── 8b. Verify the embedding index artifact (Step 2a hybrid retrieval) ──────
+# NEVER --build here: the passage matrix is a COMMITTED artifact
+# (packages/knowledge/embeddings/), built on a dev machine and checked in like the
+# manifest, because this box's headroom cannot safely run the embedding pass (see
+# insights/embedding_index.py's module docstring). --check is a hash comparison only
+# (no model, no network) — WARN-ONLY: `insights/retrieval.py` falls back to
+# explicit+lexical ranking if the artifact is ever missing/stale, so this never blocks
+# a deploy, it just tells you the corpus moved without a re-commit.
+step "Verifying the embedding index artifact"
+if [ "$dry_run" -eq 1 ]; then
+	printf '  \033[2m$ %s exec -T api python -m healthee.insights.embedding_index --check\033[0m\n' "$COMPOSE"
+else
+	if $COMPOSE exec -T api python -m healthee.insights.embedding_index --check; then
+		ok "embedding index artifact matches the deployed corpus"
+	else
+		warn "embedding index artifact is stale or missing for this corpus — api/scheduler
+    fall back to explicit+lexical ranking until it is rebuilt (this never blocks
+    serving). On a dev machine: python -m healthee.insights.embedding_index --build,
+    then commit packages/knowledge/embeddings/."
+	fi
+fi
+
 # ── 9. Post-deploy healthcheck ──────────────────────────────────────────
 step "Health check"
 health_url="http://127.0.0.1:8765/healthz"
