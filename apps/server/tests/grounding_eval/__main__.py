@@ -1,7 +1,9 @@
-"""The CLI: ``run`` one arm (paid, networked), ``compare`` two saved arms (free).
+"""The CLI: ``run`` one arm (paid, networked), ``compare`` two saved arms (free),
+``score`` re-checks one arm's answers for citation support (free, offline).
 
     uv run python -m tests.grounding_eval run --repeats 3 --out before.json
     uv run python -m tests.grounding_eval compare before.json after.json
+    uv run python -m tests.grounding_eval score before.json --out before.scored.json
 
 ``run`` TRUNCATES and re-seeds the database it is pointed at — never point it at data
 anyone needs. It is deliberately noisy per question: a paid run must be interruptible the
@@ -24,11 +26,14 @@ steps and the reasoning. ``compare`` spends nothing and says nothing.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from tests.grounding_eval import records, report, spend
 from tests.grounding_eval.questions import EvalQuestion, by_ids, by_kind
+from tests.grounding_eval.records import RunRecord
 from tests.grounding_eval.runner import run_questions
 
 from healthee.core.db import close_pool
@@ -69,6 +74,46 @@ def _run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _score(args: argparse.Namespace) -> int:
+    """Re-score one saved arm's ``answer`` text for citation SUPPORT — free, offline.
+
+    Never overwrites ``arm``: the scored copy is always a NEW file at ``--out``, so a
+    scoring run can be re-tried with a different ``--threshold`` without losing the
+    unscored original. A record whose question never shipped an answer (``outcome !=
+    grounded``) has no claims to support and is carried through untouched — its support
+    fields stay at their zero default, not an error. A grounded record with an empty
+    ``answer`` predates answer capture; it is counted and reported, never guessed at.
+    """
+    from tests.grounding_eval import support  # lazy: optional until the real scorer lands
+
+    run = records.load(Path(args.arm))
+    scored: list[RunRecord] = []
+    no_answer = 0
+    for record in run.records:
+        if record.outcome != records.GROUNDED or not record.answer:
+            if record.outcome == records.GROUNDED and not record.answer:
+                no_answer += 1
+            scored.append(record)
+            continue
+        result = support.score_answer(record.answer, threshold=args.threshold)
+        scored.append(
+            replace(
+                record,
+                support_claims=result.claims,
+                support_cited=result.cited_claims,
+                support_supported=result.supported,
+                support_threshold=result.threshold,
+                support_unsupported=[c.sentence for c in result.details if not c.supported],
+                support_model=os.environ.get("HEALTHEE_SUPPORT_MODEL") or support.DEFAULT_MODEL,
+            )
+        )
+    if no_answer:
+        print(f"{no_answer} records have no answer text (arm predates answer capture)")
+    records.save(replace(run, records=scored), Path(args.out))
+    print(f"written: {args.out}")
+    return 0
+
+
 def _compare(args: argparse.Namespace) -> int:
     first, second = records.load(Path(args.before)), records.load(Path(args.after))
     print(report.summary(first) + "\n\n" + report.summary(second) + "\n")
@@ -97,6 +142,19 @@ def main(argv: list[str]) -> int:
     cmp_cmd.add_argument("before")
     cmp_cmd.add_argument("after")
     cmp_cmd.set_defaults(func=_compare)
+
+    score_cmd = sub.add_parser(
+        "score", help="re-score a saved arm's answers for citation support (free, offline)"
+    )
+    score_cmd.add_argument("arm", help="the arm JSON to score — never modified")
+    score_cmd.add_argument("--out", required=True, help="where to write the SCORED arm's JSON")
+    score_cmd.add_argument(
+        "--threshold",
+        type=float,
+        default=0.5,
+        help="entailment threshold for 'supported' (default 0.5)",
+    )
+    score_cmd.set_defaults(func=_score)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

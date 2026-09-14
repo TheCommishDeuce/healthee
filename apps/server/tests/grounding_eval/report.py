@@ -39,6 +39,11 @@ _RATES: dict[str, tuple[float, float]] = {
     "google/gemini-3.6-flash": (1.50, 7.50),
     "google/gemini-3.5-flash-lite": (0.30, 2.50),
     "deepseek/deepseek-v4-flash-0731": (0.09, 0.18),
+    # The coach's CURRENT model (reference_coach_model_bakeoff, 2026-09-10) — read from
+    # OpenRouter's public models endpoint 2026-09-14. Without an entry every coach record
+    # in an arm taken after that switch prices at the dearest FALLBACK rate below, which
+    # reads the run as more expensive than it is, not less — but still wrong either way.
+    "deepseek/deepseek-v4.1-flash": (0.30, 1.20),
 }
 
 # What an UNKNOWN model bills at. Deliberately the dearest rate we know: an unpriced model
@@ -110,6 +115,40 @@ def summary(run: EvalRun) -> str:
         "  " + _mean_line("reasoning tokens", [r.reasoning_tokens for r in ok]),
         "  " + _mean_line("latency", [r.latency_ms for r in ok], " ms"),
     ]
+    lines += ["", "LATENCY BY SURFACE (mean and p95 — speed is half of what an arm is judged on)"]
+    for surface in sorted({r.surface for r in ok}):
+        by_surface = [float(r.latency_ms) for r in ok if r.surface == surface]
+        mean, lo, hi = stats.mean_ci(by_surface)
+        lines.append(
+            f"  {surface:<10} mean {mean:7.0f} ms  [95% CI {lo:.0f} – {hi:.0f}]  "
+            f"p95 {stats.p95(by_surface):7.0f} ms  n={len(by_surface)}"
+        )
+    lines += ["", "PROMPT CACHE HIT BY SURFACE (provider-counted; a miss re-reads the corpus)"]
+    for surface in sorted({r.surface for r in ok}):
+        by_surface = [r for r in ok if r.surface == surface]
+        prompt_total = sum(r.prompt_tokens for r in by_surface)
+        cached_total = sum(r.cached_prompt_tokens for r in by_surface)
+        # A plain share, NOT a `Rate`: tokens are not Bernoulli trials, so a Wilson
+        # interval over them would print a "95% CI" that means nothing. The uncertainty
+        # that IS meaningful — how much cache a question gets — is the mean line's.
+        share = cached_total / prompt_total if prompt_total else 0.0
+        lines.append(
+            f"  {surface:<10} {cached_total:>9,} / {prompt_total:<9,} tokens = {share:5.1%}  · "
+            + _mean_line(
+                "cached tokens / question", [float(r.cached_prompt_tokens) for r in by_surface]
+            )
+        )
+    if stats.is_scored(records):
+        lines += ["", "CITATION SUPPORT (scored answers only — `score` re-checked each claim)"]
+        lines += [
+            "  " + stats.supported_citation_rate(records).line(),
+            "  " + stats.cited_claim_rate(records).line(),
+            "  "
+            + _mean_line(
+                "supported claims / answer",
+                [float(r.support_supported) for r in stats.support_records(records)],
+            ),
+        ]
     models = sorted({r.model for r in records if r.model})
     exact = cost_is_exact(records)
     header = "SPEND (measured tokens × each model's published rate)"
@@ -189,9 +228,31 @@ def comparison(first: EvalRun, second: EvalRun) -> str:
     for label, value in (
         ("input tokens", lambda r: float(r.prompt_tokens)),
         ("output tokens", lambda r: float(r.completion_tokens)),
+        ("cached prompt tokens", lambda r: float(r.cached_prompt_tokens)),
         ("llm calls", lambda r: float(r.llm_calls)),
         ("tool rounds", lambda r: float(r.tool_rounds)),
         ("citations", lambda r: float(len(r.citations))),
     ):
         lines.append("  " + stats.paired_delta(first.records, second.records, value).line(label))
+    if stats.is_scored(first.records) and stats.is_scored(second.records):
+        support_delta = stats.paired_delta(
+            stats.support_records(first.records),
+            stats.support_records(second.records),
+            stats.supported_fraction,
+        )
+        lines += ["", "PAIRED citation-support delta (scored answers only, after − before)"]
+        lines.append("  " + _fraction_delta_line("supported-citation fraction", support_delta))
     return "\n".join(lines)
+
+
+def _fraction_delta_line(label: str, delta: stats.PairedMean) -> str:
+    """Like ``PairedMean.line()`` but for a 0–1 fraction, where ``:+.0f`` would print 0.
+
+    A rate never appears without n and its interval — same rule, formatted for a
+    proportion instead of a token count.
+    """
+    verdict = "sign established" if delta.significant else "sign NOT established (CI spans 0)"
+    return (
+        f"{label:<28} {delta.delta:+.1%}  [95% CI {delta.lo:+.1%} – {delta.hi:+.1%}]  "
+        f"n={delta.pairs} pairs · {verdict}"
+    )

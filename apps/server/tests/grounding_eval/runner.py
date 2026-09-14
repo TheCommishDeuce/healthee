@@ -99,10 +99,11 @@ def _run_one(
     started = time.perf_counter()
     with _CaptureWarnings() as captured:
         try:
-            outcome, citations, tools = _ask(question, user_id, tz, client)
+            outcome, citations, tools, answer, grade_floor = _ask(question, user_id, tz, client)
             error = ""
         except Exception as exc:  # noqa: BLE001 — one failure must not end a paid run
-            outcome, citations, tools, error = ERROR, [], [], f"{type(exc).__name__}: {exc}"
+            outcome, citations, tools, answer, grade_floor = ERROR, [], [], "", ""
+            error = f"{type(exc).__name__}: {exc}"
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     meter = client.meter
     return RunRecord(
@@ -122,23 +123,34 @@ def _run_one(
         prompt_tokens=meter.prompt_tokens,
         completion_tokens=meter.completion_tokens,
         reasoning_tokens=meter.reasoning_tokens,
+        cached_prompt_tokens=meter.cached_prompt_tokens,
         unmetered_calls=meter.unmetered_calls,
         latency_ms=elapsed_ms,
         error=error,
         warnings=captured.lines,
+        answer=answer,
+        grade_floor=grade_floor,
     )
 
 
 def _ask(
     question: EvalQuestion, user_id: UUID, tz: str, client: MeteredClient
-) -> tuple[str, list[str], list[str]]:
-    """Run one question on its real surface → (outcome, citations, tool names)."""
+) -> tuple[str, list[str], list[str], str, str]:
+    """Run one question on its real surface → (outcome, citations, tools, answer, grade_floor).
+
+    ``answer`` is the verbatim final text the pipeline returned — ``CoachResult.reply``
+    on the coach surface, ``GroundedResult.text`` on the non-conversational one — so a
+    saved arm can be READ later, not only counted. ``grade_floor`` is ``result.grade_floor
+    or ""``: both result types carry it as ``str | None``.
+    """
     if question.surface == "coach":
         result = run_coach([{"role": "user", "content": question.text}], user_id, tz, client=client)
         return (
             _outcome(result),
             list(result.citations),
             [call["tool"] for call in result.tool_calls],
+            result.reply,
+            result.grade_floor or "",
         )
     grounded = grounded_ask(
         question.text,
@@ -149,7 +161,13 @@ def _ask(
         response_format=question.response_format,
         client=client,
     )
-    return (_outcome(grounded), list(grounded.citations), [])
+    return (
+        _outcome(grounded),
+        list(grounded.citations),
+        [],
+        grounded.text,
+        grounded.grade_floor or "",
+    )
 
 
 def _outcome(result: CoachResult | GroundedResult) -> str:

@@ -26,6 +26,12 @@ class Meter:
     ``tool_rounds`` counts the completions that came back asking for tools instead of
     answering — the coach's gathering rounds. ``llm_calls`` counts every completion, so
     ``llm_calls - tool_rounds`` is how many answer attempts the gates saw.
+
+    ``cached_prompt_tokens`` is the provider-counted prefix-cache hit share of
+    ``prompt_tokens`` (``Usage.cached_prompt_tokens``) — same treatment as the other
+    three: summed across every completion, reset with them, and left at 0 (not "unknown")
+    when a response carries no usage at all, because a call the provider didn't meter is
+    not evidence the cache missed.
     """
 
     llm_calls: int = 0
@@ -33,6 +39,7 @@ class Meter:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     reasoning_tokens: int = 0
+    cached_prompt_tokens: int = 0
     unmetered_calls: int = 0
 
     def plus(self, response: ChatResponse) -> Meter:
@@ -45,6 +52,8 @@ class Meter:
             prompt_tokens=self.prompt_tokens + (usage.prompt_tokens if usage else 0),
             completion_tokens=self.completion_tokens + (usage.completion_tokens if usage else 0),
             reasoning_tokens=self.reasoning_tokens + (usage.reasoning_tokens if usage else 0),
+            cached_prompt_tokens=self.cached_prompt_tokens
+            + (usage.cached_prompt_tokens if usage else 0),
             unmetered_calls=self.unmetered_calls + (0 if usage else 1),
         )
 

@@ -1,6 +1,6 @@
 """The FIXED question set — the thing that must not move between arms.
 
-Six kinds, chosen to span what the product actually ships rather than what is easy to
+Seven kinds, chosen to span what the product actually ships rather than what is easy to
 score:
 
   * ``knowledge``    — corpus-only questions; no personal data needed. If retrieval hands
@@ -13,6 +13,11 @@ score:
   * ``safety``       — must refuse, pre-LLM. A floor. If one of these ever answers, the
                        run is a failure whatever every other number says.
   * ``absence``      — asks about data the fixture DELIBERATELY lacks. Opt-in, see below.
+  * ``intent``       — a plain-intent question with no metric name, no note id, and no
+                       alias in it — the way an owner actually types. Every OTHER kind
+                       above happens to be phrased by someone who already knows the
+                       vocabulary retrieval ranks against; this is the case lexical
+                       retrieval is worst at. Opt-in, see below.
 
 The four ``grounded`` items are the SHIPPED prompts, imported from the modules that send
 them (never copied): a set that measured a paraphrase would drift away from the product
@@ -39,12 +44,40 @@ An opt-in kind costs an existing arm exactly nothing and costs an absence arm 4 
 (12 runs, ~$0.6 at 3 repeats). The regression is a regression test either way: the
 deterministic half is pinned free of charge in ``tests/insights/test_personal_claims.py``,
 and this set is what says whether the MODELS still behave when it is enforced.
+
+## ``intent`` is OPT-IN too, for the same two reasons as ``absence``
+
+Twelve coach-surface questions with no metric name, no note id, and no alias in the text
+— retrieval's actual adversary. Every other kind here was written by someone who already
+knows the vocabulary retrieval ranks against (that is exactly the case lexical search is
+best at); an owner does not type ``sleep_regularity_index``, they type "was last night a
+good sleep". A retrieval change that only regresses plain intent would pass every other
+kind in this set undetected.
+
+Opt-in for the same reasons ``absence`` is: folding twelve more questions into the default
+would raise every future arm's price for a case most changes do not touch, and
+``question_set_fingerprint`` is computed over the SELECTED questions, so changing the
+default set would retire every arm measured before today. ``--only intent`` runs exactly
+the twelve; an unnamed run buys none of them, same as ``absence``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+
+from tests.grounding_eval.intent_questions import INTENT_QUESTIONS
+from tests.grounding_eval.question_types import (
+    ABSENCE,
+    ANSWER,
+    COMPOUND,
+    DATA,
+    INTENT,
+    KNOWLEDGE,
+    OUT_OF_DOMAIN,
+    REFUSAL,
+    SAFETY,
+    EvalQuestion,
+)
 
 from healthee.insights.coaching import _SLEEP_TONIGHT_PROMPT, SLEEP_TONIGHT_METRICS
 from healthee.insights.morning import (
@@ -60,20 +93,26 @@ from healthee.insights.morning import (
 )
 from healthee.insights.surfaces import _ACTIVITY_PROMPT, _SLEEP_PROMPT
 
-# What a question is asking the pipeline to do — the two are scored differently and
-# must never be pooled: a refusal is a floor, a ship rate is a quality measurement.
-ANSWER = "answer"
-REFUSAL = "refusal"
+__all__ = [
+    "ABSENCE",
+    "ANSWER",
+    "COMPOUND",
+    "DATA",
+    "DEFAULT_KINDS",
+    "INTENT",
+    "KNOWLEDGE",
+    "OUT_OF_DOMAIN",
+    "QUESTIONS",
+    "REFUSAL",
+    "SAFETY",
+    "EvalQuestion",
+    "by_ids",
+    "by_kind",
+]
 
-KNOWLEDGE = "knowledge"
-DATA = "data"
-COMPOUND = "compound"
-OUT_OF_DOMAIN = "out_of_domain"
-SAFETY = "safety"
-ABSENCE = "absence"
-
-# The kinds a run buys when it names none. Everything except ``absence`` — see the module
-# docstring: an opt-in kind keeps every existing arm's price AND its fingerprint intact.
+# The kinds a run buys when it names none. Everything except ``absence`` and ``intent``
+# — see the module docstring: an opt-in kind keeps every existing arm's price AND its
+# fingerprint intact.
 DEFAULT_KINDS: frozenset[str] = frozenset(
     {KNOWLEDGE, DATA, COMPOUND, OUT_OF_DOMAIN, SAFETY, "surface"}
 )
@@ -81,23 +120,6 @@ DEFAULT_KINDS: frozenset[str] = frozenset(
 # The metrics each shipped insight surface hands retrieval, straight from the surface.
 _SLEEP_INSIGHT_METRICS = ["sleep_health_score_4dim", "sleep_regularity_index", "hrv_sleep_avg"]
 _ACTIVITY_INSIGHT_METRICS = ["vo2max_estimate", "mvpa_min", "steps_total", "cardio_load"]
-
-
-@dataclass(frozen=True)
-class EvalQuestion:
-    """One question, its surface, and what a good outcome looks like for it."""
-
-    id: str
-    kind: str
-    surface: str  # "coach" | "grounded"
-    text: str
-    expect: str = ANSWER
-    metrics: list[str] = field(default_factory=list)
-    context_days: int = 14
-    # "json" for the surfaces that ask the choke point for a JSON object (the merged
-    # morning generation). A JSON prompt scored on the prose path would be measuring a
-    # request the product never sends.
-    response_format: str | None = None
 
 
 QUESTIONS: tuple[EvalQuestion, ...] = (
@@ -278,6 +300,11 @@ QUESTIONS: tuple[EvalQuestion, ...] = (
         metrics=SLEEP_TONIGHT_METRICS,
         context_days=28,
     ),
+    # ── intent: plain-intent phrasing, no metric name, no note id, no alias ───────
+    # The twelve questions themselves live in ``intent_questions.py`` (this file was
+    # pushing the 400-line gate); appended here so ``QUESTIONS`` stays the ONE set
+    # everything else in this package (``by_kind``, the fingerprint, the CLI) reads.
+    *INTENT_QUESTIONS,
 )
 
 

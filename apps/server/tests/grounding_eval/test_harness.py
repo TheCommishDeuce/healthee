@@ -9,6 +9,7 @@ is both the eval's floor and the reason those two questions cost nothing to run.
 from __future__ import annotations
 
 import os
+import re
 
 import pytest
 from tests.grounding_eval import questions as qs
@@ -26,6 +27,7 @@ from healthee.core.config import get_settings
 from healthee.insights import morning
 from healthee.insights.client import ChatResponse, Usage
 from healthee.insights.coach import CoachResult
+from healthee.insights.manifest import all_notes
 from healthee.insights.refusals import classify_refusal
 
 
@@ -84,6 +86,37 @@ def test_a_call_the_provider_did_not_meter_is_counted_as_unknown_not_free() -> N
     client.complete([])
     assert client.meter.unmetered_calls == 1
     assert client.meter.prompt_tokens == 0
+
+
+def test_the_meter_sums_cached_prompt_tokens_across_every_call() -> None:
+    """The other half of the bill — same treatment as prompt/completion/reasoning."""
+    inner = _FakeInner(
+        [
+            ChatResponse(text="", usage=Usage(30_000, 100, 0, cached_prompt_tokens=25_000)),
+            ChatResponse(text="answer", usage=Usage(33_000, 400, 0, cached_prompt_tokens=28_000)),
+        ]
+    )
+    client = MeteredClient(inner)
+    client.complete([])
+    client.complete([])
+    assert client.meter.cached_prompt_tokens == 53_000
+
+
+def test_cached_prompt_tokens_reset_with_everything_else() -> None:
+    client = MeteredClient(
+        _FakeInner([ChatResponse(text="x", usage=Usage(10, 2, 0, cached_prompt_tokens=5))])
+    )
+    client.complete([])
+    client.reset()
+    assert client.meter.cached_prompt_tokens == 0
+
+
+def test_a_response_with_no_usage_counts_zero_cached_not_unknown_as_free() -> None:
+    """No usage at all is already ``unmetered_calls``; cached must not ALSO invent a number."""
+    client = MeteredClient(_FakeInner([ChatResponse(text="x")]))
+    client.complete([])
+    assert client.meter.cached_prompt_tokens == 0
+    assert client.meter.unmetered_calls == 1
 
 
 def test_the_metered_client_returns_the_inner_response_untouched() -> None:
@@ -160,7 +193,8 @@ def test_narrowing_by_kind_returns_only_that_kind() -> None:
 
 
 def test_an_opt_in_kind_costs_a_default_arm_nothing() -> None:
-    """#129's absence questions must not raise the price — or move the fingerprint.
+    """#129's absence questions (and #132's intent ones) must not raise the price — or
+    move the fingerprint.
 
     Both halves matter and they are the same assertion from two sides: an unnamed run
     buys the same questions it bought yesterday, so the arms saved for #95/#99/#105 stay
@@ -169,11 +203,43 @@ def test_an_opt_in_kind_costs_a_default_arm_nothing() -> None:
     """
     default = qs.by_kind(None)
     assert qs.ABSENCE not in {q.kind for q in default}
+    assert qs.INTENT not in {q.kind for q in default}
     assert question_set_fingerprint(default) == question_set_fingerprint(
-        tuple(q for q in qs.QUESTIONS if q.kind != qs.ABSENCE)
+        tuple(q for q in qs.QUESTIONS if q.kind not in (qs.ABSENCE, qs.INTENT))
     )
     assert {q.kind for q in qs.by_kind({qs.ABSENCE})} == {qs.ABSENCE}
     assert len(qs.by_kind({qs.ABSENCE})) == 4
+    assert {q.kind for q in qs.by_kind({qs.INTENT})} == {qs.INTENT}
+    assert len(qs.by_kind({qs.INTENT})) == 12
+
+
+def test_the_intent_questions_are_all_coach_answer_with_unique_ids() -> None:
+    intent = qs.by_kind({qs.INTENT})
+    assert all(q.surface == "coach" for q in intent)
+    assert all(q.expect == qs.ANSWER for q in intent)
+    ids = [q.id for q in intent]
+    assert len(ids) == len(set(ids))
+    assert all(qid.startswith("i_") for qid in ids)
+
+
+def test_the_intent_questions_avoid_manifest_vocabulary() -> None:
+    """The whole point of #132: plain-intent phrasing, none of retrieval's own words.
+
+    Checked against the REAL manifest, not a hardcoded list, so a future edit to a
+    question — or a new note/metric whose name happens to match one already in a
+    question — cannot silently reintroduce the exact vocabulary these questions exist to
+    withhold. Aliases are deliberately NOT checked here: "HRV" is itself a note alias
+    (see ``i_hrv_worried``) and is also exactly what an owner types, which is the point.
+    """
+    notes = all_notes()
+    names = {note.id for note in notes} | {m for note in notes for m in note.applies_to_metrics}
+    for question in qs.by_kind({qs.INTENT}):
+        lowered = question.text.lower()
+        for name in names:
+            assert not re.search(rf"\b{re.escape(name.lower())}\b", lowered), (
+                question.id,
+                name,
+            )
 
 
 def test_narrowing_by_id_returns_exactly_those_questions_in_the_sets_order() -> None:

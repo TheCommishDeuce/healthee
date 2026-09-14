@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from scipy.stats import binomtest, t
-from tests.grounding_eval.records import ERROR, RunRecord
+from tests.grounding_eval.records import ERROR, GROUNDED, RunRecord
 
 Z95 = 1.959963984540054
 
@@ -289,3 +289,66 @@ def rates_by_question(records: Sequence[RunRecord]) -> list[Rate]:
         for qid in ids
         if (c := sum(1 for r in rows if r.question_id == qid))
     ]
+
+
+def p95(values: Sequence[float]) -> float:
+    """The 95th percentile, nearest-rank — 0.0 for an empty sample.
+
+    Speed is one of the two things an arm comparison exists to settle, and a mean alone
+    hides the tail an owner actually notices — one seven-round compound question can sit
+    far above everything else without moving the mean much at all.
+    """
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = max(0, math.ceil(0.95 * len(ordered)) - 1)
+    return ordered[index]
+
+
+# ── citation SUPPORT (filled by `score`, never by `run`) ─────────────────────────────
+# A record's ``support_threshold`` is 0.0 until `score` sets it, and `score` only ever
+# sets it on a GROUNDED record with an answer — so "any record with support_threshold >
+# 0" is exactly "this arm has been scored" and "this record was scored" at once. That is
+# why every function below filters on it rather than on a separate scored/unscored flag:
+# a second flag could disagree with the data, this cannot.
+
+
+def support_records(records: Sequence[RunRecord]) -> list[RunRecord]:
+    """The grounded, scored records every support metric is computed from."""
+    return [r for r in scored(records) if r.outcome == GROUNDED and r.support_threshold > 0]
+
+
+def is_scored(records: Sequence[RunRecord]) -> bool:
+    """Whether ANY record in this arm has been through ``score`` — gates the support lines.
+
+    An arm nobody scored must print nothing new: a support section full of zeros would
+    read as "every claim failed" rather than "nobody asked the question".
+    """
+    return any(r.support_threshold > 0 for r in records)
+
+
+def supported_citation_rate(records: Sequence[RunRecord]) -> Rate:
+    """Of the citations a scored answer actually used, how many the NLI judged supported."""
+    rows = support_records(records)
+    return Rate(
+        "supported citations",
+        sum(r.support_supported for r in rows),
+        sum(r.support_cited for r in rows),
+    )
+
+
+def cited_claim_rate(records: Sequence[RunRecord]) -> Rate:
+    """Of the checkable claims a scored answer made, how many carried a citation at all."""
+    rows = support_records(records)
+    return Rate(
+        "cited claims", sum(r.support_cited for r in rows), sum(r.support_claims for r in rows)
+    )
+
+
+def supported_fraction(record: RunRecord) -> float:
+    """One record's supported/cited fraction — 0.0 when it cited nothing to support.
+
+    The value :func:`paired_delta` differences per (question, repeat) to say whether a
+    retrieval change moved SUPPORT, not just whether it moved the ship rate.
+    """
+    return record.support_supported / record.support_cited if record.support_cited else 0.0

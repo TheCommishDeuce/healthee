@@ -61,9 +61,37 @@ class RunRecord:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     reasoning_tokens: int = 0
+    # The provider-counted prefix-cache hit share of ``prompt_tokens`` — see
+    # ``meter.Meter.cached_prompt_tokens``. Defaulted so arms saved before it existed
+    # still load, the same as every other counter here.
+    cached_prompt_tokens: int = 0
     unmetered_calls: int = 0
     latency_ms: int = 0
     error: str = ""
+    # The final text the pipeline returned — the validated answer, or the fallback/
+    # refusal text as shipped, stored VERBATIM. Without it two arms can only be COUNTED
+    # (outcome, citations, tokens) and never READ, which is the gap this field closes:
+    # a person can now open a scored arm and see which sentences the model actually
+    # wrote. Defaulted so arms saved before it existed still load.
+    answer: str = ""
+    # The weakest evidence grade behind the answer's citations, or "" if the answer
+    # cited nothing gradeable — ``CoachResult.grade_floor`` / ``GroundedResult.grade_floor``
+    # on the shipped result types, both ``str | None``.
+    grade_floor: str = ""
+    # Filled ONLY by ``python -m tests.grounding_eval score`` (never by ``run``, which
+    # spends no extra money to compute these): how many of the answer's sentences carried
+    # a checkable claim, how many of those cited something, and how many citations the
+    # NLI scorer judged actually SUPPORTED by the cited note at ``support_threshold``.
+    # Zero on every record until an arm has been through ``score`` — a scored arm is
+    # always a NEW file, never the original (see ``__main__.py``'s ``score`` command).
+    support_claims: int = 0
+    support_cited: int = 0
+    support_supported: int = 0
+    support_threshold: float = 0.0
+    # The unsupported claim SENTENCES, verbatim, so a person can read what failed
+    # without re-running the model or the scorer.
+    support_unsupported: list[str] = field(default_factory=list)
+    support_model: str = ""
 
 
 @dataclass(frozen=True)
