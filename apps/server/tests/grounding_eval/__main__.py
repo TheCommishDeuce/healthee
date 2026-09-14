@@ -30,6 +30,7 @@ import os
 import sys
 from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tests.grounding_eval import records, report, spend
 from tests.grounding_eval.questions import EvalQuestion, by_ids, by_kind
@@ -37,6 +38,9 @@ from tests.grounding_eval.records import RunRecord
 from tests.grounding_eval.runner import run_questions
 
 from healthee.core.db import close_pool
+
+if TYPE_CHECKING:
+    from tests.grounding_eval.support import ClaimSupport
 
 
 def _select(args: argparse.Namespace) -> tuple[EvalQuestion, ...]:
@@ -105,6 +109,8 @@ def _score(args: argparse.Namespace) -> int:
                 support_threshold=result.threshold,
                 support_unsupported=[c.sentence for c in result.details if not c.supported],
                 support_model=os.environ.get("HEALTHEE_SUPPORT_MODEL") or support.DEFAULT_MODEL,
+                support_details=[_claim_detail(c) for c in result.details],
+                support_unscorable=result.unscorable,
             )
         )
     if no_answer:
@@ -112,6 +118,23 @@ def _score(args: argparse.Namespace) -> int:
     records.save(replace(run, records=scored), Path(args.out))
     print(f"written: {args.out}")
     return 0
+
+
+def _claim_detail(claim: ClaimSupport) -> dict:
+    """One ``support.ClaimSupport`` as the plain dict ``RunRecord.support_details`` stores
+    — so an "unsupported" verdict can be audited from the saved arm alone, offline."""
+    return {
+        "sentence": claim.sentence,
+        "fragments": list(claim.fragments),
+        "cited": list(claim.cited),
+        "best_ref": claim.best_ref,
+        "best_fragment": claim.best_fragment,
+        "entailment": claim.entailment,
+        "contradiction": claim.contradiction,
+        "supported": claim.supported,
+        "interpretive": claim.interpretive,
+        "scorable": claim.scorable,
+    }
 
 
 def _compare(args: argparse.Namespace) -> int:
