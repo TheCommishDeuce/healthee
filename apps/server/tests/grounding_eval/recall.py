@@ -11,12 +11,18 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from tests.grounding_eval.paraphrase_probes import ParaphraseProbe
 from tests.grounding_eval.question_types import EvalQuestion
 
 from healthee.insights.retrieval import rank_notes
 
+# Anything scorable: the paid set's ``EvalQuestion`` or a held-out ``ParaphraseProbe``
+# (``paraphrase_probes.py``). Both expose the same three fields this function reads —
+# ``id``, ``text``, ``expects_any_of`` — plus ``metrics``, so one scorer serves both.
+_Scorable = EvalQuestion | ParaphraseProbe
 
-def recall_at_k(questions: Sequence[EvalQuestion], k: int) -> tuple[float, dict[str, bool]]:
+
+def recall_at_k(questions: Sequence[_Scorable], k: int) -> tuple[float, dict[str, bool]]:
     """Note-level recall@k over every question in ``questions`` that carries a pin.
 
     A question is a HIT if any of its ``expects_any_of`` ids appears in the top-``k``
