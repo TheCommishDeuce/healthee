@@ -23,7 +23,7 @@ fails loudly instead of silently defaulting.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -164,6 +164,11 @@ class Settings(BaseSettings):
     # behind a green /healthz.
     default_model: str = ""
     coach_model: str = ""
+    # Where the coach spends THINKING (decode-time output, measured 2.7–3.7k tokens per
+    # question; two of three rounds only pick a tool): "on" every round (as shipped),
+    # "off" none, "answer_only" = off while tools are in play, on for the answer.
+    # `insights/coach_loop.reasoning_for_round` applies it; lowercase, or boot refuses.
+    coach_reasoning: Literal["on", "off", "answer_only"] = "on"
     # How long ONE LLM HTTP call may take before it is abandoned, and how many times
     # the SDK may retry it. Both are explicit because the SDK's defaults are
     # catastrophic here: `openai` defaults to a 600 s read timeout with 2 retries, so

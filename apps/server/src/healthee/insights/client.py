@@ -139,6 +139,7 @@ class LLMClient(Protocol):
         tools: list[dict] | None = None,
         model: str | None = None,
         response_format: dict | None = None,
+        reasoning: bool | None = None,
     ) -> ChatResponse: ...
 
 
@@ -178,6 +179,7 @@ class OpenRouterClient:
         tools: list[dict] | None = None,
         model: str | None = None,
         response_format: dict | None = None,
+        reasoning: bool | None = None,
     ) -> ChatResponse:
         """One completion. Returns the assistant text + any tool calls.
 
@@ -185,6 +187,13 @@ class OpenRouterClient:
         SDK when supplied — the grounded-ask choke point sets it for JSON surfaces
         (recs) so the model returns a parseable object, not fenced prose. Default
         ``None`` leaves the request unchanged (prose path is byte-identical).
+
+        ``reasoning=False`` asks the provider NOT to spend thinking tokens on this call
+        (OpenRouter's ``reasoning: {enabled: false}``; ``Settings.coach_reasoning`` says
+        why). ``None`` sends nothing, so the model's own default stands — the request is
+        byte-identical to before the parameter existed. ``True`` is deliberately also
+        "send nothing": the shipped behaviour IS the model default, and asking for
+        thinking explicitly would change the request for models that never think.
 
         Errors propagate (the endpoint layer degrades to an honest error body) —
         never swallowed. A timeout is one of them: the SDK raises
@@ -214,6 +223,8 @@ class OpenRouterClient:
             kwargs["tools"] = tools
         if response_format is not None:
             kwargs["response_format"] = response_format
+        if reasoning is False:
+            kwargs["extra_body"] = {"reasoning": {"enabled": False}}
         provider = _provider_routing(model)
         if provider is not None:
             kwargs["extra_body"] = {**kwargs.get("extra_body", {}), "provider": provider}

@@ -80,9 +80,13 @@ class MeteredClient:
         tools: list[dict] | None = None,
         model: str | None = None,
         response_format: dict | None = None,
+        reasoning: bool | None = None,
     ) -> ChatResponse:
+        # `reasoning` is forwarded exactly as `pipeline.complete` does — only when set —
+        # so an arm with COACH_REASONING=off measures the request the product sends.
+        extra: dict[str, bool] = {} if reasoning is None else {"reasoning": reasoning}
         response = self._inner.complete(
-            messages, tools=tools, model=model, response_format=response_format
+            messages, tools=tools, model=model, response_format=response_format, **extra
         )
         self.meter = self.meter.plus(response)
         return response
