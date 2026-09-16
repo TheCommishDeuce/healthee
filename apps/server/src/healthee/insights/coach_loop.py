@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+from healthee.core.config import get_settings
 from healthee.core.logging import get_logger
 from healthee.insights import coach_answer, coach_tools, personal_claims, pipeline, prompts
 from healthee.insights.client import LLMClient, coach_model
@@ -42,6 +43,23 @@ _ANSWER_NOW = (
 # both on every round would risk the tool loop itself to tidy a format the instruction
 # already gets right; `coach_answer._json_object` covers the rest.
 _JSON_OBJECT = {"type": "json_object"}
+
+
+def reasoning_for_round(tools_allowed: bool) -> bool | None:
+    """What ``Settings.coach_reasoning`` means for THIS round of the loop.
+
+    ``None`` = say nothing, the model's own default (thinking on for a reasoning tier);
+    ``False`` = ask for no thinking. "on" never sends anything — the shipped request.
+    "off" asks every round. "answer_only" asks only while tools are in play: the rounds
+    that decide which metric to query, where thinking buys nothing, and leaves the round
+    that writes the answer at the model default.
+    """
+    mode = get_settings().coach_reasoning
+    if mode == "off":
+        return False
+    if mode == "answer_only":
+        return False if tools_allowed else None
+    return None
 
 
 @dataclass
@@ -84,6 +102,7 @@ class ToolLoop:
             tools=tools,
             model=coach_model(),
             response_format=None if tools_allowed else _JSON_OBJECT,
+            reasoning=reasoning_for_round(tools_allowed),
         )
         if response.tool_calls:
             progressed = self._run_tools(response)

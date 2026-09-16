@@ -86,6 +86,7 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       DEFAULT_MODEL: ${DEFAULT_MODEL:-}
       COACH_MODEL: ${COACH_MODEL:-}
+      COACH_REASONING: ${COACH_REASONING:-on}
       LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-60}
       LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-1}
       GATHERING_DEADLINE_S: ${GATHERING_DEADLINE_S:-150}
@@ -170,6 +171,7 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       DEFAULT_MODEL: ${DEFAULT_MODEL:-}
       COACH_MODEL: ${COACH_MODEL:-}
+      COACH_REASONING: ${COACH_REASONING:-on}
       # The tick loop is single-threaded, so ONE unbounded call blocks every later
       # owner's chain. These were in infra/.env.example but never passed through
       # here, which meant setting them in infra/.env did nothing and the SDK's

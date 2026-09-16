@@ -119,9 +119,18 @@ def complete(
     tools: list[dict] | None = None,
     model: str | None = None,
     response_format: dict | None = None,
+    reasoning: bool | None = None,
 ) -> ChatResponse:
-    """The ONE call into the LLM transport — the seam a cost/budget stage plugs into."""
-    return client.complete(messages, tools=tools, model=model, response_format=response_format)
+    """The ONE call into the LLM transport — the seam a cost/budget stage plugs into.
+
+    ``reasoning`` travels only when a caller actually set it: every surface but the
+    coach leaves it ``None``, and a ``None`` that is not sent keeps their requests — and
+    every test double of this protocol — byte-identical to before the parameter existed.
+    """
+    extra: dict[str, bool] = {} if reasoning is None else {"reasoning": reasoning}
+    return client.complete(
+        messages, tools=tools, model=model, response_format=response_format, **extra
+    )
 
 
 # ── Stages 5–7 · the answer gates ────────────────────────────────────────────
