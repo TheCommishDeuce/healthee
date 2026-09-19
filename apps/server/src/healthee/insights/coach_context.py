@@ -199,11 +199,13 @@ def _recovery_heading(recovery: dict, stale: dict | None) -> str:
 
 
 def coach_evidence(question: str) -> str:
-    """Top-ranked evidence notes for the current question (the SAME retrieval stage).
+    """Top-ranked evidence notes for the current question — the COACH's evidence stage.
 
-    Through ``pipeline.evidence`` rather than ``retrieval.evidence_section`` directly, so
-    "same retrieval as insights" is a fact the AST guard in
-    ``tests/insights/test_pipeline_shared.py`` enforces rather than a comment.
+    Through ``pipeline.coach_evidence`` rather than ``insights.evidence.build_evidence``
+    directly, so "the coach embeds passages, not whole notes" is a fact a seam enforces
+    rather than a comment — same discipline ``pipeline.evidence`` gives every other
+    surface's call to ``retrieval.evidence_section``. Ranking is unchanged: both seams
+    pick the same top-N notes (``insights/evidence.py``'s module docstring).
     """
-    evidence_md, _ids = pipeline.evidence(question)
+    evidence_md, _ids = pipeline.coach_evidence(question)
     return evidence_md

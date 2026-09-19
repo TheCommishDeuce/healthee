@@ -54,6 +54,7 @@ from healthee.insights.budgets import (
 )
 from healthee.insights.client import ChatResponse, LLMClient
 from healthee.insights.context import build_context
+from healthee.insights.evidence import build_evidence
 
 # The gate vocabulary is re-exported: ``pipeline.AnswerContext`` / ``pipeline.GateOutcome``
 # stay what every caller and test writes. It lives in its own module only so a gate whose
@@ -108,8 +109,24 @@ def user_context(question: str, user_id: UUID, tz: str, *, days: int) -> str:
 
 
 def evidence(question: str, metrics: Sequence[str] | None = None) -> tuple[str, list[str]]:
-    """The manifest-ranked EVIDENCE NOTES section + the ids embedded in full."""
+    """The manifest-ranked EVIDENCE NOTES section + the ids embedded in full.
+
+    Every surface but the coach: the daily action, briefing, recs and the
+    sleep/activity/metric insights all still embed their top-N notes WHOLE.
+    """
     return evidence_section(question, list(metrics or []))
+
+
+def coach_evidence(question: str, metrics: Sequence[str] | None = None) -> tuple[str, list[str]]:
+    """The COACH's own evidence stage — passages, not whole notes (``insights/evidence.py``).
+
+    A second choke-point seam rather than a parameter on :func:`evidence`, for the same
+    reason the tool loop is a ``Loop`` and not a flag: the coach's evidence shape is a
+    real, documented difference from every other surface, and a seam says so where a
+    boolean would hide it in a call site. Ranking is unchanged — both seams pick the
+    same top-N notes; only what of each note ships differs.
+    """
+    return build_evidence(question, list(metrics or []))
 
 
 def complete(

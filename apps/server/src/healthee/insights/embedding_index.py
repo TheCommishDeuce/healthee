@@ -3,41 +3,31 @@
 ``retrieval.py`` scores notes by explicit signals + a lexical tie-break; this module
 adds a real similarity on top. Every corpus passage (``passages.all_passages()``) is
 embedded with a small, torch-free ONNX model (``fastembed.TextEmbedding``,
-``BAAI/bge-small-en-v1.5`` — 69 MB, 384-d, MIT); a question is scored by embedding it
-once and taking one matmul against the matrix. Persisted as a float32 ``.npy`` + a JSON
-sidecar (passage refs, same row order). The sidecar's ``key`` is a SHA-256 over the
-model id and every passage TEXT in order — not an mtime or a count, either of which can
-stay unchanged while the thing that actually matters (a note's wording, a corpus
-insertion) shifts underneath it.
+``BAAI/bge-small-en-v1.5`` — 69 MB, 384-d, MIT), persisted as a float32 ``.npy`` + a
+JSON sidecar keyed by a SHA-256 over the model id and every passage TEXT in order —
+not an mtime or count, either of which can stay unchanged while the wording moves.
 
 ## The committed artifact — no build on prod
 
-The matrix is MACHINE-INDEPENDENT (the key is model id + text only), so it ships WITH
-the corpus: ``packages/knowledge/embeddings/`` is a committed ~7 MB artifact, built here
-and checked in like the manifest. The production box (4 CPUs, 5 GB RAM, under 1 GB
-free, no swap) cannot safely run the embedding pass itself, so it never does:
-:func:`index` loads the committed artifact read-only once its key is verified against
-the live corpus, and only a stale/missing artifact falls back to building into
-``EMBEDDING_CACHE_DIR`` at request time (logged, naming ``--build``). The ONNX MODEL
-FILE is NOT committed (69 MB, cheap to re-fetch) — it still downloads to
-``EMBEDDING_CACHE_DIR`` on first use, because query embedding needs a live model either
-way. ``--check`` (wired into CI beside ``gen_manifest.py --check``) recomputes the key
-from the current corpus and compares it to the committed one — hash-only, no model load,
-no network.
+The matrix is MACHINE-INDEPENDENT, so it ships WITH the corpus (``packages/knowledge/
+embeddings/``, ~7 MB, built here and checked in like the manifest). The production box
+(4 CPUs, under 1 GB free) cannot safely run the embedding pass, so :func:`index` loads
+the artifact read-only once its key matches the live corpus, and only a stale/missing
+one falls back to building into ``EMBEDDING_CACHE_DIR`` (logged, naming ``--build``).
+The ONNX MODEL FILE is NOT committed — it downloads there on first use regardless,
+since query embedding needs a live model. ``--check`` is a hash-only comparison.
 
 ## Failure policy — no swallowing
 
 A missing model with no network to fetch it is a real failure, not "no notes are
-similar": :class:`EmbeddingIndexUnavailableError` is the ONE type ``retrieval.py`` may
-catch and fall back on (its own docstring says how). Anything else (a corrupt passage, a
-numpy shape mismatch) propagates unchanged.
+similar": :class:`EmbeddingIndexUnavailableError` is the ONE type a caller may catch
+and fall back on; anything else propagates as the real bug it is.
 
-## What this is NOT
+## Passage-level similarity (Step 2b)
 
-Passage-level retrieval — citing ``note_id#pN`` directly — is the NEXT step, not this
-one. :func:`note_scores` reduces the matrix to one similarity per NOTE (the max over its
-passages) for ``retrieval.rank_notes``; :meth:`EmbeddingIndex.search` returns passage
-refs for that future step, unused elsewhere here.
+:func:`note_scores` reduces the matrix to one similarity per NOTE; ``all_passage_
+similarities`` returns the UNREDUCED per-passage scores for ``insights/evidence.py``'s
+selection instead — one query embed, one matmul, shared across every note.
 """
 
 from __future__ import annotations
@@ -182,6 +172,18 @@ class EmbeddingIndex:
                 scores[note_id] = sim
         return scores
 
+    def all_passage_similarities(self, question: str) -> dict[str, float]:
+        """Every passage's cosine similarity to ``question``, keyed by its ref.
+
+        The UNREDUCED counterpart to :meth:`note_scores`: one query embed, one matmul
+        against the whole matrix — ``insights/evidence.py``'s passage selection (Step
+        2b) reads this once per question rather than re-embedding the question per note.
+        """
+        if not self.refs:
+            return {}
+        sims = self._similarities(question)
+        return dict(zip(self.refs, sims.tolist(), strict=True))
+
 
 def _load_cached(cache_dir: Path, key: str) -> tuple[tuple[str, ...], NDArray[np.float32]] | None:
     """``(refs, vectors)`` from disk if present and current, else ``None``.
@@ -232,9 +234,8 @@ def build_index(
 ) -> EmbeddingIndex:
     """Load ``passages_`` from ``cache_dir`` if the key matches, else embed and save.
 
-    The pure, testable core: takes its embedder and passage list as arguments rather
-    than reaching for the process singletons, so a test can inject a fake embedder and
-    a temp directory with no model, network, or real corpus involved.
+    The pure, testable core: embedder and passage list are arguments, not process
+    singletons, so a test injects a fake embedder and a temp dir — no model, network.
     """
     key = _cache_key(model_id, passages_)
     cached = _load_cached(cache_dir, key)
@@ -260,10 +261,9 @@ def build_index(
 def _index_uncached() -> EmbeddingIndex:
     """Prefer the COMMITTED artifact; fall back to building into the runtime cache.
 
-    The embedder is constructed either way — a live model is needed for query
-    embedding regardless of where the passage matrix came from. Only the (expensive)
-    passage-embedding pass is skippable, and only when the committed artifact's key
-    still matches the live corpus.
+    The embedder is constructed either way (query embedding needs a live model
+    regardless); only the passage-embedding pass is skippable, when the committed
+    key still matches the live corpus.
     """
     settings = get_settings()
     embedder = _FastEmbedder(settings.embedding_model, settings.embedding_cache_dir)

@@ -53,6 +53,7 @@ from healthee.insights.retrieval import (
     _tokens,
     evidence_section,
     rank_notes,
+    rank_notes_with_scores,
 )
 
 
@@ -362,3 +363,20 @@ def test_an_unrelated_exception_is_not_swallowed(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(retrieval.embedding_index, "note_scores", _boom)
     with pytest.raises(ValueError, match="simulated corpus/numpy bug"):
         rank_notes("does this propagate")
+
+
+# ── rank_notes_with_scores · the paired projection ``evidence.py`` consumes ──────
+
+
+def test_rank_notes_with_scores_agrees_with_rank_notes() -> None:
+    """``rank_notes`` is now a one-line projection of this — they must never diverge."""
+    question = "how does alcohol before bed affect sleep?"
+    scored = rank_notes_with_scores(question)
+    assert [n.id for n, _s in scored] == [n.id for n in rank_notes(question)]
+
+
+def test_rank_notes_with_scores_is_sorted_by_score_descending() -> None:
+    question = "should I train hard today or take it easy?"
+    scored = rank_notes_with_scores(question)
+    scores = [s for _n, s in scored]
+    assert scores == sorted(scores, reverse=True)

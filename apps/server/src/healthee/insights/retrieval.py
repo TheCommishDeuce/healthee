@@ -260,6 +260,28 @@ def _score(
     return score
 
 
+def rank_notes_with_scores(
+    question: str, metrics: list[str] | None = None
+) -> list[tuple[ManifestNote, float]]:
+    """Every note, most relevant first, PAIRED with the score that ordered it.
+
+    The same ordering :func:`rank_notes` returns (that function is now a one-line
+    projection of this one) — exposed with its score for ``insights/evidence.py``'s
+    per-note token-budget split (Step 2b), which weights the coach's top-N notes by
+    actual relevance rather than by bare position.
+    """
+    q_text = question.lower()
+    q_tokens = _tokens(question)
+    q_content = _content_tokens(question)
+    metric_set = set(metrics or [])
+    note_sim = _note_similarities(question)
+    scored = [
+        (n, _score(n, q_tokens, q_text, metric_set, q_content, note_sim)) for n in all_notes()
+    ]
+    scored.sort(key=lambda pair: (-pair[1], -GRADE_RANK.get(pair[0].grade, 0), pair[0].id))
+    return scored
+
+
 def rank_notes(question: str, metrics: list[str] | None = None) -> list[ManifestNote]:
     """All notes, most relevant first; ties break toward stronger evidence grades.
 
@@ -271,19 +293,7 @@ def rank_notes(question: str, metrics: list[str] | None = None) -> list[Manifest
     nothing scored (see :func:`_lexical_hits`), which is the alphabet answering a health
     question. It is still the last resort, and now it is reached far less often.
     """
-    q_text = question.lower()
-    q_tokens = _tokens(question)
-    q_content = _content_tokens(question)
-    metric_set = set(metrics or [])
-    note_sim = _note_similarities(question)
-    return sorted(
-        all_notes(),
-        key=lambda n: (
-            -_score(n, q_tokens, q_text, metric_set, q_content, note_sim),
-            -GRADE_RANK.get(n.grade, 0),
-            n.id,
-        ),
-    )
+    return [n for n, _s in rank_notes_with_scores(question, metrics)]
 
 
 def evidence_section(

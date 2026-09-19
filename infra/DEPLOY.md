@@ -105,6 +105,11 @@ api keeps serving. The ONNX model FILE itself still downloads to the `healthee-g
 volume on first use (query embedding needs a live model regardless of the artifact) —
 that part is unchanged and small enough (69 MB, one-time) to not need special handling.
 
+The coach's evidence reranker (Step 2b, `insights/evidence.py`) follows the identical
+shape for its own ~88 MB model: same `EMBEDDING_CACHE_DIR` setting, same `healthee-geocache`
+volume, downloaded once on first coach question. A load failure degrades to the fused
+hybrid order (logged once) rather than blocking a deploy, same as above.
+
 ### Rollback
 
 **There are no down-migrations.** Once `0002`→`0008` have applied, rolling the
