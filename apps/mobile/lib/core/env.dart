@@ -164,19 +164,25 @@ abstract final class Env {
   /// docstring's first paragraph describes, arriving through the number meant to
   /// prevent it.
   ///
-  /// 360 s clears the measured maximum with headroom. It is NOT a claim that six
-  /// minutes is acceptable to wait — it is the honest statement that the server can
-  /// take that long, and that hanging up costs the owner a question and delivers
-  /// nothing. Making the wait *short* is a server-side question (every cheap lever is
-  /// measured and closed in `docs/PRICING.md`); making it *legible* is the composer's
-  /// job. This constant's only duty is to not discard work that was charged for.
+  /// Those numbers are history. The server was re-measured on 2026-09-19 after
+  /// routing its coach model to fast providers, streaming every completion under a
+  /// 120 s wall-clock deadline, and sending passages instead of whole notes: coach
+  /// mean 27 s, p95 48 s, worst 62 s over 90 questions; two live production
+  /// questions took 53 s and 76 s. 180 s clears all of that with headroom.
+  ///
+  /// With the streamed endpoint this is the gap the client tolerates BETWEEN bytes,
+  /// and the server sends a keepalive every 10 s while it works, so a healthy turn
+  /// never approaches it; it bounds the non-streaming fallback and a genuinely dead
+  /// stream. Making the wait *legible* is the composer's job (it shows the server's
+  /// own stages); this constant's only duty is to not discard work that was charged
+  /// for.
   ///
   /// It is its OWN knob rather than a reuse of [pushTimeout] because the two
   /// numbers answer different questions — a multi-day sync backlog and a model
   /// thinking — and a shared constant would make one of them silently follow the
-  /// other's next revision. That divergence is now real: [pushTimeout] stays at 180 s.
+  /// other's next revision, even when the two happen to agree, as they do today.
   static const Duration coachTimeout = Duration(
-    seconds: int.fromEnvironment('HELIO_COACH_TIMEOUT_S', defaultValue: 360),
+    seconds: int.fromEnvironment('HELIO_COACH_TIMEOUT_S', defaultValue: 180),
   );
 
   /// Whether to log every HTTP request/response body.

@@ -218,24 +218,34 @@ void main() {
   });
 
   test('THE BUDGET CLEARS THE SLOWEST COACH TURN ACTUALLY MEASURED', () {
-    // 180 s was sized on narrow questions ("converging in two rounds") and was the
-    // wrong sample. Timed against the owner's own broad question on the live tier:
-    // 80.1 · 82.4 · 131.7 · 169.3 · 276.7 · 304.1 s — two of six over 180, median on
-    // the line. Every one of those overruns is an answer the server finished, charged
-    // a question for, and handed to a socket that had already closed.
+    // Re-measured 2026-09-19 after the server routed its coach model to fast
+    // providers, streamed every completion under a 120 s wall-clock deadline and
+    // sent passages instead of whole notes: 90 questions, coach mean 27 s, p95 48 s,
+    // worst 62 s; two live production questions took 53 s and 76.4 s. The previous
+    // pin (304.1 s, six broad questions in August) described a server that no longer
+    // exists, and a six-minute budget on a coach that answers in under a minute hid
+    // a dead connection for five of them.
     //
-    // Pinned as a NUMBER, not as `Env.coachTimeout` against itself, because the thing
-    // worth protecting is the relationship to reality: a future edit that trims this
-    // back for tidiness has to argue with the measurement rather than a tautology.
-    const Duration slowestMeasured = Duration(milliseconds: 304100);
+    // Still pinned as a NUMBER, not as `Env.coachTimeout` against itself: a future
+    // trim has to argue with a measurement, not a tautology. And still with headroom:
+    // the budget is more than double the slowest live turn, because a turn that
+    // finishes is a question the owner has already been charged for.
+    const Duration slowestMeasured = Duration(milliseconds: 76400);
 
     expect(
       Env.coachTimeout,
-      greaterThan(slowestMeasured),
+      greaterThan(slowestMeasured * 2),
       reason:
           'a coach turn was measured at ${slowestMeasured.inSeconds}s; a budget under '
-          'that discards answers the owner has already been charged for',
+          'twice that discards answers the owner has already been charged for',
     );
+  });
+
+  test('the budget is generous against the streamed keepalive', () {
+    // On the streamed endpoint this budget is the tolerated gap BETWEEN bytes, and
+    // the server sends a keepalive comment at least every 10 s while it works. A
+    // healthy stream therefore never approaches it; only a dead one does.
+    expect(Env.coachTimeout, greaterThan(const Duration(seconds: 60)));
   });
 
   test('a topic rides with the question, and only when there is one', () async {
