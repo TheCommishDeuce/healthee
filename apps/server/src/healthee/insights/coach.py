@@ -230,8 +230,14 @@ def _initial_messages(
     ranked_on = coach_thread.retrieval_key(question, topic)
     context = build_coach_context(ranked_on, user_id, tz, days=context_days)
     evidence = coach_evidence(ranked_on)
+    # Order is for the provider's prompt cache, which matches on a byte-identical PREFIX:
+    # the parts that repeat across questions (the prompt, then the evidence notes, then
+    # the answer contract) come first, and the parts that change per owner and per day
+    # (their data, the turn's subject) come last. The old order put the owner's data
+    # ahead of the ~40k-token evidence block, so a same-day question on the same notes
+    # missed the cache at the second section; measured coach cache hit was 44%.
     system = (
-        f"{COACH_SYSTEM_PROMPT}\n\n# THE USER'S DATA (CONTEXT)\n\n{context}\n\n{evidence}"
-        f"\n\n{coach_answer.ANSWER_SHAPE}{coach_thread.topic_block(topic)}"
+        f"{COACH_SYSTEM_PROMPT}\n\n{evidence}\n\n{coach_answer.ANSWER_SHAPE}"
+        f"\n\n# THE USER'S DATA (CONTEXT)\n\n{context}{coach_thread.topic_block(topic)}"
     )
     return [{"role": "system", "content": system}, *history]
