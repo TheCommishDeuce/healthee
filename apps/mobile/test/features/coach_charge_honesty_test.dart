@@ -30,8 +30,10 @@ import 'package:healthee/features/coach/coach_controller.dart';
 import 'package:healthee/features/coach/coach_conversation.dart';
 import 'package:healthee/features/coach/widgets/coach_thread.dart';
 
+import '../support/ask_as_stream.dart';
+
 /// A client that always fails the ask with one scripted taxonomy value.
-class _Failing implements CoachClient {
+class _Failing with AskAsStream implements CoachClient {
   _Failing(this.failure);
 
   final CoachUnreachable failure;

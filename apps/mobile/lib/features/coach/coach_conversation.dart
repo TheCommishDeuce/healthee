@@ -13,6 +13,7 @@ library;
 
 import 'package:healthee/data/coach/coach_answer.dart';
 import 'package:healthee/data/coach/coach_client.dart';
+import 'package:healthee/data/coach/coach_stream_event.dart';
 import 'package:meta/meta.dart';
 
 /// One entry in the thread.
@@ -71,7 +72,11 @@ final class CoachTrouble extends CoachEntry {
 @immutable
 class CoachConversation {
   /// A thread. [asking] is true from the moment the request leaves.
-  const CoachConversation({this.entries = const [], this.asking = false});
+  const CoachConversation({
+    this.entries = const [],
+    this.asking = false,
+    this.progress,
+  });
 
   /// Oldest first.
   final List<CoachEntry> entries;
@@ -81,6 +86,14 @@ class CoachConversation {
   /// same thread would spend a second slot on a conversation the owner has not
   /// seen the answer to yet.
   final bool asking;
+
+  /// The most recent stage `POST /api/coach/stream` has reported for the
+  /// in-flight question, or null before the first one arrives.
+  ///
+  /// Typed off the wire in `data/coach/coach_stream_event.dart` — this field
+  /// is never a raw `stage` string, so `CoachWaiting` renders a stage it knows
+  /// rather than guessing how to word one it does not (Standards §3).
+  final CoachStageEvent? progress;
 
   /// Whether anything has been asked in this thread.
   bool get isEmpty => entries.isEmpty;
@@ -107,10 +120,22 @@ class CoachConversation {
     return wire;
   }
 
-  /// The same conversation with [entries] and [asking] replaced.
-  CoachConversation copyWith({List<CoachEntry>? entries, bool? asking}) =>
-      CoachConversation(
-        entries: entries ?? this.entries,
-        asking: asking ?? this.asking,
-      );
+  /// The same conversation with [entries], [asking] and/or [progress]
+  /// replaced.
+  ///
+  /// [progress] follows the usual `?? this.progress` rule — pass a new value
+  /// to replace it. [clearProgress] is the escape hatch a nullable field
+  /// needs: there is no way to tell "replace with null" apart from "did not
+  /// pass this one" through `??` alone, and a stage from the turn that just
+  /// finished should not linger onto the next one.
+  CoachConversation copyWith({
+    List<CoachEntry>? entries,
+    bool? asking,
+    CoachStageEvent? progress,
+    bool clearProgress = false,
+  }) => CoachConversation(
+    entries: entries ?? this.entries,
+    asking: asking ?? this.asking,
+    progress: clearProgress ? null : (progress ?? this.progress),
+  );
 }

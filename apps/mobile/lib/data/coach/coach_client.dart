@@ -29,6 +29,8 @@ import 'package:healthee/core/env.dart';
 import 'package:healthee/core/logging.dart';
 import 'package:healthee/data/api/api_client.dart';
 import 'package:healthee/data/coach/coach_answer.dart';
+import 'package:healthee/data/coach/coach_stream_event.dart';
+import 'package:healthee/data/coach/coach_stream_reader.dart';
 import 'package:healthee/data/models/entitlement.dart';
 import 'package:meta/meta.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -172,6 +174,80 @@ class CoachClient {
       }
       throw CoachUnreachable(_unreachableSentence(error), _chargeFrom(error));
     }
+  }
+
+  /// [ask], as Server-Sent Events: live stage progress, then the validated
+  /// answer exactly once — the streaming twin `docs/INTELLIGENCE.md`'s
+  /// choke point is growing, on the same wire contract `ask` already uses.
+  ///
+  /// The same [Env.coachTimeout] applies, on the same Dio instance, so a
+  /// stream call cannot skip the auth interceptor or the timeout budget the
+  /// non-streaming call gets for free.
+  ///
+  /// ## A 404/405 falls back to [ask]
+  ///
+  /// An older server has no streaming twin yet. That is not a failure this
+  /// app surfaces — it calls [ask] and emits its answer as the one event, so
+  /// code written against this stream works unchanged against that server.
+  /// Every OTHER pre-stream status (402, 401, 422, 429, a dead socket) reuses
+  /// [_refusalFrom], [_chargeFrom] and [_unreachableSentence] exactly as
+  /// [ask] does: one mapping from a status to this app's own exceptions, not
+  /// two that could drift apart.
+  ///
+  /// ## Why a pre-stream failure needs [materializeStreamError]
+  ///
+  /// This request's `responseType` is [ResponseType.stream] so the SUCCESS
+  /// body can be read as it arrives. Dio applies that to failures too: a 402
+  /// here arrives as raw, undecoded bytes, not the parsed map [ask] gets for
+  /// free from the JSON transformer. [materializeStreamError] reads those
+  /// bytes once and decodes them into that same shape, so the mapping below
+  /// runs unchanged instead of gaining a second body format to understand.
+  ///
+  /// The byte-reading half — the SSE parse loop, the "dropped mid-turn" case,
+  /// and a stream `error` event's own exception — lives in
+  /// `coach_stream_reader.dart`, split out at the 400-line gate (Standards §1).
+  Stream<CoachStreamEvent> askStream(
+    List<CoachTurn> messages, {
+    String? topic,
+  }) async* {
+    final subject = topic?.trim() ?? '';
+    final Response<ResponseBody> response;
+    try {
+      response = await _dio.post<ResponseBody>(
+        '/api/coach/stream',
+        data: <String, Object?>{
+          'messages': [for (final turn in messages) turn.toJson()],
+          if (subject.isNotEmpty) 'topic': subject,
+        },
+        options: Options(
+          responseType: ResponseType.stream,
+          receiveTimeout: Env.coachTimeout,
+          sendTimeout: Env.coachTimeout,
+        ),
+      );
+    } on DioException catch (error, stackTrace) {
+      final status = error.response?.statusCode;
+      if (status == 404 || status == 405) {
+        yield CoachAnswerEvent(await ask(messages, topic: topic));
+        return;
+      }
+      AppLog.failure('coach', 'asking /api/coach/stream', error, stackTrace);
+      await materializeStreamError(error);
+      final refusal = _refusalFrom(error);
+      if (refusal != null) {
+        throw refusal;
+      }
+      throw CoachUnreachable(_unreachableSentence(error), _chargeFrom(error));
+    }
+
+    final body = response.data;
+    if (body == null) {
+      throw const CoachUnreachable(
+        'Your server accepted the question and sent no answer back.',
+        CoachCharge.unknown,
+      );
+    }
+    yield* readCoachStream(body.stream);
   }
 
   /// What may be claimed about the meter after [error] on the ASK.

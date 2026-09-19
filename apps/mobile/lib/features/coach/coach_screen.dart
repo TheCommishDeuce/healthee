@@ -68,6 +68,7 @@ import 'package:healthee/core/theme/dimensions.dart';
 import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/coach/coach_client.dart';
+import 'package:healthee/data/coach/coach_stream_event.dart';
 import 'package:healthee/data/models/entitlement.dart';
 import 'package:healthee/data/models/today_snapshot.dart';
 import 'package:healthee/data/today_repository.dart';
@@ -282,6 +283,7 @@ class CoachBody extends ConsumerWidget {
           started: !conversation.isEmpty,
           asking: conversation.asking,
           canAsk: canAsk,
+          progress: conversation.progress,
         ),
         // A conversation reads top to bottom and its input sits at the bottom,
         // which is the shape the legacy coach uses and the shape every messaging
@@ -322,14 +324,15 @@ class CoachBody extends ConsumerWidget {
     required bool started,
     required bool asking,
     required bool canAsk,
+    required CoachStageEvent? progress,
   }) {
     if (asking) {
       // Not `LoadingState`: this wait was measured at 80-304 s, and a 16 px
       // spinner held for four minutes reads as a hang. `CoachWaiting` counts the
-      // time it can actually see and says what it cannot. See that file.
-      return const Padding(
-        padding: EdgeInsets.only(top: Insets.md),
-        child: CoachWaiting(),
+      // time it can actually see and names the stage the wire actually sent.
+      return Padding(
+        padding: const EdgeInsets.only(top: Insets.md),
+        child: CoachWaiting(progress: progress),
       );
     }
     // The opening is what an EMPTY thread stands on. Once anything has been

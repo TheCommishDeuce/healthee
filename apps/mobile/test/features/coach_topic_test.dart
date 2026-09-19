@@ -63,7 +63,7 @@ Entitlement _premium() => Entitlement.fromJson(const <String, Object?>{
 });
 
 /// Records every question that actually reached the wire.
-class _RecordingCoach implements CoachClient {
+class _RecordingCoach with AskAsStream implements CoachClient {
   final List<List<CoachTurn>> asked = <List<CoachTurn>>[];
   final List<String?> topics = <String?>[];
 

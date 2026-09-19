@@ -55,7 +55,7 @@ Entitlement _free() => Entitlement.fromJson(const <String, Object?>{
 });
 
 /// A client that answers from a script and records what it was asked.
-class _ScriptedCoach implements CoachClient {
+class _ScriptedCoach with AskAsStream implements CoachClient {
   _ScriptedCoach({required this.balances, this.answer});
 
   /// One entitlement per read, so a test can show the meter moving.

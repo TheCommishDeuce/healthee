@@ -72,7 +72,7 @@ Entitlement _uncapped() => Entitlement.fromJson(const <String, Object?>{
 });
 
 /// A client that answers from a script and records what it was asked.
-class _ScriptedCoach implements CoachClient {
+class _ScriptedCoach with AskAsStream implements CoachClient {
   _ScriptedCoach({required this.balances, this.answer, this.throws});
 
   /// One entitlement per read, so a test can show the meter moving.
@@ -378,7 +378,7 @@ void main() {
 }
 
 /// An entitlement read that never lands, so the "checking" state can be held.
-class _PendingEntitlement implements CoachClient {
+class _PendingEntitlement with AskAsStream implements CoachClient {
   @override
   Future<Entitlement> entitlement() => Completer<Entitlement>().future;
 
@@ -389,7 +389,7 @@ class _PendingEntitlement implements CoachClient {
 
 /// An entitlement read that fails. Its own class rather than a flag on
 /// [_ScriptedCoach], because the sheet must render a different SHAPE for it.
-class _FailingEntitlement implements CoachClient {
+class _FailingEntitlement with AskAsStream implements CoachClient {
   @override
   Future<Entitlement> entitlement() async =>
       throw const CoachUnreachable('no answer', CoachCharge.notCharged);

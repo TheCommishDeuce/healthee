@@ -21,6 +21,10 @@ import 'package:healthee/data/store/store_provider.dart';
 import 'package:healthee/features/coach/coach_history_provider.dart';
 import 'package:solar_icons/solar_icons.dart';
 
+// Re-exported so a bed's `CoachClient` fake gets a default `askStream` for
+// free — every bed here already imports this file for `coachScope`.
+export '../support/ask_as_stream.dart';
+
 /// The composer's send button, named once.
 ///
 /// Three suites reach for it and none of them is about which glyph it wears;

@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/theme/app_theme.dart';
+import 'package:healthee/data/coach/coach_stream_event.dart';
 import 'package:healthee/features/coach/v02/coach_waiting.dart';
 
 /// The widget under a theme, which is all it needs — it reads tokens and nothing else.
@@ -101,5 +102,96 @@ void main() {
         expect(find.textContaining('has not failed'), findsOneWidget);
       },
     );
+  });
+
+  group('the stage, once the wire has said one', () {
+    // One case per line of the copy spec — a stage this widget shows is a
+    // stage the server actually reported, and the wording is fixed, not
+    // freely worded per call site.
+    const cases = <(CoachStageEvent, String)>[
+      (
+        CoachStageEvent(stage: CoachStage.context, round: 1),
+        'Reading your data',
+      ),
+      (
+        CoachStageEvent(stage: CoachStage.thinking, round: 1),
+        'Thinking it through',
+      ),
+      (
+        CoachStageEvent(
+          stage: CoachStage.tool,
+          round: 1,
+          detail: 'query_metric',
+        ),
+        'Looking at your numbers',
+      ),
+      (
+        CoachStageEvent(
+          stage: CoachStage.tool,
+          round: 1,
+          detail: 'compare_event',
+        ),
+        'Comparing your days',
+      ),
+      (
+        CoachStageEvent(
+          stage: CoachStage.tool,
+          round: 1,
+          detail: 'get_knowledge',
+        ),
+        'Checking the research',
+      ),
+      (
+        CoachStageEvent(
+          stage: CoachStage.tool,
+          round: 1,
+          detail: 'sleep_consistency',
+        ),
+        'Looking at your sleep pattern',
+      ),
+      (
+        CoachStageEvent(stage: CoachStage.tool, round: 1, detail: 'log_entry'),
+        'Looking something up',
+      ),
+      (
+        CoachStageEvent(stage: CoachStage.tool, round: 1, detail: 'a_new_tool'),
+        'Looking something up',
+      ),
+      (
+        CoachStageEvent(stage: CoachStage.checking, round: 1),
+        'Checking the citations',
+      ),
+      (
+        CoachStageEvent(stage: CoachStage.revising, round: 1),
+        'Rewording to match the evidence',
+      ),
+    ];
+
+    for (final (progress, label) in cases) {
+      testWidgets('${progress.stage.name}/${progress.detail} reads "$label"', (
+        tester,
+      ) async {
+        await pumpApp(tester, CoachWaiting(progress: progress));
+
+        expect(find.text(label), findsOneWidget);
+        expect(
+          find.textContaining('Reading your own data and the graded research'),
+          findsNothing,
+          reason: 'a known stage replaces the pre-streaming sentence',
+        );
+      });
+    }
+
+    testWidgets('coachStageLabel is the same mapping the widget renders', (
+      tester,
+    ) async {
+      const progress = CoachStageEvent(
+        stage: CoachStage.tool,
+        round: 4,
+        detail: 'get_knowledge',
+      );
+
+      expect(coachStageLabel(progress), 'Checking the research');
+    });
   });
 }

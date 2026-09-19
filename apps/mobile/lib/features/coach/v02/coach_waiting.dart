@@ -7,29 +7,28 @@
 /// the coach "takes insane amount of time" — which was true, and the screen was
 /// doing nothing to make the time legible.
 ///
-/// ## Why there is no stepper here
+/// ## The stage shown is the wire's, never invented
 ///
-/// The obvious design is a checklist that lights up: *reading your sleep* →
-/// *checking the research* → *writing*. It is the wrong design for this app,
-/// because `POST /api/coach` is one synchronous request and **the app cannot
-/// know which round the server is on**. A stepper advancing on a timer would be
-/// inventing server state and showing it as fact — the exact move the honesty
-/// contract exists to forbid, made harmless-looking by being decoration.
+/// `POST /api/coach/stream` names its own progress (`data/coach/coach_stream_
+/// event.dart`'s `CoachStage`), so this widget can say what the server is
+/// actually doing instead of a description of the whole operation. The rule
+/// this file was built to keep is unchanged, only its instrument improved: a
+/// stepper advancing on a TIMER would be inventing server state and showing it
+/// as fact, which is the exact move the honesty contract forbids. [progress]
+/// is null until the first `stage` event lands — before that, and against an
+/// older server that falls back to the non-streaming call, this widget says
+/// exactly what it always said, because that is still all it knows.
 ///
 /// So what is shown is only what is actually known:
 ///
 /// * the elapsed time, counted here and true by construction;
-/// * a description of the whole operation, in the present tense but never
-///   claiming a stage — it reads "reading your data and the graded research",
-///   which is what the turn does end to end;
+/// * [progress]'s own stage, worded by [coachStageLabel] — or, before the
+///   first one arrives, the same whole-operation sentence this screen showed
+///   before streaming existed;
 /// * after [_longAfter], a second sentence saying the wait is longer than usual
 ///   and that broad questions take more rounds. That is a statement about the
 ///   distribution, not about this request, and it is the honest way to say
 ///   "still working" without pretending to know why.
-///
-/// Real per-stage progress is available and is not a UI change: the server would
-/// have to stream its tool calls (`insights/coach.py::_loop` already names each
-/// one). Until it does, this file's job is to be truthful about not knowing.
 ///
 /// ## "You can leave this screen"
 ///
@@ -48,15 +47,49 @@ import 'package:healthee/core/theme/dimensions.dart';
 import 'package:healthee/core/theme/shapes.dart';
 import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/type_scale.dart';
+import 'package:healthee/data/coach/coach_stream_event.dart';
 
 /// The panel shown while a question is in flight.
 class CoachWaiting extends StatefulWidget {
-  /// Builds the waiting state.
-  const CoachWaiting({super.key});
+  /// [progress] is the latest stage `CoachController` has seen for this
+  /// question, or null before the first one arrives.
+  const CoachWaiting({this.progress, super.key});
+
+  /// The stage to describe. Null draws the pre-streaming sentence.
+  final CoachStageEvent? progress;
 
   @override
   State<CoachWaiting> createState() => _CoachWaitingState();
 }
+
+/// The default description, before any [CoachStageEvent] has arrived — the
+/// exact sentence this screen showed before streaming existed, and what it
+/// still shows against a server old enough to fall back to the plain call.
+const String _beforeAnyStage =
+    'Reading your own data and the graded research, then writing an answer '
+    'that cites both.';
+
+/// [progress]'s own words, in this app's copy — never the wire's raw name.
+///
+/// Public so a test can pin the mapping directly rather than only through the
+/// widget it feeds.
+String coachStageLabel(CoachStageEvent progress) => switch (progress.stage) {
+  CoachStage.context => 'Reading your data',
+  CoachStage.thinking => 'Thinking it through',
+  CoachStage.tool => _toolLabel(progress.detail),
+  CoachStage.checking => 'Checking the citations',
+  CoachStage.revising => 'Rewording to match the evidence',
+};
+
+/// The named tools get their own sentence; anything else is still true and
+/// still honest without naming a tool the owner has never heard of.
+String _toolLabel(String? tool) => switch (tool) {
+  'query_metric' => 'Looking at your numbers',
+  'compare_event' => 'Comparing your days',
+  'get_knowledge' => 'Checking the research',
+  'sleep_consistency' => 'Looking at your sleep pattern',
+  _ => 'Looking something up',
+};
 
 /// When the wait stops being ordinary. The measured distribution on the owner's
 /// own broad question was 80 · 82 · 132 · 169 · 277 · 304 s, so a minute is well
@@ -142,8 +175,9 @@ class _CoachWaitingState extends State<CoachWaiting>
           ),
           const SizedBox(height: Insets.md),
           Text(
-            'Reading your own data and the graded research, then writing an '
-            'answer that cites both.',
+            widget.progress == null
+                ? _beforeAnyStage
+                : coachStageLabel(widget.progress!),
             style: TypeScale.panelNote.copyWith(color: colors.ink2),
           ),
           if (long) ...<Widget>[

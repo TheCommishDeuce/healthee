@@ -30,6 +30,7 @@ import 'package:healthee/data/api/cache_session.dart';
 import 'package:healthee/data/api/credentials.dart';
 import 'package:healthee/data/coach/coach_client.dart';
 import 'package:healthee/data/coach/coach_history_store.dart';
+import 'package:healthee/data/coach/coach_stream_event.dart';
 import 'package:healthee/data/store/store_provider.dart';
 import 'package:healthee/features/coach/coach_conversation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -71,7 +72,15 @@ class CoachController extends _$CoachController {
       return;
     }
     final asked = OwnerQuestion(text);
-    state = state.copyWith(entries: [...state.entries, asked], asking: true);
+    // `clearProgress` because a stage from a PREVIOUS, unanswered turn (a
+    // refusal or a dropped connection does not clear it) must not linger onto
+    // this one — `CoachWaiting` would open showing a stage that belongs to a
+    // question already resolved.
+    state = state.copyWith(
+      entries: [...state.entries, asked],
+      asking: true,
+      clearProgress: true,
+    );
     final generation = _generation;
     // Written BEFORE the request, not after it. The process can end at any point
     // — that is the whole reason this store exists — and a question recorded
@@ -85,13 +94,28 @@ class CoachController extends _$CoachController {
     // that lands late still lands in the right place.
     unawaited(_remember(asked, seq: state.entries.length - 1, opening: text));
     try {
-      final answer = await ref
-          .read(coachClientProvider)
-          .ask(state.toWire(), topic: topic);
-      if (_isCurrent(generation)) {
-        final reply = CoachReply(answer);
-        state = state.copyWith(entries: [...state.entries, reply]);
-        unawaited(_remember(reply, seq: state.entries.length - 1));
+      // Consumed as it arrives rather than awaited whole: `askStream` yields
+      // zero or more typed [CoachStageEvent]s before its one [CoachAnswerEvent],
+      // and `CoachWaiting` renders whichever stage this loop last stored.
+      await for (final event
+          in ref
+              .read(coachClientProvider)
+              .askStream(state.toWire(), topic: topic)) {
+        switch (event) {
+          case CoachStageEvent():
+            if (_isCurrent(generation)) {
+              state = state.copyWith(progress: event);
+            }
+          case CoachAnswerEvent(:final answer):
+            if (_isCurrent(generation)) {
+              final reply = CoachReply(answer);
+              state = state.copyWith(
+                entries: [...state.entries, reply],
+                clearProgress: true,
+              );
+              unawaited(_remember(reply, seq: state.entries.length - 1));
+            }
+        }
       }
     } on CoachRefusal catch (refusal) {
       // The gate said no. It is an answer about the account, not a fault, and it

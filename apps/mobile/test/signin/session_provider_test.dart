@@ -14,8 +14,9 @@ import 'package:healthee/data/store/store_provider.dart';
 import 'package:healthee/features/coach/coach_controller.dart';
 
 import '../pairing/_pairing_fakes.dart';
+import '../support/ask_as_stream.dart';
 
-class PendingCoach implements CoachClient {
+class PendingCoach with AskAsStream implements CoachClient {
   final answer = Completer<CoachAnswer>();
 
   @override
