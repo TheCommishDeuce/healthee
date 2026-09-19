@@ -94,6 +94,50 @@ def test_two_interleaved_tool_calls_assemble_separately() -> None:
     assert all(c.function.arguments == "{}" for c in response.tool_calls)
 
 
+def test_on_text_receives_the_cumulative_text_on_every_content_delta() -> None:
+    chunks = [
+        _chunk(content="The "),
+        _chunk(content="answer "),
+        _chunk(content="is 42.", finish_reason="stop"),
+        _usage_chunk(None),
+    ]
+    client, _ = _client_with_fake(chunks=chunks)
+    seen: list[str] = []
+    response = client.complete([{"role": "user", "content": "x"}], on_text=seen.append)
+    assert seen == ["The ", "The answer ", "The answer is 42."]
+    assert response.text == "The answer is 42."
+
+
+def test_on_text_is_not_called_for_a_tool_only_chunk() -> None:
+    """A tool-call fragment carries no content delta — nothing to stream as a draft."""
+    chunks = [
+        _chunk(tool_calls=[_tool_call_delta(0, call_id="call_1", name="get_sleep")]),
+        _chunk(tool_calls=[_tool_call_delta(0, arguments="{}")], finish_reason="tool_calls"),
+        _usage_chunk(None),
+    ]
+    client, _ = _client_with_fake(chunks=chunks)
+    seen: list[str] = []
+    client.complete([{"role": "user", "content": "x"}], on_text=seen.append)
+    assert seen == []
+
+
+def test_a_raising_on_text_does_not_break_the_completion(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Mirrors `pipeline.emit_event`: a broken progress observer must never cost the
+    answer it is only watching."""
+    chunks = [_chunk(content="ok", finish_reason="stop"), _usage_chunk(None)]
+    client, _ = _client_with_fake(chunks=chunks)
+
+    def exploding(_text: str) -> None:
+        raise RuntimeError("a client watching this stream just vanished")
+
+    with caplog.at_level(logging.ERROR):
+        response = client.complete([{"role": "user", "content": "x"}], on_text=exploding)
+    assert response.text == "ok"
+    assert any("on_text observer raised" in r.message for r in caplog.records)
+
+
 def test_usage_from_the_final_chunk_populates_every_field_including_cost() -> None:
     usage = SimpleNamespace(
         prompt_tokens=500,

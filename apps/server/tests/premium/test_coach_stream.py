@@ -143,6 +143,22 @@ def test_the_answer_event_equals_post_coach_for_the_same_turn(
     assert data["reply"] == VALID_REPLY
 
 
+# ── the live draft (the owner's 2026-09-19 call) ──────────────────────────────
+
+
+def test_draft_frames_arrive_before_the_answer_event(bed: TestClient, stub: StubLLM) -> None:  # noqa: ARG001
+    """Real SSE framing, end to end: a ``draft`` event ships (the round's own final
+    flush, `coach_loop.ToolLoop`) strictly before the terminal ``answer`` event, and
+    it carries the shape ``packages/contracts/snapshots/coach_stream_events.json``
+    documents (``{"round", "text"}``)."""
+    events = _parse_sse(_stream(bed, _QUESTION).text)
+    names = [name for name, _ in events]
+    assert "draft" in names
+    assert names.index("draft") < names.index("answer")
+    draft_data = next(data for name, data in events if name == "draft")
+    assert draft_data == {"round": 1, "text": VALID_REPLY}
+
+
 # ── the refund contract, measured on the real ledger ──────────────────────────
 
 

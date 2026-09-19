@@ -16,6 +16,7 @@ network call happens under pytest.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 from types import SimpleNamespace
@@ -203,6 +204,7 @@ class OpenRouterClient:
         model: str | None = None,
         response_format: dict | None = None,
         reasoning: bool | None = None,
+        on_text: Callable[[str], None] | None = None,
     ) -> ChatResponse:
         """One completion, STREAMED, assembled back into one assistant turn.
 
@@ -217,29 +219,28 @@ class OpenRouterClient:
         byte-identical to before the parameter existed. ``True`` is deliberately also
         "send nothing": the shipped behaviour IS the model default, and asking for
         thinking explicitly would change the request for models that never think.
+        ``on_text`` (the coach's live draft) is forwarded the same way — only when set,
+        never part of ``LLMClient``.
 
         Every call is made with ``stream=True``: a non-streaming call's ``httpx`` read
         timeout (``llm_timeout_s``) only fires when the socket goes silent, and
         OpenRouter's keepalive bytes during a long generation mean it never is —
         measured, one coach question ran 594 s across 3 calls under a supposed 60 s
         cap. Streaming lets ``client_stream.watchdog_accumulate`` enforce a WALL-CLOCK
-        deadline (``llm_deadline_s``) instead — a per-chunk check plus a real timer
+        deadline (``llm_deadline_s``) instead: a per-chunk check plus a real timer
         backstop for the phase before the first chunk, where OpenRouter's own
         keepalives never reach the SDK as a chunk at all (module docstring).
 
-        Errors propagate (the endpoint layer degrades to an honest error body) — never
-        swallowed. Two exceptions carry a timeout: the SDK's own
-        ``openai.APITimeoutError`` (``llm_timeout_s``, a dead socket) and
-        :class:`LLMDeadlineExceeded` (``llm_deadline_s``, a live-but-slow one). Both
-        travel out untouched, landing on the chain's supervisor (logged +
-        Telegram-notified) instead of quietly becoming an empty answer — a blank card
-        and a broken transport must stay distinguishable (standards §Errors). The key
-        is passed to the SDK, never logged.
+        Errors propagate (the endpoint degrades to an honest error body) — never
+        swallowed. Two exceptions carry a timeout: ``openai.APITimeoutError``
+        (``llm_timeout_s``, a dead socket) and :class:`LLMDeadlineExceeded`
+        (``llm_deadline_s``, a live-but-slow one), landing on the chain's supervisor
+        (logged + Telegram-notified) rather than quietly becoming an empty answer — a
+        blank card and a broken transport must stay distinguishable (standards, errors).
 
-        Every attempt — success, failure or deadline — is recorded in
-        ``insights.transport_health``, which is what makes a dead AI layer VISIBLE
-        without any probe ever paying for a completion. `_client()` raising for an
-        unset key is a *configuration* fact, not a transport one, and is not counted.
+        Every attempt is recorded in ``insights.transport_health``, which makes a dead
+        AI layer VISIBLE without any probe paying for a completion — `_client()` raising
+        for an unset key is a *configuration* fact, not a transport one, uncounted here.
         """
         settings = get_settings()
         model = model or settings.default_model  # resolve the env-configured default
@@ -269,10 +270,11 @@ class OpenRouterClient:
         kwargs["extra_body"] = extra_body
         sdk = self._client()
         started = time.monotonic()
+        deadline_s = settings.llm_deadline_s
         try:
             stream = sdk.chat.completions.create(**kwargs)
             acc = client_stream.watchdog_accumulate(
-                stream, deadline_s=settings.llm_deadline_s, deadline_exc=LLMDeadlineExceeded
+                stream, deadline_s=deadline_s, deadline_exc=LLMDeadlineExceeded, on_text=on_text
             )
         except Exception as exc:  # recorded on the health surface, then re-raised untouched
             transport_health.record_failure(exc)

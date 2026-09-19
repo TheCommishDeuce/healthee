@@ -41,6 +41,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 from uuid import UUID
 
 from healthee.core.logging import get_logger
@@ -162,14 +163,23 @@ def complete(
     model: str | None = None,
     response_format: dict | None = None,
     reasoning: bool | None = None,
+    on_text: Callable[[str], None] | None = None,
 ) -> ChatResponse:
     """The ONE call into the LLM transport — the seam a cost/budget stage plugs into.
 
     ``reasoning`` travels only when a caller actually set it: every surface but the
     coach leaves it ``None``, and a ``None`` that is not sent keeps their requests — and
     every test double of this protocol — byte-identical to before the parameter existed.
+
+    ``on_text`` is forwarded the same way, for the same reason: it is not part of the
+    ``LLMClient`` Protocol, only the coach's tool loop ever sets it (its live draft,
+    ``coach_loop``/``coach_draft``), and every other surface's call stays untouched.
     """
-    extra: dict[str, bool] = {} if reasoning is None else {"reasoning": reasoning}
+    extra: dict[str, Any] = {}
+    if reasoning is not None:
+        extra["reasoning"] = reasoning
+    if on_text is not None:
+        extra["on_text"] = on_text
     return client.complete(
         messages, tools=tools, model=model, response_format=response_format, **extra
     )

@@ -356,7 +356,16 @@ def test_json_mode_is_requested_only_when_no_tools_are_offered() -> None:
     class _Spy:
         calls = 0
 
-        def complete(self, messages, *, tools=None, model=None, response_format=None):  # noqa: ANN001, ARG002
+        def complete(  # noqa: ANN001, ARG002
+            self,
+            messages,
+            *,
+            tools=None,
+            model=None,
+            response_format=None,
+            reasoning=None,
+            on_text=None,
+        ):
             seen.append((tools is not None, response_format))
             self.calls += 1
             return valid_turn()

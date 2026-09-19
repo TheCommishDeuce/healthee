@@ -15,6 +15,7 @@ treated as free — "we don't know" is not "zero" (standards §Errors).
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import Any
 
 from healthee.insights.client import ChatResponse, LLMClient
 
@@ -87,10 +88,16 @@ class MeteredClient:
         model: str | None = None,
         response_format: dict | None = None,
         reasoning: bool | None = None,
+        on_text=None,
     ) -> ChatResponse:
-        # `reasoning` is forwarded exactly as `pipeline.complete` does — only when set —
-        # so an arm with COACH_REASONING=off measures the request the product sends.
-        extra: dict[str, bool] = {} if reasoning is None else {"reasoning": reasoning}
+        # `reasoning`/`on_text` are forwarded exactly as `pipeline.complete` does — only
+        # when set — so an arm with COACH_REASONING=off, or the coach's live draft,
+        # measures the request the product actually sends.
+        extra: dict[str, Any] = {}
+        if reasoning is not None:
+            extra["reasoning"] = reasoning
+        if on_text is not None:
+            extra["on_text"] = on_text
         response = self._inner.complete(
             messages, tools=tools, model=model, response_format=response_format, **extra
         )

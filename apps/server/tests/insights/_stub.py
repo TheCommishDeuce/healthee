@@ -66,7 +66,14 @@ class StubLLM:
         self.messages: list[list[dict]] = []
 
     def complete(  # noqa: ARG002
-        self, messages: list[dict], *, tools=None, model: str | None = None, response_format=None
+        self,
+        messages: list[dict],
+        *,
+        tools=None,
+        model: str | None = None,
+        response_format=None,
+        reasoning: bool | None = None,
+        on_text=None,
     ) -> ChatResponse:
         idx = min(self.calls, len(self._responses) - 1)
         self.calls += 1

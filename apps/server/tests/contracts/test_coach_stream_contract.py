@@ -6,7 +6,7 @@ sample of each event KIND rather than one whole response — see
 `packages/contracts/README.md`'s own section on this file for why.
 
 No DB: the context/evidence build is stubbed exactly as `tests/insights/test_coach.py`
-does, so this is a structural check on the WIRE FORMAT — what shape a `stage`/
+does, so this is a structural check on the WIRE FORMAT — what shape a `stage`/`draft`/
 `answer`/`error` event takes — not a seeded-DB fixture test. The DB-backed, real-HTTP
 version of this (real SSE framing, the real ledger) is `tests/premium/test_coach_stream.py`.
 """
@@ -56,10 +56,20 @@ def _snapshot_events() -> list[dict]:
     return json.loads(_SNAPSHOT.read_text())
 
 
+def _as_event(event: dict) -> dict:
+    """One captured `on_event` dict, named and shaped exactly as `coach_stream._drain`
+    would frame it on the wire (`coach_stream.sse_name_and_data`) — a `stage` dict, or a
+    `{"event": "draft", ...}` dict naming itself."""
+    name, data = coach_stream.sse_name_and_data(event)
+    return {"event": name, "data": data}
+
+
 def test_a_tool_using_turns_events_conform_to_the_committed_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The `context`/`thinking`/`tool`/`checking` stage shapes, plus the `answer` shape."""
+    """The `context`/`thinking`/`tool`/`checking` stage shapes, the `draft` shape (the
+    content round's final-flush draft, since `CoachStub` here answers in one piece
+    rather than through `on_text`), and the `answer` shape."""
     monkeypatch.setattr(coach_tools, "execute_tool", lambda name, args, uid, tz: {"avg": 42.0})
     stub = CoachStub(
         [tool_turn(tool_call("c1", "query_metric", '{"metric": "hrv_sleep_avg"}')), valid_turn()]
@@ -70,8 +80,9 @@ def test_a_tool_using_turns_events_conform_to_the_committed_schema(
         SENTINEL_USER_ID,
         SENTINEL_TZ,
         client=stub,
-        on_event=lambda event: captured.append({"event": "stage", "data": event}),
+        on_event=lambda event: captured.append(_as_event(event)),
     )
+    assert any(e["event"] == "draft" for e in captured)
     live = [*captured, {"event": "answer", "data": coach.coach_reply_payload(result)}]
     assert_conforms(live, _snapshot_events(), "root")
 
@@ -82,7 +93,9 @@ def test_a_revised_then_accepted_turns_events_conform_too() -> None:
     Checked against the STAGE samples only: the answer payload's own shape (which
     varies with which metrics a turn happened to read) is already proven by the
     tool-using test above, and re-checking it here would just be a second, weaker
-    assertion about the same `coach_reply_payload` shape.
+    assertion about the same `coach_reply_payload` shape. `draft` events are captured
+    too (a rejected candidate still streams one) but filtered out here for the same
+    reason — their own shape is already proven by the test above.
     """
     from tests.insights._coach_stub import claim_turn
 
@@ -93,11 +106,12 @@ def test_a_revised_then_accepted_turns_events_conform_too() -> None:
         SENTINEL_USER_ID,
         SENTINEL_TZ,
         client=stub,
-        on_event=lambda event: captured.append({"event": "stage", "data": event}),
+        on_event=lambda event: captured.append(_as_event(event)),
     )
-    assert any(e["data"]["stage"] == "revising" for e in captured)
+    stages = [e for e in captured if e["event"] == "stage"]
+    assert any(e["data"]["stage"] == "revising" for e in stages)
     stage_samples = [e for e in _snapshot_events() if e["event"] == "stage"]
-    assert_conforms(captured, stage_samples, "root")
+    assert_conforms(stages, stage_samples, "root")
 
 
 def test_an_error_events_shape_conforms_to_the_committed_schema(

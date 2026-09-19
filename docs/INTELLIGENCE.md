@@ -177,7 +177,10 @@ question/task
     kinds only — a metric key is not a word prose uses. It cannot catch a model
     that fabricates AND under-declares a metric, and it says so in its docstring
   → once every allowed attempt has failed: honest fallback ("I can't ground that in
-    our evidence base") — unvalidated text NEVER ships (legacy shipped it anyway).
+    our evidence base") — unvalidated text NEVER SHIPS (legacy shipped it anyway).
+    (section 3a is a named, narrow exception to this sentence for the coach's live DRAFT —
+    shown to the owner visibly MUTED as a draft, while this line still governs
+    everything that ships as the answer.)
     The retry budget is RESERVED, never shared with tool-gathering: the coach's
     gathering allowance and `pipeline.validation_retries()` are two counters, so an
     answer arrives at its gates with the same tolerance however much data preceded
@@ -206,6 +209,50 @@ no module outside `pipeline.py` reaches `classify_refusal` / `check_output` /
 `validate` / `validate_json` / `evidence_section` / `build_context` at all. The
 first proves a registered stage propagates; the second proves a stage cannot be
 added *outside* the registry to one surface only. Both are mutation-verified.
+
+### 3a · The coach's live DRAFT — a named, deliberate exception (the owner's 2026-09-19 call)
+
+The owner tested the streamed coach (`api/coach_stream.py`) and it still landed the
+whole answer in one piece after a minute of silence. His decision: "make it feel like
+claude — stream it as it starts and swap." That is now shipped, and it is a deliberate,
+narrow exception to this section's own "unvalidated text NEVER ships" — stated here
+plainly rather than left for a reader to discover by diffing the wire contract.
+
+**What is streamed.** A new SSE event, `draft` (`{"round", "text"}`), carries the
+coach's answer PROSE while the model is still writing it — rendered from the model's
+own partial, mid-write JSON payload by a tolerant scanner
+(`insights/coach_draft.draft_prose`, NOT `json.loads`: a half-written answer is not
+valid JSON) that extracts the `opening` and each claim's `text`, attaching a claim's
+citation only once its `note_ids` array has closed. `text` is the WHOLE draft so far,
+not a delta — the client replaces, never appends — emitted at most once every 100ms
+per round (`coach_loop._DraftThrottle`) with a final flush when the round's content
+ends, so the throttle window can never swallow the round's last word.
+
+**What replaces it.** The terminal `answer` event — the one payload every gate in this
+section has judged — always supersedes every `draft` that preceded it, however many
+there were and whatever they said. A rewrite (a candidate this section's validator
+rejected, nudged, and asked to try again) is not a continuation: the NEXT round's first
+`draft` starts from empty text, never from the rejected candidate's tail.
+
+**Why the gates are unchanged.** Nothing about the judged path moved. The draft is
+produced by reading the SAME streamed completion the pipeline already makes
+(`client.complete`'s new `on_text` hook, forwarded exactly as `reasoning` is — never
+part of the `LLMClient` Protocol, so every surface but the coach is byte-identical to
+before it existed); it is never fed back into `judge()`, never counted against a
+validation retry, and never reaches `answer_gates()` at all. The validator, the hard
+output guardrails, anti-hallucination, the answer-shape gate and the personal-claims
+gate all still run — unchanged, in the same order — over the FINAL candidate only,
+exactly as before this feature existed.
+
+**What makes this safe to ship.** The app renders a `draft` visibly MUTED — the owner's
+own words, "shown as a draft" — so what is on screen while the model is still writing
+is legible as provisional, not as this product's honest answer. A draft CAN be
+reworded or withdrawn in front of the owner: a claim rejected by the validator, or a
+rewrite the model produces after a nudge, both happen after the owner has already seen
+an earlier, different draft. That is the one place this product now shows the owner
+text before every gate has cleared it — narrower than it sounds, because the thing
+shown is legible as a draft and the thing that ships is still gated exactly as this
+section has always required.
 
 ### 3.1 · Data coverage — the definition, and why it is this one (#89)
 

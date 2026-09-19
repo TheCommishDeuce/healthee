@@ -3,6 +3,7 @@
   {"event": "stage", "data": {"stage": "thinking", "round": 1, "detail": null}},
   {"event": "stage", "data": {"stage": "tool", "round": 1, "detail": "query_metric"}},
   {"event": "stage", "data": {"stage": "thinking", "round": 2, "detail": null}},
+  {"event": "draft", "data": {"round": 2, "text": "Your recent numbers look steady."}},
   {"event": "stage", "data": {"stage": "checking", "round": 2, "detail": null}},
   {"event": "stage", "data": {"stage": "revising", "round": 2, "detail": null}},
   {

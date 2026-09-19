@@ -38,6 +38,10 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from healthee.core.logging import get_logger
+
+log = get_logger(__name__)
+
 
 @dataclass
 class ToolCallFunction:
@@ -74,6 +78,7 @@ def accumulate(
     deadline_s: float,
     deadline_exc: type[Exception],
     clock: Callable[[], float] | None = None,
+    on_text: Callable[[str], None] | None = None,
 ) -> AccumulatedResponse:
     """Consume ``chunks`` into one :class:`AccumulatedResponse`, or raise ``deadline_exc``.
 
@@ -86,6 +91,13 @@ def accumulate(
     parameter default — a default is bound once, at import time, so a test that
     monkeypatches ``client_stream.time.monotonic`` afterward would silently patch
     nothing were it bound the other way.
+
+    ``on_text``, when given, is called with the FULL text joined so far every time a
+    chunk carries a content delta — the seam the coach's live draft (``coach_loop``,
+    ``coach_draft.draft_prose``) streams through. It never sees a tool-call-only chunk,
+    because those carry no content delta to join. A raising ``on_text`` must never break
+    the completion it is only watching, so it is wrapped the way
+    ``pipeline.emit_event`` wraps every other progress observer.
     """
     clock = clock or time.monotonic
     started = clock()
@@ -105,6 +117,7 @@ def accumulate(
                 content = getattr(delta, "content", None)
                 if content:
                     text_parts.append(content)
+                    _notify(on_text, "".join(text_parts))
                 _merge_tool_calls(builders, getattr(delta, "tool_calls", None))
             reason = getattr(choice, "finish_reason", None)
             if reason:
@@ -119,6 +132,21 @@ def accumulate(
         finish_reason=finish_reason,
         usage_raw=usage_raw,
     )
+
+
+def _notify(on_text: Callable[[str], None] | None, text_so_far: str) -> None:
+    """Call ``on_text`` with the joined text so far — log and ignore, never raise.
+
+    Mirrors ``pipeline.emit_event``: ``on_text`` exists only to feed a live progress
+    display, and a bug in it — or a client that vanished mid-stream — must never abort
+    or corrupt a completion that is already billed and already running.
+    """
+    if on_text is None:
+        return
+    try:
+        on_text(text_so_far)
+    except Exception:
+        log.exception("on_text observer raised — ignored")
 
 
 def _merge_tool_calls(builders: dict[int, ToolCall], deltas: Any) -> None:
@@ -196,17 +224,23 @@ def watchdog_accumulate(
     *,
     deadline_s: float,
     deadline_exc: type[Exception],
+    on_text: Callable[[str], None] | None = None,
 ) -> AccumulatedResponse:
     """:func:`accumulate`, backstopped by :class:`_Watchdog` for the gap that function
     cannot close on its own: a stream that never yields a first chunk to check the
     clock on. Any exception raised WHILE the watchdog has fired is relabelled
     ``deadline_exc``; anything else propagates untouched, so a genuine provider error
     mid-stream is never misreported as a timeout.
+
+    ``on_text`` passes straight through to :func:`accumulate` — the watchdog only
+    guards the deadline, never the content.
     """
     watchdog = _Watchdog(chunks, deadline_s)
     try:
         with watchdog:
-            return accumulate(chunks, deadline_s=deadline_s, deadline_exc=deadline_exc)
+            return accumulate(
+                chunks, deadline_s=deadline_s, deadline_exc=deadline_exc, on_text=on_text
+            )
     except deadline_exc:
         raise  # accumulate's own per-chunk check already raised the right thing
     except Exception as exc:

@@ -13,6 +13,7 @@ is one reason to change, and the SHAPE of a coach turn is another.
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -20,10 +21,23 @@ from uuid import UUID
 
 from healthee.core.config import get_settings
 from healthee.core.logging import get_logger
-from healthee.insights import coach_answer, coach_tools, personal_claims, pipeline, prompts
+from healthee.insights import (
+    coach_answer,
+    coach_draft,
+    coach_tools,
+    personal_claims,
+    pipeline,
+    prompts,
+)
 from healthee.insights.client import LLMClient, coach_model
 
 log = get_logger(__name__)
+
+# The wire contract's own cap (INTELLIGENCE section 3, the owner's 2026-09-19 call): at
+# most one `draft` progress event every 100ms per round, so a fast model does not flood
+# the SSE connection with one frame per token. A module constant, not a setting — it is
+# what the wire promises the app, not a deployment knob.
+_DRAFT_THROTTLE_S = 0.1
 
 # Said once, when the gathering allowance runs out (or the loop stalls) and the tools are
 # withdrawn. Without it the model would face a silent, unexplained loss of its tools; with
@@ -62,6 +76,43 @@ def reasoning_for_round(tools_allowed: bool) -> bool | None:
     return None
 
 
+class _DraftThrottle:
+    """Coalesces one round's content-delta callbacks into throttled ``draft`` events.
+
+    ``on_text`` is fed the FULL cumulative text on every provider content delta
+    (``client_stream.accumulate``'s own contract) and only emits when
+    :data:`_DRAFT_THROTTLE_S` has passed since this round's last emission.
+    :meth:`flush` unconditionally emits the round's final prose if it differs from
+    what was last sent — the wire contract's "always emit the final state" clause —
+    so the throttle window can never swallow the round's last word.
+    """
+
+    def __init__(self, emit: Callable[[str], None], clock: Callable[[], float]) -> None:
+        self._emit = emit
+        self._clock = clock
+        self._last_emitted_at: float | None = None
+        self._last_prose = ""
+
+    def on_text(self, cumulative: str) -> None:
+        prose = coach_draft.draft_prose(cumulative)
+        if not prose or prose == self._last_prose:
+            return
+        now = self._clock()
+        if self._last_emitted_at is not None and now - self._last_emitted_at < _DRAFT_THROTTLE_S:
+            return
+        self._send(prose, now)
+
+    def flush(self, final_text: str) -> None:
+        prose = coach_draft.draft_prose(final_text)
+        if prose and prose != self._last_prose:
+            self._send(prose, self._clock())
+
+    def _send(self, prose: str, now: float) -> None:
+        self._last_emitted_at = now
+        self._last_prose = prose
+        self._emit(prose)
+
+
 @dataclass
 class ToolLoop:
     """The coach's turn shape — the ONE thing ``grounded_ask`` cannot express.
@@ -92,6 +143,11 @@ class ToolLoop:
     # The coach's progress hook (its SSE twin, `api/coach_stream.py`); a no-op until a
     # caller wants one. Every call goes through `pipeline.emit_event`, never directly.
     on_event: Callable[[dict], None] = pipeline.NOOP_EVENT
+    # Injectable so a test can prove the 100ms throttle without a real sleep. Resolved
+    # to `time.monotonic` as a plain field default (a function reference, not a mutable
+    # container dataclass would otherwise reject) rather than inside `next_turn` — every
+    # round of one turn shares the SAME clock, which is the point of it being state.
+    clock: Callable[[], float] = time.monotonic
 
     def next_turn(self, tools_allowed: bool) -> pipeline.Turn:
         """One model turn: run any tools it asked for, or RENDER the answer it returned.
@@ -100,14 +156,20 @@ class ToolLoop:
         gate reads the words the owner would actually see. What the payload was is carried
         separately, on :meth:`answer_context`, so a broken contract is an issue rather
         than a silent degradation back to free text.
+
+        Every round streams its own live DRAFT (the owner's 2026-09-19 call,
+        INTELLIGENCE section 3): a fresh :class:`_DraftThrottle` per round, so a rewrite's
+        draft always starts from empty text rather than continuing the rejected one. A
+        round that never produces content (a tool-call round) never calls ``on_text`` at
+        all, so it emits no ``draft`` event — nothing to flush either.
         """
         self.round += 1
-        pipeline.emit_event(
-            self.on_event, {"stage": "thinking", "round": self.round, "detail": None}
-        )
+        round_no = self.round
+        pipeline.emit_event(self.on_event, {"stage": "thinking", "round": round_no, "detail": None})
         if not tools_allowed:
             self._withdraw_tools()
         tools = coach_tools.COACH_TOOLS if tools_allowed else None
+        throttle = _DraftThrottle(self._draft_emitter(round_no), self.clock)
         response = pipeline.complete(
             self.client,
             self.convo,
@@ -115,11 +177,21 @@ class ToolLoop:
             model=coach_model(),
             response_format=None if tools_allowed else _JSON_OBJECT,
             reasoning=reasoning_for_round(tools_allowed),
+            on_text=throttle.on_text,
         )
         if response.tool_calls:
             progressed = self._run_tools(response)
             return pipeline.Turn(text=None, progressed=progressed)
+        throttle.flush(response.text or "")
         return pipeline.Turn(text=self._rendered(response.text))
+
+    def _draft_emitter(self, round_no: int) -> Callable[[str], None]:
+        """One round's ``draft`` progress event, bound to the round that produced it."""
+
+        def emit(prose: str) -> None:
+            pipeline.emit_event(self.on_event, {"event": "draft", "round": round_no, "text": prose})
+
+        return emit
 
     def _rendered(self, raw: str) -> str:
         """The answer as prose, with its structural issues recorded for the gate.

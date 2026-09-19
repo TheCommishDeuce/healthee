@@ -38,13 +38,27 @@ so their JSON response **shapes** (keys, nesting, value types) must stay stable.
 Every snapshot above is ONE JSON response. `/api/coach/stream` emits a SEQUENCE of
 Server-Sent Events instead (`event: <name>\ndata: <one-line json>\n\n`), so this
 snapshot is a list of `{"event": ..., "data": {...}}` samples — one of each event
-KIND the wire contract defines (`stage`, `answer`, `error`), not one whole response.
-`stage` carries one representative `{"stage", "round", "detail"}` shape; every stage
-NAME (`context`/`thinking`/`tool`/`checking`/`revising`) uses that same shape, so one
-sample covers all five. `answer`'s `data` is exactly what `POST /api/coach` itself
-returns (`insights.coach.coach_reply_payload`) — the two endpoints share one function,
-so they cannot drift on this shape. `error`'s `data` is the `{"status", "message"}`
-pair the streaming twin ships instead of an HTTP failure once the response has begun.
+KIND the wire contract defines (`stage`, `draft`, `answer`, `error`), not one whole
+response. `stage` carries one representative `{"stage", "round", "detail"}` shape;
+every stage NAME (`context`/`thinking`/`tool`/`checking`/`revising`) uses that same
+shape, so one sample covers all five. `answer`'s `data` is exactly what
+`POST /api/coach` itself returns (`insights.coach.coach_reply_payload`) — the two
+endpoints share one function, so they cannot drift on this shape. `error`'s `data` is
+the `{"status", "message"}` pair the streaming twin ships instead of an HTTP failure
+once the response has begun.
+
+`draft` is the owner's 2026-09-19 call (`docs/INTELLIGENCE.md` section 3): the
+coach's answer prose, streamed AS A DRAFT while the model is still writing it, shown
+muted in the app until the validated `answer` event supersedes it. Its `data` is
+`{"round", "text"}` — `text` is the WHOLE draft so far, not a delta: the client
+REPLACES its draft with each frame, never appends. It appears zero or more times per
+answer round, always between that round's `thinking` and `checking` stage events, at
+most once every 100ms, with one final flush carrying the round's last text. A
+rewrite (a candidate rejected, then `revising`) starts a NEW round: its first `draft`
+carries the new round number and starts from empty text — a `draft` for round *n*
+never follows a `checking`/`revising` stage also carrying round *n*. The terminal
+`answer` event always supersedes every `draft` that preceded it, whatever the drafts
+said.
 
 `apps/server/tests/contracts/test_coach_stream_contract.py` drives a scripted,
 tool-using coach turn (the DB-backed context build stubbed, exactly as

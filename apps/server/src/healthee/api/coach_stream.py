@@ -14,13 +14,17 @@ inside the async generator would block the event loop for the whole 15-40s turn,
 starving every other request this process is holding. A thread lets the async side do
 nothing but drain a queue.
 
-## Unvalidated text never streams
+## The DRAFT is not the answer (the owner's 2026-09-19 call)
 
-INTELLIGENCE §3's rule does not bend for a live connection: the client sees stage
-NAMES (``context``/``thinking``/``tool``/``checking``/``revising``) that say what the
-turn is doing, never a token of the candidate answer itself, which can still be
-rejected and rewritten. The one payload with real prose in it is the terminal
-``answer`` event, and it is exactly what the gates already validated.
+INTELLIGENCE section 3's "unvalidated text never ships" now names one deliberate,
+documented exception: a ``draft`` event (``{"round", "text"}``) carries the coach's
+answer prose as the model is still writing it — shown to the owner AS A DRAFT, muted
+in the app, never as a shipped answer. It can be rewritten (a rejected candidate
+starts the next round's draft from empty text) or superseded outright. Every stage
+NAME besides it (``context``/``thinking``/``tool``/``checking``/``revising``) still
+carries no prose at all. The one payload the gates have judged is still the terminal
+``answer`` event, and it always supersedes whatever draft preceded it — see
+INTELLIGENCE section 3 for the reasoning and what stays a hard guardrail regardless.
 
 ## The refund happens IN THE WORKER, before the terminal event
 
@@ -120,11 +124,30 @@ def _run_worker(
     q.put(_Terminal("answer", coach_reply_payload(result)))
 
 
+def sse_name_and_data(event: dict) -> tuple[str, dict]:
+    """What one ``on_event`` dict becomes on the wire: ``("stage", event)`` UNLESS it
+    carries an ``"event"`` key of its own — today only
+    ``{"event": "draft", "round", "text"}`` (``coach_loop``'s live-draft events, the
+    owner's 2026-09-19 call) — in which case that key names the SSE event and the rest
+    of the dict is its data.
+
+    Extracted so ``tests/contracts/test_coach_stream_contract.py`` builds the exact same
+    wire shape from a captured ``on_event`` call that ``_drain`` builds from a live
+    queue item — a second, hand-kept copy of this mapping is exactly how the two would
+    drift.
+    """
+    name = event.get("event")
+    if name is None:
+        return "stage", event
+    return name, {k: v for k, v in event.items() if k != "event"}
+
+
 def _drain(q: queue.Queue[Any], *, keepalive_s: float = KEEPALIVE_INTERVAL_S) -> Iterator[bytes]:
     """Yield one SSE frame per queued event; a keepalive comment when a round is slow.
 
-    A plain ``dict`` is a stage event (``event: stage``); a :class:`_Terminal` is the
-    last thing the worker ever queues, so this generator's only exit is receiving one.
+    A :class:`_Terminal` is the last thing the worker ever queues, so this generator's
+    only exit is receiving one; every other queued item is a plain ``dict`` named and
+    shaped by :func:`sse_name_and_data`.
     """
     while True:
         try:
@@ -135,7 +158,8 @@ def _drain(q: queue.Queue[Any], *, keepalive_s: float = KEEPALIVE_INTERVAL_S) ->
         if isinstance(item, _Terminal):
             yield _sse(item.event, item.data)
             return
-        yield _sse("stage", item)
+        event_name, data = sse_name_and_data(item)
+        yield _sse(event_name, data)
 
 
 def stream_response(

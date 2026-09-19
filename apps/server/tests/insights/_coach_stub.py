@@ -108,10 +108,35 @@ def tool_turn(*calls: StubToolCall) -> ChatResponse:
 
 
 @dataclass
-class CoachStub:
-    """Returns each scripted ChatResponse in turn (repeats the last one)."""
+class ScriptedTurn:
+    """A :class:`ChatResponse` whose text arrives through ``on_text`` in PIECES first.
 
-    script: list[ChatResponse]
+    Mirrors what a real streamed completion looks like to ``coach_loop``: ``on_text`` is
+    called once per piece — each a CUMULATIVE prefix of ``response.text``, exactly
+    ``client_stream.accumulate``'s own contract — before :class:`CoachStub` returns
+    ``response``. Used by the coach's draft-streaming tests to script a round that
+    reveals its answer over several deltas rather than all at once.
+    """
+
+    response: ChatResponse
+    pieces: tuple[str, ...] = ()
+
+
+def streamed(response: ChatResponse, pieces: Sequence[str]) -> ScriptedTurn:
+    """A turn scripted to deliver ``pieces`` through ``on_text`` before returning."""
+    return ScriptedTurn(response=response, pieces=tuple(pieces))
+
+
+@dataclass
+class CoachStub:
+    """Returns each scripted response in turn (repeats the last one).
+
+    A scripted item may be a plain ``ChatResponse`` (returned outright, ``on_text``
+    never called — a tool-call round has no content to stream) or a
+    :class:`ScriptedTurn` (its ``pieces`` fed through ``on_text`` first).
+    """
+
+    script: list[ChatResponse | ScriptedTurn]
     calls: int = 0
     tools_seen: list = field(default_factory=list)
     messages_seen: list[list[dict]] = field(default_factory=list)
@@ -124,12 +149,18 @@ class CoachStub:
         model: str | None = None,
         response_format=None,
         reasoning: bool | None = None,
+        on_text=None,
     ) -> ChatResponse:
         self.tools_seen.append(tools)
         self.messages_seen.append(list(messages))
-        response = self.script[min(self.calls, len(self.script) - 1)]
+        item = self.script[min(self.calls, len(self.script) - 1)]
         self.calls += 1
-        return response
+        if isinstance(item, ScriptedTurn):
+            if on_text is not None:
+                for piece in item.pieces:
+                    on_text(piece)
+            return item.response
+        return item
 
 
 class NoCallStub:
@@ -145,5 +176,6 @@ class NoCallStub:
         model: str | None = None,
         response_format=None,
         reasoning: bool | None = None,
+        on_text=None,
     ) -> ChatResponse:
         raise AssertionError("the LLM must not be called for a refused question")
