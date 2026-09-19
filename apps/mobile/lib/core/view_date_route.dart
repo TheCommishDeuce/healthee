@@ -37,6 +37,8 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/routes.dart';
@@ -48,25 +50,86 @@ import 'package:healthee/data/store/view_date.dart';
 /// Null means "as asked". Non-null is the corrected location, which go_router
 /// then re-runs this against — the second pass finds nothing to change and
 /// stops, so the redirect never loops.
-String? viewDateRedirect(WidgetRef ref, GoRouterState state) {
-  final String location = state.uri.toString();
+String? viewDateRedirect(
+  WidgetRef ref,
+  GoRouterState state,
+  ViewDateLinks links,
+) {
   if (!isDateAwareRoute(state.uri.path)) {
     return null;
   }
-  final String latest = ref.read(todayProvider);
-  final String selected = ref.read(viewDateProvider);
-  final String? requested = viewDateOf(state.uri);
-  // The link chose a day this phone can still answer for, so the link wins —
-  // once. Applied off the routing pass, because a provider written while
-  // go_router is resolving a location is a state change during a build.
-  if (requested != null &&
+  final ViewDateDecision decision = decideViewDate(
+    location: state.uri.toString(),
+    requested: viewDateOf(state.uri),
+    selected: ref.read(viewDateProvider),
+    latest: ref.read(todayProvider),
+    honoured: links.honoured,
+  );
+  links.honoured = decision.honoured;
+  final String? adopt = decision.adopt;
+  if (adopt != null) {
+    // Applied off the routing pass, because a provider written while go_router
+    // is resolving a location is a state change during a build.
+    scheduleMicrotask(() => ref.read(viewDateProvider.notifier).select(adopt));
+  }
+  return decision.redirectTo;
+}
+
+/// The one piece of memory the redirect needs: **the day the URL is already
+/// known to carry.**
+///
+/// Without it "the link wins — once" was "the link wins — forever". The
+/// selection is mirrored into the URL, so after the first pick the URL named a
+/// past day; on the next pick the redirect saw a URL day that differed from the
+/// selection, took it for a link, and re-selected it — the control could leave
+/// the newest day exactly once and then never move again, not even back to
+/// today. A day that is already [honoured] is the URL lagging behind the
+/// control, not a link, and the selection wins.
+///
+/// Owned by `buildRouter` (one per router), not a global: two routers in one
+/// test process must not share a memory.
+class ViewDateLinks {
+  String? honoured;
+}
+
+/// What one routing pass should do. Pure, so every case is a unit test.
+@immutable
+class ViewDateDecision {
+  const ViewDateDecision({this.redirectTo, this.adopt, this.honoured});
+
+  /// The corrected location, or null for "as asked".
+  final String? redirectTo;
+
+  /// A day the LINK chose, to hand to `ViewDate.select`; null when none.
+  final String? adopt;
+
+  /// The day the URL carries once this pass settles — next pass's memory.
+  final String? honoured;
+}
+
+/// Reconciles the URL's day ([requested]) with the selection ([selected]).
+///
+/// A [requested] day wins only when it is NEW — different from [honoured] — and
+/// inside the window. Otherwise the selection wins and the URL is rewritten to
+/// it (the parameter removed on [latest]).
+ViewDateDecision decideViewDate({
+  required String location,
+  required String? requested,
+  required String selected,
+  required String latest,
+  required String? honoured,
+}) {
+  final bool isLink =
+      requested != null &&
       requested != selected &&
-      isViewableDay(requested, latest)) {
-    scheduleMicrotask(
-      () => ref.read(viewDateProvider.notifier).select(requested),
-    );
-    return null;
+      requested != honoured &&
+      isViewableDay(requested, latest);
+  if (isLink) {
+    return ViewDateDecision(adopt: requested, honoured: requested);
   }
   final String wanted = dateLocation(location, selected, latest);
-  return wanted == location ? null : wanted;
+  return ViewDateDecision(
+    redirectTo: wanted == location ? null : wanted,
+    honoured: selected == latest ? null : selected,
+  );
 }

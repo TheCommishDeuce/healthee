@@ -107,6 +107,7 @@ GoRouter buildRouter(WidgetRef ref) {
   // `loading`. Without this the router would never look again and an unpaired
   // app would sit on a screen it has no data for.
   final refresh = _RouterRefresh();
+  final dateLinks = ViewDateLinks();
   ref.listenManual(pairingSummaryProvider, (previous, next) => refresh.bump());
   // The date control's tap IS a navigation: `viewDateRedirect` rewrites the
   // location from the selection, and this is what makes it look again. Without
@@ -129,7 +130,7 @@ GoRouter buildRouter(WidgetRef ref) {
       // After the pairing gate, never before it: an app with no strap has
       // nothing to show for any day, and stamping one on the way to /pairing
       // would put a date on a screen that is not about a day at all.
-      return viewDateRedirect(ref, state);
+      return viewDateRedirect(ref, state, dateLinks);
     },
     routes: <RouteBase>[
       GoRoute(
