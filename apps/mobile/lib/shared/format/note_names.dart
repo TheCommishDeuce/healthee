@@ -28,21 +28,14 @@
 /// `metric_names.dart` takes and is now a corpus-ahead-of-app condition rather
 /// than a routine one.
 ///
-/// ## Aliases are here because the SERVER used to cite them
+/// ## Aliases are here because the SERVER cites them
 ///
-/// `/api/today` did not only send note ids. `read/activity.py` cited
-/// `cardio_load_trimp` and `read/vo2max.py` cited `vo2max_fitness_mortality`,
+/// `/api/today` does not only send note ids. `read/activity.py` cites
+/// `cardio_load_trimp` and `read/vo2max.py` cites `vo2max_fitness_mortality`,
 /// and neither is a note id — both are **aliases**, of `training_stress_score`
 /// and `vo2max` respectively. An ids-only table left those two chips reading as
 /// raw snake_case on the Activity screen, which is the defect this file exists
 /// to fix, so [kNoteAliases] resolves them.
-///
-/// **The server emits ids now** (`docs/BACKEND_GAPS_FROM_UI.md` A4, guarded by
-/// `tests/read/test_wire_honesty.py`), so nothing on the current wire needs this
-/// table. It stays anyway, and not out of caution: an installed app meets
-/// servers it did not ship with, and the failure it prevents is a raw
-/// `snake_case` id rendered to the owner — silent, and exactly what a payload
-/// from an older deployment would produce.
 ///
 /// Only aliases **shaped like an id** are here (`^[a-z0-9_]+$`) — those are the
 /// only ones that can arrive in a `research_notes` array — and any alias claimed
@@ -162,10 +155,12 @@ const Map<String, String> kNoteAliases = <String, String>{
   'autonomic': 'respiratory_rate_normal',
   'autoregulation': 'recovery_readiness',
   'bedtime': 'sleep_timing_chronotype',
+  'beer': 'alcohol_sleep',
   'biological_age': 'biological_age_estimate',
   'biomechanics': 'running_form_metrics',
   'bmi': 'weight_bmi_body_composition',
   'bonking': 'fueling_and_hydration',
+  'booze': 'alcohol_sleep',
   'breathwork': 'slow_breathing_hrv_acute',
   'caffeine': 'caffeine_sleep',
   'cardio_load_trimp': 'training_stress_score',
@@ -179,10 +174,12 @@ const Map<String, String> kNoteAliases = <String, String>{
   'deload': 'progressive_overload',
   'detraining': 'specificity_and_recovery',
   'drinking': 'alcohol_sleep',
+  'drinks': 'alcohol_sleep',
   'dysmenorrhea': 'menstrual_cycle_and_training',
   'electrolytes': 'fueling_and_hydration',
   'estrogen': 'menstrual_cycle_and_training',
   'euhydration': 'fueling_and_hydration',
+  'exercising': 'exercise_mortality',
   'fasting': 'fasting_metrics',
   'fluids': 'hydration_everyday',
   'form': 'fitness_fatigue_form',
@@ -254,6 +251,7 @@ const Map<String, String> kNoteAliases = <String, String>{
   'sleep': 'sleep_and_recovery',
   'sleep_duration': 'sleep_duration_mortality',
   'sleep_stage': 'wearable_sleep_stage_validity',
+  'slept': 'sleep_and_recovery',
   'sodium': 'fueling_and_hydration',
   'spo2': 'wearable_spo2_validity',
   'srpe': 'training_stress_score',
@@ -285,4 +283,5 @@ const Map<String, String> kNoteAliases = <String, String>{
   'weighing': 'weight_bmi_body_composition',
   'weight': 'weight_bmi_body_composition',
   'weights': 'strength_training_for_runners',
+  'wine': 'alcohol_sleep',
 };
