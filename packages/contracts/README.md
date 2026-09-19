@@ -33,6 +33,25 @@ so their JSON response **shapes** (keys, nesting, value types) must stay stable.
 | `challenge_outcomes.json` | `GET /api/challenges/outcomes` |
 | `challenge_adopt.json` | `POST /api/challenges/{id}/adopt` |
 
+### `coach_stream_events.json` — `POST /api/coach/stream`, a different shape of contract
+
+Every snapshot above is ONE JSON response. `/api/coach/stream` emits a SEQUENCE of
+Server-Sent Events instead (`event: <name>\ndata: <one-line json>\n\n`), so this
+snapshot is a list of `{"event": ..., "data": {...}}` samples — one of each event
+KIND the wire contract defines (`stage`, `answer`, `error`), not one whole response.
+`stage` carries one representative `{"stage", "round", "detail"}` shape; every stage
+NAME (`context`/`thinking`/`tool`/`checking`/`revising`) uses that same shape, so one
+sample covers all five. `answer`'s `data` is exactly what `POST /api/coach` itself
+returns (`insights.coach.coach_reply_payload`) — the two endpoints share one function,
+so they cannot drift on this shape. `error`'s `data` is the `{"status", "message"}`
+pair the streaming twin ships instead of an HTTP failure once the response has begun.
+
+`apps/server/tests/contracts/test_coach_stream_contract.py` drives a scripted,
+tool-using coach turn (the DB-backed context build stubbed, exactly as
+`tests/insights/test_coach.py` does — this is a structural check on the wire format,
+not a seeded-DB fixture test) and asserts the captured events conform to this file
+with `shape.assert_conforms`, plus a second scripted run of the error path.
+
 ## The harness
 
 Lives in `apps/server/tests/contracts/` (runs under `uv run pytest`):

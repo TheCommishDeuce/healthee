@@ -41,6 +41,7 @@ subject the owner arrived with.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from uuid import UUID
 
@@ -113,6 +114,7 @@ def run_coach(
     client: LLMClient | None = None,
     context_days: int = DEFAULT_COACH_DAYS,
     topic: str | None = None,
+    on_event: Callable[[dict], None] | None = None,
 ) -> CoachResult:
     """Answer the conversation grounded in ``user_id``'s data + the graded corpus.
 
@@ -134,7 +136,14 @@ def run_coach(
     anything downstream — the answer that follows faces the identical validator, hard
     output guardrails, anti-hallucination and personal-claims gates. Nothing in a topic
     becomes true by being sent.
+
+    ``on_event`` is the coach's SSE twin's progress hook (``api/coach_stream.py``) —
+    called with ``{"stage": ..., "round": ..., "detail": ...}`` as the turn proceeds.
+    ``None`` (every caller but the stream) behaves and outputs byte-identically to
+    before this parameter existed: every call into it is wrapped in
+    ``pipeline.emit_event``, which never lets it affect what ships.
     """
+    emit = on_event or pipeline.NOOP_EVENT
     history = coach_thread.recent(messages)
     question = coach_thread.last_user(history)
     if not question:
@@ -145,12 +154,38 @@ def run_coach(
         log.info("coach refused pre-LLM: domain=%s", refusal.name)
         return CoachResult(reply=refusal.template, refused=True)
     client = client or get_client()
+    pipeline.emit_event(emit, {"stage": "context", "round": 0, "detail": None})
     convo = _initial_messages(history, question, user_id, tz, context_days, topic)
-    result = _loop(client, convo, user_id, tz)
+    result = _loop(client, convo, user_id, tz, emit)
     result.data_coverage = coverage.measured_payload(
         user_id, tz, _metrics_read(result.tool_calls), context_days
     )
     return result
+
+
+def coach_reply_payload(result: CoachResult) -> dict:
+    """The wire shape one coach turn renders to — the ONE function both endpoints share.
+
+    Extracted from ``routers/coach.post_coach`` so its streaming twin
+    (``api/coach_stream.py``) ships the exact same ``answer`` payload rather than a
+    second, hand-kept copy of this dict — the CLAUDE.md rule against two definitions
+    of one thing, applied to a response shape instead of a metric.
+    """
+    return {
+        "reply": result.reply,
+        "citations": result.citations,
+        "personal_findings": result.personal_findings,
+        # The weakest grade among the cited notes — INTELLIGENCE §3's promised response
+        # metadata. `null` = nothing gradeable was cited, which is not the same as a
+        # weak grade.
+        "grade_floor": result.grade_floor,
+        # INTELLIGENCE §3's third piece of response metadata (#89): how many days of
+        # each metric this turn read the window actually held (`analytics.coverage`).
+        "data_coverage": result.data_coverage,
+        "tool_calls": result.tool_calls,
+        "refused": result.refused,
+        "validated": result.validated,
+    }
 
 
 def _metrics_read(invocations: list[dict]) -> list[str]:
@@ -172,9 +207,13 @@ def _metrics_read(invocations: list[dict]) -> list[str]:
     ]
 
 
-def _loop(client: LLMClient, convo: list[dict], user_id: UUID, tz: str) -> CoachResult:
+def _loop(
+    client: LLMClient, convo: list[dict], user_id: UUID, tz: str, on_event: Callable[[dict], None]
+) -> CoachResult:
     """The bounded tool loop, driven by the shared pipeline (one gate set, one policy)."""
-    tool_loop = coach_loop.ToolLoop(client=client, convo=convo, user_id=user_id, tz=tz)
+    tool_loop = coach_loop.ToolLoop(
+        client=client, convo=convo, user_id=user_id, tz=tz, on_event=on_event
+    )
     outcome = pipeline.drive(
         pipeline.Loop(
             next_turn=tool_loop.next_turn,
@@ -182,6 +221,7 @@ def _loop(client: LLMClient, convo: list[dict], user_id: UUID, tz: str) -> Coach
             label="coach",
             max_gathering_turns=GATHERING_ROUNDS,
             context=tool_loop.answer_context,
+            on_event=on_event,
         )
     )
     return _result(outcome, tool_loop.invocations)

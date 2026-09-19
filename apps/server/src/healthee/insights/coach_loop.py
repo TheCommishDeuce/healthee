@@ -13,7 +13,7 @@ is one reason to change, and the SHAPE of a coach turn is another.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
@@ -84,6 +84,14 @@ class ToolLoop:
     structure_issues: tuple[str, ...] = ()
     asserted: tuple[str, ...] = ()
     without_data: frozenset[str] = frozenset()
+    # The coach's own 1-based round counter — advances once per `next_turn` call, in
+    # lockstep with `pipeline.drive`'s own turn counter, which is what lets `pipeline`
+    # label a `checking`/`revising` event with the same round a `thinking`/`tool` event
+    # here used, with neither side importing the other's counter.
+    round: int = 0
+    # The coach's progress hook (its SSE twin, `api/coach_stream.py`); a no-op until a
+    # caller wants one. Every call goes through `pipeline.emit_event`, never directly.
+    on_event: Callable[[dict], None] = pipeline.NOOP_EVENT
 
     def next_turn(self, tools_allowed: bool) -> pipeline.Turn:
         """One model turn: run any tools it asked for, or RENDER the answer it returned.
@@ -93,6 +101,10 @@ class ToolLoop:
         separately, on :meth:`answer_context`, so a broken contract is an issue rather
         than a silent degradation back to free text.
         """
+        self.round += 1
+        pipeline.emit_event(
+            self.on_event, {"stage": "thinking", "round": self.round, "detail": None}
+        )
         if not tools_allowed:
             self._withdraw_tools()
         tools = coach_tools.COACH_TOOLS if tools_allowed else None
@@ -170,6 +182,9 @@ class ToolLoop:
             args = _parse_args(call.function.arguments)
             fresh |= self._record_call(name, args)
             result = coach_tools.execute_tool(name, args, self.user_id, self.tz)
+            pipeline.emit_event(
+                self.on_event, {"stage": "tool", "round": self.round, "detail": name}
+            )
             if name in coach_tools.ACTION_TOOLS and result.get("ok"):
                 self.acted_ok.add(name)
             self.invocations.append({"tool": name, "args": args, "result": result})

@@ -53,6 +53,13 @@ AI_ROUTES: list[tuple[str, str, dict | None, dict | None, str]] = [
     ("POST", "/api/recommendations/999999/adopt", None, None, gate.DAILY_ACTION),
     ("POST", "/api/recommendations/999999/dismiss", None, None, gate.DAILY_ACTION),
     ("POST", "/api/coach", None, {"messages": [{"role": "user", "content": "hi"}]}, gate.COACH),
+    (
+        "POST",
+        "/api/coach/stream",
+        None,
+        {"messages": [{"role": "user", "content": "hi"}]},
+        gate.COACH,
+    ),
     ("POST", "/api/today/action", None, None, gate.DAILY_ACTION),
     ("GET", "/api/sleep/insight", None, None, gate.INSIGHT),
     ("GET", "/api/activity/insight", None, None, gate.INSIGHT),

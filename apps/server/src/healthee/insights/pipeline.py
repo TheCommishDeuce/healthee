@@ -66,9 +66,34 @@ from healthee.insights.refusals import Domain, classify_refusal
 from healthee.insights.retrieval import evidence_section
 from healthee.insights.validator import ValidationResult, validate, validate_json
 
-__all__ = ["AnswerContext", "AnswerGate", "Block", "GateOutcome", "Verdict"]
+__all__ = ["AnswerContext", "AnswerGate", "Block", "GateOutcome", "NOOP_EVENT", "Verdict"]
 
 log = get_logger(__name__)
+
+
+# ── Progress observer — a diagnostic seam, never a decision ──────────────────
+
+
+def _noop_event(_event: dict) -> None:
+    """The default observer. Costs one call and does nothing until a caller wants it."""
+    return None
+
+
+NOOP_EVENT: Callable[[dict], None] = _noop_event
+
+
+def emit_event(on_event: Callable[[dict], None], event: dict) -> None:
+    """Call a progress observer with one event, never letting it break the turn.
+
+    This is the one place a broad ``except Exception`` is correct: the observer exists
+    only to report progress to a client watching a stream (the coach's SSE twin), and a
+    bug in it — or a write that raises because that client already disconnected — must
+    never abort or corrupt a coach turn that is already billed and already running.
+    """
+    try:
+        on_event(event)
+    except Exception:
+        log.exception("progress observer raised — ignored")
 
 
 # ── Stage 1 · the question gate ──────────────────────────────────────────────
@@ -269,6 +294,11 @@ class Loop:
     is NOT the answer budget: :func:`validation_retries` is reserved on top of it by
     :func:`drive`, so a question that needed twenty rounds of data arrives at its answer
     with exactly the same grounding tolerance as a trivial one.
+
+    ``on_event`` is the coach's progress hook (its SSE twin, ``api/coach_stream.py``) —
+    a surface with nothing watching leaves it at :data:`NOOP_EVENT`, and every call
+    into it goes through :func:`emit_event` so a broken observer can never reach the
+    turn itself.
     """
 
     next_turn: Callable[[bool], Turn]
@@ -276,6 +306,7 @@ class Loop:
     label: str
     max_gathering_turns: int = 0
     context: Callable[[], AnswerContext] = field(default=AnswerContext)
+    on_event: Callable[[dict], None] = NOOP_EVENT
 
 
 def drive(loop: Loop) -> Outcome:
@@ -292,7 +323,7 @@ def drive(loop: Loop) -> Outcome:
     (INTELLIGENCE §3, hole #2), and a blocked answer is returned without a retry.
     """
     state = _Progress()
-    for _turn_no in range(turn_budget(loop)):
+    for turn_no in range(1, turn_budget(loop) + 1):
         tools_allowed = state.may_gather(loop)
         if not tools_allowed and state.gathered and state.out_of_time():
             log.warning(
@@ -308,15 +339,22 @@ def drive(loop: Loop) -> Outcome:
                 return Outcome(text=prompts.FALLBACK, validated=False)
             state.note_round(loop, turn)
             continue
-        outcome = _settle(loop, turn.text, state)
+        outcome = _settle(loop, turn.text, state, turn_no)
         if outcome is not None:
             return outcome
     log.warning("%s: exhausted its turn budget without a clean answer — fallback", loop.label)
     return Outcome(text=prompts.FALLBACK, validated=False)
 
 
-def _settle(loop: Loop, text: str, state: _Progress) -> Outcome | None:
-    """Judge one answer candidate; None means "nudged — ask the model again"."""
+def _settle(loop: Loop, text: str, state: _Progress, round_no: int) -> Outcome | None:
+    """Judge one answer candidate; None means "nudged — ask the model again".
+
+    ``round_no`` is the model round that produced ``text`` (``drive``'s own 1-based turn
+    counter, which advances in lockstep with a tool loop's own round count — one call to
+    ``next_turn`` per iteration on both sides). It is carried only to label the
+    ``checking``/``revising`` progress events; the driver's policy does not read it.
+    """
+    emit_event(loop.on_event, {"stage": "checking", "round": round_no, "detail": None})
     verdict = judge(text, loop.context())
     if verdict.block is not None:
         return Outcome(text=verdict.block.response, refused=True, validated=False)
@@ -329,6 +367,7 @@ def _settle(loop: Loop, text: str, state: _Progress) -> Outcome | None:
             verdict.issues,
         )
         return Outcome(text=prompts.FALLBACK, validated=False)
+    emit_event(loop.on_event, {"stage": "revising", "round": round_no, "detail": None})
     loop.nudge(text, verdict.issues)
     state.retries += 1
     return None

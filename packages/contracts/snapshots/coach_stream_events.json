@@ -1,0 +1,28 @@
+[
+  {"event": "stage", "data": {"stage": "context", "round": 0, "detail": null}},
+  {"event": "stage", "data": {"stage": "thinking", "round": 1, "detail": null}},
+  {"event": "stage", "data": {"stage": "tool", "round": 1, "detail": "query_metric"}},
+  {"event": "stage", "data": {"stage": "thinking", "round": 2, "detail": null}},
+  {"event": "stage", "data": {"stage": "checking", "round": 2, "detail": null}},
+  {"event": "stage", "data": {"stage": "revising", "round": 2, "detail": null}},
+  {
+    "event": "answer",
+    "data": {
+      "reply": "Your recent numbers look steady.\n\n- Consistent activity may support fitness [established_note].",
+      "citations": ["established_note"],
+      "personal_findings": [],
+      "grade_floor": "Established",
+      "data_coverage": {"window_days": 30, "days_with_data": {"hrv_sleep_avg": 30}},
+      "tool_calls": [
+        {
+          "tool": "query_metric",
+          "args": {"metric": "hrv_sleep_avg"},
+          "result": {"avg": 42.0}
+        }
+      ],
+      "refused": false,
+      "validated": true
+    }
+  },
+  {"event": "error", "data": {"status": 500, "message": "the coach turn failed"}}
+]

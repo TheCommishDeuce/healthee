@@ -43,12 +43,13 @@ choke point (``insights.pipeline``); nothing LLM-shaped happens in this router.
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from healthee.api import gate
+from healthee.api import coach_stream, gate
 from healthee.api.gate import CoachUser
 from healthee.insights import coach_thread
-from healthee.insights.coach import run_coach
+from healthee.insights.coach import coach_reply_payload, run_coach
 
 router = APIRouter(tags=["coach"])
 
@@ -117,19 +118,24 @@ def post_coach(request: Request, user: CoachUser, req: CoachRequest) -> dict:
         raise
     if result.refused or not result.validated or not result.answered:
         gate.refund_ai_use(request, user)
-    return {
-        "reply": result.reply,
-        "citations": result.citations,
-        "personal_findings": result.personal_findings,
-        # The weakest grade among the cited notes — INTELLIGENCE §3's promised response
-        # metadata. It was computed on every answer and dropped here (#84), so the
-        # flagship surface shipped citations with no statement of how firm they are.
-        # `null` = nothing gradeable was cited, which is not the same as a weak grade.
-        "grade_floor": result.grade_floor,
-        # INTELLIGENCE §3's third piece of response metadata (#89): how many days of each
-        # metric this turn read the window actually held (`analytics.coverage`).
-        "data_coverage": result.data_coverage,
-        "tool_calls": result.tool_calls,
-        "refused": result.refused,
-        "validated": result.validated,
-    }
+    return coach_reply_payload(result)
+
+
+@router.post("/api/coach/stream")
+def post_coach_stream(request: Request, user: CoachUser, req: CoachRequest) -> StreamingResponse:
+    """The streaming twin of ``/api/coach`` — live progress, then the validated answer.
+
+    Same body, same gate (``CoachUser``): a request that fails BEFORE any model call —
+    401 unauthenticated, 402 not entitled or the cap spent, 422 a malformed body, 429
+    rate-limited — behaves identically to ``/api/coach``, because the gate runs first on
+    both routes and nothing below it has started. Everything that happens once the
+    response has begun (raw model tokens NEVER included — INTELLIGENCE §3: unvalidated
+    text does not ship, streamed or not) lives in ``api.coach_stream``, including the
+    refund: it runs inside the worker, before the terminal event, so it is not raced by
+    a client reading the stream. A client that disconnects mid-turn does not stop it —
+    the model call is already paid for, so it runs to completion and the same refund
+    rule applies to whatever it produced.
+    """
+    return coach_stream.stream_response(
+        request, user, [m.model_dump() for m in req.messages], req.topic
+    )
