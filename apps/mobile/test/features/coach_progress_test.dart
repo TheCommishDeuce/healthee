@@ -141,6 +141,8 @@ void main() {
 
       await tester.pump(_tick);
       expect(find.text('Checking the research'), findsOneWidget);
+      // The label cross-fades for 220 ms; the old one is gone once it has.
+      await tester.pump(const Duration(milliseconds: 250));
       expect(find.text('Reading your data'), findsNothing);
 
       await tester.pump(_tick);

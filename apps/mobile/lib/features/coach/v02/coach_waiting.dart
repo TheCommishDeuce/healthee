@@ -44,10 +44,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:healthee/core/theme/dimensions.dart';
-import 'package:healthee/core/theme/shapes.dart';
 import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/coach/coach_stream_event.dart';
+import 'package:healthee/features/coach/widgets/coach_thread.dart';
 
 /// The panel shown while a question is in flight.
 class CoachWaiting extends StatefulWidget {
@@ -115,7 +115,7 @@ class _CoachWaitingState extends State<CoachWaiting>
     _pulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
+    )..repeat();
   }
 
   @override
@@ -129,39 +129,40 @@ class _CoachWaitingState extends State<CoachWaiting>
   Widget build(BuildContext context) {
     final colors = context.colors;
     final bool long = _elapsed >= _longAfter;
-    return Container(
-      padding: const EdgeInsets.all(Insets.xl),
-      decoration: ShapeDecoration(
-        color: colors.surface,
-        shape: hSquircle(
-          Radii.card,
-          side: BorderSide(color: colors.line, width: hairline),
-        ),
-      ),
+    final String stage = widget.progress == null
+        ? _beforeAnyStage
+        : coachStageLabel(widget.progress!);
+    // No box: this is the coach's next turn beginning, drawn where its prose
+    // will appear — three breathing dots, what it is doing right now, and the
+    // time it has taken so far. Everything a chat shows while the other party
+    // is typing, and nothing that claims more than the wire has said.
+    return Padding(
+      padding: const EdgeInsets.only(top: CoachEntryView.topGap),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Row(
             children: <Widget>[
-              FadeTransition(
-                opacity: _pulse.drive(Tween<double>(begin: 0.35, end: 1)),
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: colors.accent,
-                    shape: BoxShape.circle,
+              _TypingDots(pulse: _pulse, color: colors.ink3),
+              const SizedBox(width: Insets.md),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  // The switcher centres by default; a status line reads from
+                  // the leading edge like the prose it stands in for.
+                  layoutBuilder: (current, previous) => Stack(
+                    alignment: AlignmentDirectional.centerStart,
+                    children: <Widget>[...previous, ?current],
+                  ),
+                  child: Text(
+                    stage,
+                    key: ValueKey<String>(stage),
+                    style: TypeScale.panelNote.copyWith(color: colors.ink2),
                   ),
                 ),
               ),
               const SizedBox(width: Insets.md),
-              Expanded(
-                child: Text(
-                  'Your coach is working',
-                  style: TypeScale.panelTitle.copyWith(color: colors.ink),
-                ),
-              ),
               Text(
                 _clock(_elapsed),
                 style: TypeScale.panelUnit.copyWith(
@@ -173,39 +174,59 @@ class _CoachWaitingState extends State<CoachWaiting>
               ),
             ],
           ),
-          const SizedBox(height: Insets.md),
-          Text(
-            widget.progress == null
-                ? _beforeAnyStage
-                : coachStageLabel(widget.progress!),
-            style: TypeScale.panelNote.copyWith(color: colors.ink2),
-          ),
           if (long) ...<Widget>[
             const SizedBox(height: Insets.sm),
             Text(
-              'This is taking longer than most questions. Broad questions need '
-              'more rounds — it has not failed.',
-              style: TypeScale.panelNote.copyWith(color: colors.ink2),
+              'Taking longer than most questions — broad ones need more rounds. '
+              'You can leave; the answer will be here when you come back.',
+              style: TypeScale.panelNote.copyWith(color: colors.ink3),
             ),
           ],
-          const SizedBox(height: Insets.md),
-          Text(
-            'You can leave this screen. The answer will be here when you come '
-            'back.',
-            style: TypeScale.panelNote.copyWith(color: colors.ink3),
-          ),
         ],
       ),
     );
   }
 }
 
-/// Elapsed time as `m:ss`, or `s` under a minute.
-///
-/// Public for the test, which asserts the format rather than pumping a clock:
-/// the thing worth pinning is that a four-minute wait reads as `4:03` and not as
-/// `243` — the second is a number the owner has to convert before it means
-/// anything, at the moment they are least inclined to.
+/// Three dots breathing in sequence — the one animation every chat reader
+/// already knows means "the other side is writing".
+class _TypingDots extends StatelessWidget {
+  const _TypingDots({required this.pulse, required this.color});
+
+  final Animation<double> pulse;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: pulse,
+      builder: (context, _) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (int i = 0; i < 3; i++) ...<Widget>[
+            if (i > 0) const SizedBox(width: 4),
+            Opacity(
+              opacity: _phase(pulse.value, i),
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Each dot peaks a third of a cycle after the one before it.
+  static double _phase(double t, int i) {
+    final double x = (t - i / 3) % 1;
+    final double wave = x < 0.5 ? x * 2 : (1 - x) * 2;
+    return 0.3 + 0.7 * wave;
+  }
+}
+
 String coachElapsedLabel(Duration elapsed) => _clock(elapsed);
 
 String _clock(Duration elapsed) {

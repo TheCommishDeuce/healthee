@@ -108,7 +108,7 @@ class CoachController extends _$CoachController {
             }
           case CoachAnswerEvent(:final answer):
             if (_isCurrent(generation)) {
-              final reply = CoachReply(answer);
+              final reply = CoachReply(answer, live: true);
               state = state.copyWith(
                 entries: [...state.entries, reply],
                 clearProgress: true,

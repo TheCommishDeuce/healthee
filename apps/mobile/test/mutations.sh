@@ -2283,7 +2283,7 @@ mutate 'a blank topic is carried into the route as one' "$TOPIC_TEST" "$ROUTES" 
 # THE SPEND. Asking on arrival charges one of twenty for a navigation, and the
 # owner never sees the sentence before it is sent.
 mutate 'arriving with a topic asks it immediately' "$TOPIC_TEST" \
-  lib/features/coach/coach_screen.dart \
+  lib/features/coach/coach_body.dart \
   '    void ask(String question) => unawaited(
       ref.read(coachControllerProvider.notifier).ask(question, topic: topic),
     );' \

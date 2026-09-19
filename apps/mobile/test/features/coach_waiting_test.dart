@@ -48,11 +48,13 @@ void main() {
     testWidgets('describes the work without claiming a stage', (tester) async {
       await pumpApp(tester, const CoachWaiting());
 
-      expect(find.text('Your coach is working'), findsOneWidget);
+      // No title, no box: the coach's next turn beginning, drawn where its
+      // prose will appear, with what it is doing and how long it has taken.
       expect(
         find.textContaining('Reading your own data and the graded research'),
         findsOneWidget,
       );
+      expect(find.text('0s'), findsOneWidget);
       // THE rule for this widget. The app holds one synchronous request and
       // cannot know which round the server is on, so any of these would be the
       // screen inventing server state and drawing it as fact.
@@ -71,13 +73,17 @@ void main() {
       }
     });
 
-    testWidgets('tells the owner the request survives leaving', (tester) async {
+    testWidgets('tells the owner the request survives leaving, once the wait '
+        'is long enough for them to want to', (tester) async {
       // True by construction: `CoachController` is keepAlive, so the request is
       // the provider's and not the route's. If that ever stops being true this
-      // sentence becomes a lie, which is why it is asserted here.
+      // sentence becomes a lie, which is why it is asserted here. Said only in
+      // the long-wait line: a chat's typing row carries no small print.
       await pumpApp(tester, const CoachWaiting());
+      expect(find.textContaining('You can leave'), findsNothing);
+      await tester.pump(const Duration(seconds: 80));
 
-      expect(find.textContaining('You can leave this screen'), findsOneWidget);
+      expect(find.textContaining('You can leave'), findsOneWidget);
     });
 
     testWidgets('says nothing about a long wait before one has happened', (
@@ -89,19 +95,18 @@ void main() {
       expect(find.textContaining('longer than most questions'), findsNothing);
     });
 
-    testWidgets(
-      'admits a long wait once it is one, and says it has not failed',
-      (tester) async {
-        await pumpApp(tester, const CoachWaiting());
-        await tester.pump(const Duration(seconds: 80));
+    testWidgets('admits a long wait once it is one, and says why', (
+      tester,
+    ) async {
+      await pumpApp(tester, const CoachWaiting());
+      await tester.pump(const Duration(seconds: 80));
 
-        expect(
-          find.textContaining('longer than most questions'),
-          findsOneWidget,
-        );
-        expect(find.textContaining('has not failed'), findsOneWidget);
-      },
-    );
+      expect(find.textContaining('longer than most questions'), findsOneWidget);
+      expect(
+        find.textContaining('broad ones need more rounds'),
+        findsOneWidget,
+      );
+    });
   });
 
   group('the stage, once the wire has said one', () {

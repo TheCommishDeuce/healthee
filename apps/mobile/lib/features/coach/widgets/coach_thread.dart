@@ -33,6 +33,8 @@
 /// breaking rather than as an answer about the question that was asked.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:healthee/core/theme/dimensions.dart';
 import 'package:healthee/core/theme/tokens.dart';
@@ -41,6 +43,7 @@ import 'package:healthee/data/coach/coach_answer.dart';
 import 'package:healthee/data/coach/coach_client.dart';
 import 'package:healthee/data/honesty/citations.dart';
 import 'package:healthee/features/coach/coach_conversation.dart';
+import 'package:healthee/features/coach/widgets/coach_reveal.dart';
 import 'package:healthee/shared/metric_info/metric_detail.dart';
 import 'package:healthee/shared/metric_info/metric_info_sheet.dart';
 import 'package:healthee/shared/states/grounded_text.dart';
@@ -50,67 +53,105 @@ const String kCoachSourcesTitle = 'What this answer is based on';
 
 /// One entry of the thread.
 class CoachEntryView extends StatelessWidget {
-  /// Draws [entry] in whichever of the three shapes it is.
-  const CoachEntryView({required this.entry, super.key});
+  const CoachEntryView({required this.entry, this.onGrow, super.key});
 
-  /// `.coach-message { margin-top: 20px }`.
   static const double topGap = 20;
-
-  /// `.coach-message { padding: 16px }`.
-  static const double padding = 16;
-
-  /// `.coach-message { border-radius: 18px }`.
+  static const double padding = 14;
   static const double radius = 18;
 
-  /// `.coach-message.user { margin-left: 28px }`.
-  static const double userIndent = 28;
+  /// How much of the row the owner's bubble may take — a chat's own rule: the
+  /// question sits right and short, the answer runs the width like prose.
+  static const double questionShare = 0.82;
 
-  /// The entry.
   final CoachEntry entry;
+
+  /// Called each time a live reply reveals another piece, so the thread can
+  /// keep its end in view while the text is still arriving.
+  final VoidCallback? onGrow;
 
   @override
   Widget build(BuildContext context) {
     // Exhaustive over the sealed union: a fourth kind is a compile error here
     // rather than a row that draws nothing.
     return switch (entry) {
-      OwnerQuestion(:final text) => _Bubble(
-        mine: true,
-        child: Builder(
-          builder: (context) => Text(
-            text,
-            style: TypeScale.coachBody.copyWith(color: context.colors.ink),
-          ),
-        ),
+      OwnerQuestion(:final text) => _QuestionBubble(text: text),
+      CoachReply(:final answer, :final live) => _Reply(
+        answer: answer,
+        live: live,
+        onGrow: onGrow,
       ),
-      CoachReply(:final answer) => _Bubble(child: _Reply(answer: answer)),
-      final CoachTrouble trouble => _Bubble(child: _Trouble(trouble: trouble)),
+      final CoachTrouble trouble => CoachBubble(
+        child: _Trouble(trouble: trouble),
+      ),
     };
   }
 }
 
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.child, this.mine = false});
+/// The owner's turn: a short bubble at the trailing edge, the way every chat
+/// draws the person typing. `accentSoft`, which is the colour of an ACTION in
+/// this app — asking is one. It says nothing about the owner's body, which is
+/// the only thing `fav`/`unf`/`alert` are allowed to say.
+class _QuestionBubble extends StatelessWidget {
+  const _QuestionBubble({required this.text});
 
-  final Widget child;
-  final bool mine;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Padding(
-      padding: EdgeInsets.only(
-        top: CoachEntryView.topGap,
-        left: mine ? CoachEntryView.userIndent : 0,
+      padding: const EdgeInsets.only(top: CoachEntryView.topGap),
+      child: Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: FractionallySizedBox(
+          widthFactor: CoachEntryView.questionShare,
+          alignment: AlignmentDirectional.centerEnd,
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: CoachEntryView.padding + 2,
+                vertical: CoachEntryView.padding - 2,
+              ),
+              decoration: BoxDecoration(
+                color: colors.accentSoft,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(CoachEntryView.radius),
+                  topRight: Radius.circular(CoachEntryView.radius),
+                  bottomLeft: Radius.circular(CoachEntryView.radius),
+                  bottomRight: Radius.circular(6),
+                ),
+              ),
+              child: Text(
+                text,
+                style: TypeScale.coachBody.copyWith(color: colors.ink),
+              ),
+            ),
+          ),
+        ),
       ),
+    );
+  }
+}
+
+/// A bordered coach-side box — kept for notices (a refusal, a failed request),
+/// which are cards about the request, not prose from the coach.
+class CoachBubble extends StatelessWidget {
+  const CoachBubble({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(top: CoachEntryView.topGap),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(CoachEntryView.padding),
+        padding: const EdgeInsets.all(CoachEntryView.padding + 2),
         decoration: BoxDecoration(
-          // `accentSoft`, which is the colour of an ACTION in this app — asking
-          // is one. It says nothing about the owner's body, which is the only
-          // thing `fav`/`unf`/`alert` are allowed to say.
-          color: mine ? colors.accentSoft : colors.surface,
-          border: mine ? null : Border.all(color: colors.line, width: hairline),
+          color: colors.surface,
+          border: Border.all(color: colors.line, width: hairline),
           borderRadius: BorderRadius.circular(CoachEntryView.radius),
         ),
         child: child,
@@ -119,49 +160,98 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-class _Reply extends StatelessWidget {
-  const _Reply({required this.answer});
+/// The coach's turn: prose at the leading edge, no box — the way a chat draws
+/// the other party. A live reply appears a sentence at a time (`coach_reveal`);
+/// one from history is shown whole. The sources dot and the fallback notice
+/// arrive with the last piece, because a citation for text not yet on screen is
+/// a claim about nothing.
+class _Reply extends StatefulWidget {
+  const _Reply({required this.answer, required this.live, this.onGrow});
 
   final CoachAnswer answer;
+  final bool live;
+  final VoidCallback? onGrow;
 
-  /// What this answer cites: its inline markers, the `citations` the payload
-  /// sent, and the grade floor — the weakest grade among the notes cited, which
-  /// the server computes and this app never infers.
+  @override
+  State<_Reply> createState() => _ReplyState();
+}
+
+class _ReplyState extends State<_Reply> {
+  late final List<int> _cuts = revealCuts(widget.answer.reply);
+  late int _shown = widget.live ? 0 : _cuts.length;
+  Timer? _timer;
+
+  bool get _complete => _shown >= _cuts.length;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_complete) {
+      _timer = Timer.periodic(revealInterval(_cuts.length), _step);
+    }
+  }
+
+  void _step(Timer timer) {
+    if (!mounted) {
+      timer.cancel();
+      return;
+    }
+    setState(() => _shown += 1);
+    widget.onGrow?.call();
+    if (_complete) {
+      timer.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String get _visible => _complete || _shown == 0
+      ? (_complete ? widget.answer.reply : '')
+      : widget.answer.reply.substring(0, _cuts[_shown - 1]);
+
   MetricDetail get _detail => MetricDetail.grounded(
-    groundingOf(answer.reply, alsoCites: answer.citations),
-    grade: answer.gradeFloor,
+    groundingOf(widget.answer.reply, alsoCites: widget.answer.citations),
+    grade: widget.answer.gradeFloor,
     title: kCoachSourcesTitle,
   );
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final answer = widget.answer;
     final detail = _detail;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        if (!answer.validated) ...<Widget>[
-          Text(
-            "The coach couldn't answer that one to its own standard, so this "
-            'is the honest fallback rather than the answer you asked for. It '
-            'was not counted against your questions.',
-            style: TypeScale.tinyLabel.copyWith(color: colors.ink2),
+    return Padding(
+      padding: const EdgeInsets.only(top: CoachEntryView.topGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (_complete && !answer.validated) ...<Widget>[
+            Text(
+              "The coach couldn't answer that one to its own standard, so this "
+              'is the honest fallback rather than the answer you asked for. It '
+              'was not counted against your questions.',
+              style: TypeScale.tinyLabel.copyWith(color: colors.ink2),
+            ),
+            const SizedBox(height: 12),
+          ],
+          GroundedProse(
+            text: _visible,
+            style: TypeScale.coachBody.copyWith(color: colors.ink),
           ),
-          const SizedBox(height: 12),
+          // At the foot, right-aligned, only once the whole answer is on screen,
+          // and drawing nothing at all when the answer cited nothing.
+          if (_complete && detail.isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: MetricInfoDot(null, detail: detail),
+            ),
         ],
-        GroundedProse(
-          text: answer.reply,
-          style: TypeScale.coachBody.copyWith(color: colors.ink),
-        ),
-        // At the foot of the bubble, right-aligned, and drawing nothing at all
-        // when the answer cited nothing.
-        if (detail.isNotEmpty)
-          Align(
-            alignment: Alignment.centerRight,
-            child: MetricInfoDot(null, detail: detail),
-          ),
-      ],
+      ),
     );
   }
 }

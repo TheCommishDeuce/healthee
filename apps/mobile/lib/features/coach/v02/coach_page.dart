@@ -42,6 +42,7 @@ class CoachPage extends StatelessWidget {
     required this.children,
     required this.footer,
     this.actions = const <Widget>[],
+    this.controller,
     super.key,
   });
 
@@ -78,6 +79,10 @@ class CoachPage extends StatelessWidget {
 
   /// Controls on the thread itself — a new conversation, its history.
   final List<Widget> actions;
+
+  /// The thread's scroll position, so the screen can keep its end in view
+  /// while a reply is still arriving — a chat reads from the bottom.
+  final ScrollController? controller;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +121,11 @@ class CoachPage extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: ListView(padding: padding, children: children),
+                child: ListView(
+                  controller: controller,
+                  padding: padding,
+                  children: children,
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(

@@ -35,10 +35,15 @@ final class OwnerQuestion extends CoachEntry {
 /// Something the coach answered, with everything that qualifies it.
 final class CoachReply extends CoachEntry {
   /// [answer] carries the citations, the grade floor and the refund flags.
-  const CoachReply(this.answer);
+  const CoachReply(this.answer, {this.live = false});
 
   /// The answer as the server sent it.
   final CoachAnswer answer;
+
+  /// True for an answer that arrived over the wire in THIS session, which the
+  /// thread reveals a sentence at a time. One restored from history is shown
+  /// whole: it was already read once.
+  final bool live;
 }
 
 /// The question did not reach an answer.
