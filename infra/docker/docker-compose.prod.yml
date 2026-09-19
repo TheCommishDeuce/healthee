@@ -99,6 +99,7 @@ services:
       # too — routing configured in one and not the other would mean the same answer
       # came from different providers depending on which process asked for it.
       LLM_PROVIDER_ORDER: ${LLM_PROVIDER_ORDER:-}
+      LLM_PROVIDER_SORT: ${LLM_PROVIDER_SORT:-throughput}
       API_HOST: 0.0.0.0
       API_PORT: 8765
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -198,6 +199,7 @@ services:
       # too — routing configured in one and not the other would mean the same answer
       # came from different providers depending on which process asked for it.
       LLM_PROVIDER_ORDER: ${LLM_PROVIDER_ORDER:-}
+      LLM_PROVIDER_SORT: ${LLM_PROVIDER_SORT:-throughput}
       # The chain skips the LLM steps for a non-premium owner (§12.3), so this
       # container decides entitlement too — and without the flag a SELF-HOSTED
       # install would serve its owner the AI layer over HTTP while the nightly

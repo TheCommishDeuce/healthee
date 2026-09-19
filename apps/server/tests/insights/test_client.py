@@ -96,7 +96,7 @@ def provider_order(monkeypatch: pytest.MonkeyPatch) -> Any:
     surfaces `POSTGRES_PASSWORD must be set` in whatever test runs next.
     """
 
-    def _set(order: str) -> None:
+    def _set(order: str, sort: str = "") -> None:
         real = client_module.get_settings()
         monkeypatch.setattr(
             client_module,
@@ -105,20 +105,51 @@ def provider_order(monkeypatch: pytest.MonkeyPatch) -> Any:
                 default_model=real.default_model,
                 coach_model=real.coach_model,
                 llm_provider_order=order,
+                llm_provider_sort=sort,
             ),
         )
 
     return _set
 
 
-def test_no_provider_block_is_sent_when_no_order_is_configured(
+def test_no_provider_block_is_sent_when_neither_order_nor_sort_is_configured(
     provider_order: Any, configured_models: None
 ) -> None:  # noqa: ARG001 — the fixture is the environment
-    """Empty means "say nothing", so OpenRouter's own routing is untouched."""
-    provider_order("")
+    """Both empty means "say nothing", so OpenRouter's own routing is untouched."""
+    provider_order("", sort="")
     client, fake = _client_with_fake()
     client.complete([{"role": "user", "content": "x"}], model=_SECRET_MODEL)
     assert fake.chat.completions.kwargs is not None
+    assert "extra_body" not in fake.chat.completions.kwargs
+
+
+def test_the_coach_tier_sorts_by_throughput_when_no_order_is_given(
+    provider_order: Any, configured_models: None
+) -> None:  # noqa: ARG001
+    """The measured defect: price-weighted default routing put coach calls on 10 tok/s
+    providers. With no order, the sort is what goes on the wire — and nothing else."""
+    provider_order("", sort="throughput")
+    client, fake = _client_with_fake()
+    client.complete([{"role": "user", "content": "x"}], model=_SECRET_MODEL)
+    assert fake.chat.completions.kwargs["extra_body"] == {"provider": {"sort": "throughput"}}
+
+
+def test_an_order_wins_over_the_sort(provider_order: Any, configured_models: None) -> None:  # noqa: ARG001
+    """OpenRouter treats order and sort as alternatives; a configured order is the
+    operator's explicit choice, so the sort is not sent alongside it."""
+    provider_order("fireworks", sort="throughput")
+    client, fake = _client_with_fake()
+    client.complete([{"role": "user", "content": "x"}], model=_SECRET_MODEL)
+    sent = fake.chat.completions.kwargs["extra_body"]["provider"]
+    assert sent == {"order": ["fireworks"], "allow_fallbacks": True}
+
+
+def test_the_sort_is_coach_tier_only(provider_order: Any, configured_models: None) -> None:  # noqa: ARG001
+    """The default tier is a different model; a routing rule for the coach must not
+    reach the nightly chain."""
+    provider_order("", sort="throughput")
+    client, fake = _client_with_fake()
+    client.complete([{"role": "user", "content": "x"}], model="vendor-x/cheap-tier-1")
     assert "extra_body" not in fake.chat.completions.kwargs
 
 

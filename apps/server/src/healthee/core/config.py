@@ -239,26 +239,19 @@ class Settings(BaseSettings):
     # 0 is legal and means "one attempt, then the fallback". It cannot weaken the floor:
     # unvalidated text never ships at any value.
     llm_validation_retries: int = 2
-    # Ordered OpenRouter provider tags the COACH tier prefers, comma-separated and empty
-    # by default (= no `provider` block sent, OpenRouter's own routing, unchanged).
-    #
-    # Tags are the exact strings from `/api/v1/models/{id}/endpoints` — `baidu/fp8`,
-    # `wafer/fast`, `reka/fp4`, `fireworks` — because a provider serves one model at a
-    # specific quantization and the two are not separable choices. Fallbacks stay ON:
-    # this expresses a PREFERENCE, and a coach that 503s because four named providers
-    # were busy is a worse failure than one answered by a fifth.
-    #
-    # ⛔ COACH TIER ONLY, enforced in `insights/client`. The tags above serve the coach
-    # model; the default tier is a different model that most of them do not host at all,
-    # so a blanket order would route recs, briefings and notable cards to providers that
-    # cannot answer them — an outage of the whole nightly chain dressed as a routing
-    # preference.
-    #
-    # Ordering has a cost the operator owns: it is theirs to make cheap-first or
-    # quality-first, and OpenRouter will walk it in the order given. Nothing here
-    # validates that a tag exists — a typo degrades to "this provider never matched" and
-    # the next one answers, which is the failure mode fallbacks exist for.
+    # COACH-TIER provider routing (enforced in `insights/client`; the default tier is a
+    # different model most of these providers do not host, so a blanket rule would take
+    # the nightly chain down). Fallbacks stay ON — a preference, never a restriction.
+    #   llm_provider_order: comma-separated provider tags from
+    #     `/api/v1/models/{id}/endpoints` (`baidu/fp8`, `fireworks`), walked in order.
+    #   llm_provider_sort: what OpenRouter sorts by when no order is given —
+    #     "throughput" | "latency" | "price" | "" (its default, PRICE-weighted).
+    # Measured 2026-09-19: our coach model has 21 providers at 10–164 tok/s, the two
+    # cheapest are the two slowest, and price-weighted routing put 6 of 65 questions
+    # under 15 tok/s (the 594 s worst case). Throughput-first is the shipped default;
+    # an order, when set, wins over the sort.
     llm_provider_order: str = ""
+    llm_provider_sort: Literal["throughput", "latency", "price", ""] = "throughput"
 
     # ── On-disk caches for public geodata (SRTM elevation + basemap tiles) ─
     # Both hold PUBLIC data — squares of the world this server fetched, never an

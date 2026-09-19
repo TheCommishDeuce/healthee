@@ -287,9 +287,13 @@ def _provider_routing(model: str) -> dict[str, Any] | None:
     """
     if tier_of(model) != "coach":
         return None
-    raw = get_settings().llm_provider_order
-    order = [tag.strip() for tag in raw.split(",") if tag.strip()]
-    return {"order": order, "allow_fallbacks": True} if order else None
+    settings = get_settings()
+    order = [tag.strip() for tag in settings.llm_provider_order.split(",") if tag.strip()]
+    if order:
+        return {"order": order, "allow_fallbacks": True}
+    # No order: sort instead. OpenRouter treats the two as alternatives (either one
+    # switches off its price-weighted balancing), so an order, when set, wins.
+    return {"sort": settings.llm_provider_sort} if settings.llm_provider_sort else None
 
 
 def _warn_if_truncated(choice: Any, model: str) -> None:
