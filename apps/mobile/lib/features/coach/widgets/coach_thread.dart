@@ -224,34 +224,48 @@ class _ReplyState extends State<_Reply> {
     final colors = context.colors;
     final answer = widget.answer;
     final detail = _detail;
+    final Widget body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (_complete && !answer.validated) ...<Widget>[
+          Text(
+            "The coach couldn't answer that one to its own standard, so this "
+            'is the honest fallback rather than the answer you asked for. It '
+            'was not counted against your questions.',
+            style: TypeScale.tinyLabel.copyWith(color: colors.ink2),
+          ),
+          const SizedBox(height: 12),
+        ],
+        GroundedProse(
+          text: _visible,
+          style: TypeScale.coachBody.copyWith(color: colors.ink),
+        ),
+        // At the foot, right-aligned, only once the whole answer is on screen,
+        // and drawing nothing at all when the answer cited nothing.
+        if (_complete && detail.isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: MetricInfoDot(null, detail: detail),
+          ),
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.only(top: CoachEntryView.topGap),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (_complete && !answer.validated) ...<Widget>[
-            Text(
-              "The coach couldn't answer that one to its own standard, so this "
-              'is the honest fallback rather than the answer you asked for. It '
-              'was not counted against your questions.',
-              style: TypeScale.tinyLabel.copyWith(color: colors.ink2),
+      // `!live` is exactly "a draft was on screen for this answer" (see
+      // `CoachController.ask`) — the words were already there, so there is
+      // nothing to reveal a sentence at a time, only a swap from the muted
+      // draft ink to the answer's own. A short cross-fade says that swap
+      // happened; a bare replacement would read as a flicker.
+      child: widget.live
+          ? body
+          : TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 150),
+              builder: (context, opacity, child) =>
+                  Opacity(opacity: opacity, child: child),
+              child: body,
             ),
-            const SizedBox(height: 12),
-          ],
-          GroundedProse(
-            text: _visible,
-            style: TypeScale.coachBody.copyWith(color: colors.ink),
-          ),
-          // At the foot, right-aligned, only once the whole answer is on screen,
-          // and drawing nothing at all when the answer cited nothing.
-          if (_complete && detail.isNotEmpty)
-            Align(
-              alignment: Alignment.centerRight,
-              child: MetricInfoDot(null, detail: detail),
-            ),
-        ],
-      ),
     );
   }
 }

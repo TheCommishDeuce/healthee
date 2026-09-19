@@ -19,13 +19,17 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/theme/app_theme.dart';
+import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/data/coach/coach_answer.dart';
 import 'package:healthee/data/coach/coach_client.dart';
 import 'package:healthee/data/coach/coach_stream_event.dart';
 import 'package:healthee/data/models/entitlement.dart';
 import 'package:healthee/features/coach/coach_screen.dart';
+import 'package:healthee/shared/metric_info/metric_info_sheet.dart';
 
 import '_coach_overrides.dart';
+
+const HealtheeColors _lightColors = HealtheeColors.light();
 
 final DateTime _now = DateTime(2026, 8, 5, 9);
 
@@ -200,6 +204,69 @@ void main() {
       expect(find.text('Checking the citations'), findsNothing);
 
       await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'a draft renders muted while asking, then the answer replaces it in '
+    'full ink with its sources dot — not before',
+    (tester) async {
+      final client = _StreamingCoach(
+        [
+          [
+            const CoachStageEvent(stage: CoachStage.thinking, round: 1),
+            const CoachDraftEvent(round: 1, text: 'Sleep earlier tonight.'),
+            CoachAnswerEvent(
+              CoachAnswer.fromJson(const <String, Object?>{
+                'reply': 'Sleep earlier tonight, and hold your wake time.',
+                'citations': <String>['sleep_need_debt'],
+                'validated': true,
+              }),
+            ),
+          ],
+        ],
+        [_premium(remaining: 17), _premium(remaining: 16)],
+      );
+      await tester.pumpWidget(_screen(client));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'How is my sleep?');
+      await tester.tap(sendButton);
+      await tester.pump();
+      await tester.pump(_tick); // the `thinking` stage
+      await tester.pump(_tick); // the draft
+
+      expect(find.text('Sleep earlier tonight.'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('Sleep earlier tonight.')).style!.color,
+        _lightColors.ink2,
+        reason: "a draft hasn't been checked yet, so it reads muted",
+      );
+      expect(
+        find.byType(MetricInfoDot),
+        findsNothing,
+        reason: 'nothing is validated yet, so nothing is cited yet',
+      );
+
+      await tester.pump(_tick); // the answer
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Sleep earlier tonight.'),
+        findsNothing,
+        reason: 'the draft is gone once the validated answer lands',
+      );
+      final Finder replyText = find.textContaining(
+        'Sleep earlier tonight, and hold your wake time.',
+      );
+      expect(replyText, findsOneWidget);
+      expect(
+        tester.widget<Text>(replyText).style!.color,
+        _lightColors.ink,
+        reason:
+            'the checked answer reads in full ink, not the draft’s muted one',
+      );
+      expect(find.byType(MetricInfoDot), findsOneWidget);
     },
   );
 }

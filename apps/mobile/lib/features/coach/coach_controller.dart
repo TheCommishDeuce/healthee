@@ -72,14 +72,16 @@ class CoachController extends _$CoachController {
       return;
     }
     final asked = OwnerQuestion(text);
-    // `clearProgress` because a stage from a PREVIOUS, unanswered turn (a
-    // refusal or a dropped connection does not clear it) must not linger onto
-    // this one — `CoachWaiting` would open showing a stage that belongs to a
-    // question already resolved.
+    // `clearProgress`/`clearDraft` because a stage or draft from a PREVIOUS,
+    // unanswered turn (a refusal or a dropped connection does not clear
+    // either) must not linger onto this one — `CoachWaiting` would open
+    // showing a stage, or a stale draft, that belongs to a question already
+    // resolved.
     state = state.copyWith(
       entries: [...state.entries, asked],
       asking: true,
       clearProgress: true,
+      clearDraft: true,
     );
     final generation = _generation;
     // Written BEFORE the request, not after it. The process can end at any point
@@ -93,10 +95,17 @@ class CoachController extends _$CoachController {
     // itself. The sequence number is taken NOW rather than inside, so a write
     // that lands late still lands in the right place.
     unawaited(_remember(asked, seq: state.entries.length - 1, opening: text));
+    // True once any `draft` event has arrived for this question. It decides
+    // [CoachReply.live]: a reply the owner already watched being written, a
+    // piece at a time, is shown whole rather than sentence-revealed again —
+    // only a reply with NO preceding draft (the non-streaming fallback, or an
+    // older server) gets the reveal.
+    bool draftSeen = false;
     try {
       // Consumed as it arrives rather than awaited whole: `askStream` yields
-      // zero or more typed [CoachStageEvent]s before its one [CoachAnswerEvent],
-      // and `CoachWaiting` renders whichever stage this loop last stored.
+      // zero or more typed [CoachStageEvent]s and [CoachDraftEvent]s before
+      // its one [CoachAnswerEvent]; `CoachWaiting` renders whichever stage and
+      // draft this loop last stored.
       await for (final event
           in ref
               .read(coachClientProvider)
@@ -106,12 +115,20 @@ class CoachController extends _$CoachController {
             if (_isCurrent(generation)) {
               state = state.copyWith(progress: event);
             }
+          case CoachDraftEvent(:final round, :final text):
+            draftSeen = true;
+            if (_isCurrent(generation)) {
+              state = state.copyWith(
+                draft: CoachDraft(round: round, text: text),
+              );
+            }
           case CoachAnswerEvent(:final answer):
             if (_isCurrent(generation)) {
-              final reply = CoachReply(answer, live: true);
+              final reply = CoachReply(answer, live: !draftSeen);
               state = state.copyWith(
                 entries: [...state.entries, reply],
                 clearProgress: true,
+                clearDraft: true,
               );
               unawaited(_remember(reply, seq: state.entries.length - 1));
             }

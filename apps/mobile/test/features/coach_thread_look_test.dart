@@ -15,6 +15,11 @@ import 'package:healthee/features/coach/coach_conversation.dart';
 import 'package:healthee/features/coach/v02/coach_waiting.dart';
 import 'package:healthee/features/coach/widgets/coach_thread.dart';
 
+const String _draftSoFar =
+    'Your last seven nights averaged 6 h 20 of sleep against an 8-hour '
+    'need, so the debt you are carrying is real rather than a rounding '
+    'error. Timing is not the';
+
 final bool _look = Platform.environment['HEALTHEE_LOOK'] == '1';
 
 const String _question =
@@ -91,6 +96,20 @@ void main() {
           ),
         ], dark: dark),
         'coach_typing_$mode',
+      );
+    }, skip: !_look);
+
+    testWidgets('drafting — $mode', (tester) async {
+      await _shoot(
+        tester,
+        _thread(<Widget>[
+          const CoachEntryView(entry: OwnerQuestion(_question)),
+          const CoachWaiting(
+            progress: CoachStageEvent(stage: CoachStage.thinking, round: 1),
+            draft: CoachDraft(round: 1, text: _draftSoFar),
+          ),
+        ], dark: dark),
+        'coach_drafting_$mode',
       );
     }, skip: !_look);
 

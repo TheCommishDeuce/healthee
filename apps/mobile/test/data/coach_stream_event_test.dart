@@ -63,6 +63,47 @@ void main() {
     });
   });
 
+  group('parseCoachDraftEvent', () {
+    test('carries the round and the whole draft text through', () {
+      final event = parseCoachDraftEvent(
+        '{"round":2,"text":"Sleep earlier tonight"}',
+      );
+
+      expect(event, isNotNull);
+      expect(event!.round, 2);
+      expect(event.text, 'Sleep earlier tonight');
+    });
+
+    test('a missing round defaults to 0 rather than throwing', () {
+      expect(parseCoachDraftEvent('{"text":"partial"}')!.round, 0);
+    });
+
+    test('a non-string text is ignored, never surfaced as a value', () {
+      expect(parseCoachDraftEvent('{"round":1,"text":42}'), isNull);
+      expect(parseCoachDraftEvent('{"round":1,"text":null}'), isNull);
+    });
+
+    test('a missing text is ignored', () {
+      expect(parseCoachDraftEvent('{"round":1}'), isNull);
+    });
+
+    test('malformed JSON is ignored, not a crash', () {
+      expect(parseCoachDraftEvent('not json'), isNull);
+    });
+
+    test('a JSON value that is not an object is ignored', () {
+      expect(parseCoachDraftEvent('"draft"'), isNull);
+      expect(parseCoachDraftEvent('42'), isNull);
+    });
+
+    test('an empty draft (a fresh round starting over) still parses', () {
+      final event = parseCoachDraftEvent('{"round":3,"text":""}');
+
+      expect(event, isNotNull);
+      expect(event!.text, isEmpty);
+    });
+  });
+
   group('parseCoachAnswerEvent', () {
     test('parses with the one CoachAnswer parser this app has', () {
       final answer = parseCoachAnswerEvent(

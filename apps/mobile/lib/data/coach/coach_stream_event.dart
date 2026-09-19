@@ -74,6 +74,26 @@ final class CoachStageEvent extends CoachStreamEvent {
   final String? detail;
 }
 
+/// The model's draft prose for the in-flight round, before validation.
+///
+/// Not a stage: the owner asked for the coach to "feel like claude — stream
+/// it as it starts and swap", so the server now sends the draft it is
+/// writing alongside its stage progress. [text] is the WHOLE draft so far,
+/// never a delta — a caller must replace what it showed for the previous
+/// `draft` event, not append to it. A rewrite (the validator rejected a
+/// draft) starts a new, higher [round] whose first event's [text] starts
+/// over, short or empty. [CoachAnswerEvent] always supersedes every draft.
+final class CoachDraftEvent extends CoachStreamEvent {
+  /// [round] and [text] are exactly the wire's own fields.
+  const CoachDraftEvent({required this.round, required this.text});
+
+  /// Which gathering/rewrite round this draft belongs to.
+  final int round;
+
+  /// The whole draft prose so far.
+  final String text;
+}
+
 /// The validated answer — exactly what `POST /api/coach` returns.
 final class CoachAnswerEvent extends CoachStreamEvent {
   /// [answer] parses with the one [CoachAnswer.fromJson] this app has.
@@ -123,6 +143,20 @@ CoachStageEvent? parseCoachStageEvent(String data) {
 CoachAnswer? parseCoachAnswerEvent(String data) {
   final Map<String, Object?>? json = _decodeObject(data);
   return json == null ? null : CoachAnswer.fromJson(json);
+}
+
+/// Parses one SSE `draft` event's `data`. Null for anything malformed —
+/// missing fields, or a `text` that is not a string — never a crash: the
+/// draft is cosmetic, so a bad frame is silently skipped rather than shown as
+/// a fault the owner did not cause.
+CoachDraftEvent? parseCoachDraftEvent(String data) {
+  final Map<String, Object?>? json = _decodeObject(data);
+  final Object? text = json?['text'];
+  if (text is! String) {
+    return null;
+  }
+  final Object? round = json?['round'];
+  return CoachDraftEvent(round: round is num ? round.toInt() : 0, text: text);
 }
 
 /// Parses one SSE `error` event's `data`. Never throws: a payload this app

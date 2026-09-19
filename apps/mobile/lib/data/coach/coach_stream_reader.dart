@@ -37,6 +37,11 @@ Stream<CoachStreamEvent> readCoachStream(Stream<List<int>> bytes) async* {
           if (stage != null) {
             yield stage;
           }
+        case 'draft':
+          final draft = parseCoachDraftEvent(event.data);
+          if (draft != null) {
+            yield draft;
+          }
         case 'answer':
           final answer = parseCoachAnswerEvent(event.data);
           if (answer == null) {

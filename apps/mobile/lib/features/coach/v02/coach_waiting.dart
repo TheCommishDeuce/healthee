@@ -47,16 +47,40 @@ import 'package:healthee/core/theme/dimensions.dart';
 import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/coach/coach_stream_event.dart';
+import 'package:healthee/features/coach/coach_conversation.dart';
 import 'package:healthee/features/coach/widgets/coach_thread.dart';
+import 'package:healthee/shared/states/grounded_text.dart';
 
 /// The panel shown while a question is in flight.
+///
+/// ## Once a draft has arrived, this stops being a spinner and starts being
+/// the coach's next turn beginning
+///
+/// The owner decided the coach should "feel like claude — stream it as it
+/// starts and swap": once [draft] is non-null this widget draws a compact
+/// status line (the same dots, the same stage label, smaller) over the
+/// draft's own prose, in the muted ink rather than the answer's full one —
+/// it has not been checked yet. [draft] replaces wholesale on every update
+/// (never appended to), so the prose here just needs to redraw with whatever
+/// it was last given; [onGrow] is called on every such update so the thread
+/// this panel sits in can follow the text growing, the same contract
+/// `_ReplyState` already keeps for a live reply.
 class CoachWaiting extends StatefulWidget {
   /// [progress] is the latest stage `CoachController` has seen for this
-  /// question, or null before the first one arrives.
-  const CoachWaiting({this.progress, super.key});
+  /// question, or null before the first one arrives. [draft] is the latest
+  /// `draft` event's prose, or null before one arrives (or when the server
+  /// never sends one). [onGrow] fires once per [draft] update.
+  const CoachWaiting({this.progress, this.draft, this.onGrow, super.key});
 
   /// The stage to describe. Null draws the pre-streaming sentence.
   final CoachStageEvent? progress;
+
+  /// The in-flight draft, or null before one has arrived this turn.
+  final CoachDraft? draft;
+
+  /// Called each time [draft] is replaced, so the thread can keep its end in
+  /// view while the draft is still growing.
+  final VoidCallback? onGrow;
 
   @override
   State<CoachWaiting> createState() => _CoachWaitingState();
@@ -119,6 +143,22 @@ class _CoachWaitingState extends State<CoachWaiting>
   }
 
   @override
+  void didUpdateWidget(covariant CoachWaiting oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Fires once per draft replacement, never on the stage or the clock
+    // ticking — the thread only needs to re-stick to the end when there is
+    // more text to see.
+    final CoachDraft? draft = widget.draft;
+    final bool grew =
+        draft != null &&
+        (oldWidget.draft?.round != draft.round ||
+            oldWidget.draft?.text != draft.text);
+    if (grew) {
+      widget.onGrow?.call();
+    }
+  }
+
+  @override
   void dispose() {
     _ticker?.cancel();
     _pulse.dispose();
@@ -128,6 +168,10 @@ class _CoachWaitingState extends State<CoachWaiting>
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final CoachDraft? draft = widget.draft;
+    if (draft != null) {
+      return _draftPanel(colors, draft);
+    }
     final bool long = _elapsed >= _longAfter;
     final String stage = widget.progress == null
         ? _beforeAnyStage
@@ -182,6 +226,53 @@ class _CoachWaitingState extends State<CoachWaiting>
               style: TypeScale.panelNote.copyWith(color: colors.ink3),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// Once a draft has arrived: a compact status line — the same dots, the
+  /// same stage label, smaller and with no clock, because there is now
+  /// something more useful under it than a number of seconds — over the
+  /// draft's own prose, unchecked and drawn muted (`colors.ink2`) rather
+  /// than the full ink an answer gets, through the same [GroundedProse]
+  /// every reply uses so a `[note_id]` marker in a draft looks exactly like
+  /// one in the validated text once it lands.
+  Widget _draftPanel(HealtheeColors colors, CoachDraft draft) {
+    final String stage = widget.progress == null
+        ? _beforeAnyStage
+        : coachStageLabel(widget.progress!);
+    return Padding(
+      padding: const EdgeInsets.only(top: CoachEntryView.topGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              _TypingDots(pulse: _pulse, color: colors.ink3),
+              const SizedBox(width: Insets.sm),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  layoutBuilder: (current, previous) => Stack(
+                    alignment: AlignmentDirectional.centerStart,
+                    children: <Widget>[...previous, ?current],
+                  ),
+                  child: Text(
+                    stage,
+                    key: ValueKey<String>(stage),
+                    style: TypeScale.tinyLabel.copyWith(color: colors.ink2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Insets.sm),
+          GroundedProse(
+            text: draft.text,
+            style: TypeScale.coachBody.copyWith(color: colors.ink2),
+          ),
         ],
       ),
     );

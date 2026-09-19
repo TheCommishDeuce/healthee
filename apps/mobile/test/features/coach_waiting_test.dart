@@ -9,8 +9,12 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/theme/app_theme.dart';
+import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/data/coach/coach_stream_event.dart';
+import 'package:healthee/features/coach/coach_conversation.dart';
 import 'package:healthee/features/coach/v02/coach_waiting.dart';
+
+const HealtheeColors _light = HealtheeColors.light();
 
 /// The widget under a theme, which is all it needs — it reads tokens and nothing else.
 Future<void> pumpApp(WidgetTester tester, Widget child) => tester.pumpWidget(
@@ -197,6 +201,106 @@ void main() {
       );
 
       expect(coachStageLabel(progress), 'Checking the research');
+    });
+  });
+
+  group('once a draft has arrived', () {
+    testWidgets('the draft prose renders muted, not in full ink', (
+      tester,
+    ) async {
+      await pumpApp(
+        tester,
+        const CoachWaiting(
+          progress: CoachStageEvent(stage: CoachStage.thinking, round: 1),
+          draft: CoachDraft(round: 1, text: 'Sleep earlier tonight'),
+        ),
+      );
+
+      expect(
+        tester.widget<Text>(find.text('Sleep earlier tonight')).style!.color,
+        _light.ink2,
+        reason: "a draft hasn't been checked yet, so it reads muted",
+      );
+    });
+
+    testWidgets('the stage line sits above the draft prose', (tester) async {
+      await pumpApp(
+        tester,
+        const CoachWaiting(
+          progress: CoachStageEvent(stage: CoachStage.checking, round: 1),
+          draft: CoachDraft(round: 1, text: 'Sleep earlier tonight'),
+        ),
+      );
+
+      expect(find.text('Checking the citations'), findsOneWidget);
+      final double stageY = tester
+          .getTopLeft(find.text('Checking the citations'))
+          .dy;
+      final double draftY = tester
+          .getTopLeft(find.text('Sleep earlier tonight'))
+          .dy;
+      expect(
+        stageY,
+        lessThan(draftY),
+        reason: 'the status line reads above the prose it stands over',
+      );
+    });
+
+    testWidgets('draws no clock — there is prose to look at instead', (
+      tester,
+    ) async {
+      await pumpApp(
+        tester,
+        const CoachWaiting(
+          draft: CoachDraft(round: 1, text: 'Sleep earlier tonight'),
+        ),
+      );
+
+      expect(find.text('0s'), findsNothing);
+    });
+
+    testWidgets('onGrow fires once per REPLACED draft, never per rebuild', (
+      tester,
+    ) async {
+      int grew = 0;
+      await pumpApp(
+        tester,
+        CoachWaiting(
+          draft: const CoachDraft(round: 1, text: 'Sleep'),
+          onGrow: () => grew++,
+        ),
+      );
+      expect(grew, 0, reason: 'the first frame is not a replacement');
+
+      await pumpApp(
+        tester,
+        CoachWaiting(
+          draft: const CoachDraft(round: 1, text: 'Sleep earlier'),
+          onGrow: () => grew++,
+        ),
+      );
+      expect(grew, 1);
+
+      // The identical draft rebuilding (a stage arriving alone, say) must not
+      // count as growth — nothing new is on screen to follow.
+      await pumpApp(
+        tester,
+        CoachWaiting(
+          draft: const CoachDraft(round: 1, text: 'Sleep earlier'),
+          onGrow: () => grew++,
+        ),
+      );
+      expect(grew, 1);
+
+      // A new ROUND resetting the text is still a replacement.
+      await pumpApp(
+        tester,
+        CoachWaiting(
+          draft: const CoachDraft(round: 2, text: ''),
+          onGrow: () => grew++,
+        ),
+      );
+      expect(grew, 2);
     });
   });
 }

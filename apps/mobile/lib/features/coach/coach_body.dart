@@ -17,6 +17,7 @@ import 'package:healthee/data/models/entitlement.dart';
 import 'package:healthee/data/models/today_snapshot.dart';
 import 'package:healthee/data/today_repository.dart';
 import 'package:healthee/features/coach/coach_controller.dart';
+import 'package:healthee/features/coach/coach_conversation.dart';
 import 'package:healthee/features/coach/v02/coach_openers.dart';
 import 'package:healthee/features/coach/v02/coach_opening.dart';
 import 'package:healthee/features/coach/v02/coach_prompts.dart';
@@ -122,6 +123,8 @@ class CoachBody extends ConsumerWidget {
           asking: conversation.asking,
           canAsk: canAsk,
           progress: conversation.progress,
+          draft: conversation.draft,
+          onGrow: onGrow,
         ),
         // A conversation reads top to bottom and its input sits at the bottom,
         // which is the shape the legacy coach uses and the shape every messaging
@@ -163,14 +166,18 @@ class CoachBody extends ConsumerWidget {
     required bool asking,
     required bool canAsk,
     required CoachStageEvent? progress,
+    required CoachDraft? draft,
+    required VoidCallback? onGrow,
   }) {
     if (asking) {
       // Not `LoadingState`: this wait was measured at 80-304 s, and a 16 px
       // spinner held for four minutes reads as a hang. `CoachWaiting` counts the
-      // time it can actually see and names the stage the wire actually sent.
+      // time it can actually see and names the stage the wire actually sent —
+      // and, once `draft` arrives, the draft prose itself (`onGrow` fires on
+      // every draft update so the thread keeps its end in view).
       return Padding(
         padding: const EdgeInsets.only(top: Insets.md),
-        child: CoachWaiting(progress: progress),
+        child: CoachWaiting(progress: progress, draft: draft, onGrow: onGrow),
       );
     }
     // The opening is what an EMPTY thread stands on. Once anything has been

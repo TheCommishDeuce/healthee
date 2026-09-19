@@ -73,6 +73,23 @@ final class CoachTrouble extends CoachEntry {
   final DateTime? resetsAt;
 }
 
+/// The server's draft prose for the in-flight question — the "feel like
+/// claude" surface: shown muted while a question is open, replaced wholesale
+/// by [CoachReply] once the validator has passed it.
+@immutable
+class CoachDraft {
+  /// [round] and [text] are exactly [CoachDraftEvent]'s own fields.
+  const CoachDraft({required this.round, required this.text});
+
+  /// Which gathering/rewrite round this draft belongs to. A rewrite starts a
+  /// new, higher round, and its first draft's [text] starts over.
+  final int round;
+
+  /// The WHOLE draft so far. Replaces, never appends, whatever this held
+  /// before.
+  final String text;
+}
+
 /// The whole thread, plus whether a question is in flight.
 @immutable
 class CoachConversation {
@@ -81,6 +98,7 @@ class CoachConversation {
     this.entries = const [],
     this.asking = false,
     this.progress,
+    this.draft,
   });
 
   /// Oldest first.
@@ -99,6 +117,13 @@ class CoachConversation {
   /// is never a raw `stage` string, so `CoachWaiting` renders a stage it knows
   /// rather than guessing how to word one it does not (Standards §3).
   final CoachStageEvent? progress;
+
+  /// The in-flight question's draft prose, or null before the first `draft`
+  /// event arrives (or when the server never sends one — the non-streaming
+  /// fallback, or an older server). Cleared at the start of [copyWith]'s
+  /// caller asking a new question and when the validated answer lands — the
+  /// answer always supersedes it.
+  final CoachDraft? draft;
 
   /// Whether anything has been asked in this thread.
   bool get isEmpty => entries.isEmpty;
@@ -125,22 +150,26 @@ class CoachConversation {
     return wire;
   }
 
-  /// The same conversation with [entries], [asking] and/or [progress]
-  /// replaced.
+  /// The same conversation with [entries], [asking], [progress] and/or
+  /// [draft] replaced.
   ///
-  /// [progress] follows the usual `?? this.progress` rule — pass a new value
-  /// to replace it. [clearProgress] is the escape hatch a nullable field
-  /// needs: there is no way to tell "replace with null" apart from "did not
-  /// pass this one" through `??` alone, and a stage from the turn that just
-  /// finished should not linger onto the next one.
+  /// [progress] and [draft] follow the usual `?? this.progress` rule — pass a
+  /// new value to replace it. [clearProgress]/[clearDraft] are the escape
+  /// hatch a nullable field needs: there is no way to tell "replace with
+  /// null" apart from "did not pass this one" through `??` alone, and a
+  /// stage or draft from the turn that just finished should not linger onto
+  /// the next one.
   CoachConversation copyWith({
     List<CoachEntry>? entries,
     bool? asking,
     CoachStageEvent? progress,
     bool clearProgress = false,
+    CoachDraft? draft,
+    bool clearDraft = false,
   }) => CoachConversation(
     entries: entries ?? this.entries,
     asking: asking ?? this.asking,
     progress: clearProgress ? null : (progress ?? this.progress),
+    draft: clearDraft ? null : (draft ?? this.draft),
   );
 }
