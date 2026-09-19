@@ -147,6 +147,10 @@ def test_a_stream_slower_than_the_deadline_raises_and_is_recorded(
     `started`) already consumed a tick.
     """
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    # Both tiers too: the settings guard refuses a key with blank model ids, and CI has
+    # no .env to supply them (locally one does, which hid this).
+    monkeypatch.setenv("DEFAULT_MODEL", "vendor-x/cheap-tier-1")
+    monkeypatch.setenv("COACH_MODEL", "vendor-x/strong-tier-1")
     monkeypatch.setenv("LLM_DEADLINE_S", "120")
     get_settings.cache_clear()
     ticking = itertools.count(0.0, 1_000_000.0)
@@ -206,6 +210,10 @@ def test_a_stream_with_no_chunks_at_all_is_closed_by_the_watchdog_and_reads_as_a
     deadline (~0.05 s) proves the watchdog thread — not a mocked clock — is what
     interrupts the blocked read here."""
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    # Both tiers too: the settings guard refuses a key with blank model ids, and CI has
+    # no .env to supply them (locally one does, which hid this).
+    monkeypatch.setenv("DEFAULT_MODEL", "vendor-x/cheap-tier-1")
+    monkeypatch.setenv("COACH_MODEL", "vendor-x/strong-tier-1")
     monkeypatch.setenv("LLM_DEADLINE_S", "0.05")
     get_settings.cache_clear()
     stream = _BlockingStream()
@@ -247,6 +255,10 @@ def test_a_non_deadline_exception_mid_stream_propagates_as_itself(
     deadline; a genuine provider error mid-stream — the deadline never having fired —
     must reach the caller unchanged, not be misreported as a timeout."""
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    # Both tiers too: the settings guard refuses a key with blank model ids, and CI has
+    # no .env to supply them (locally one does, which hid this).
+    monkeypatch.setenv("DEFAULT_MODEL", "vendor-x/cheap-tier-1")
+    monkeypatch.setenv("COACH_MODEL", "vendor-x/strong-tier-1")
     monkeypatch.setenv("LLM_DEADLINE_S", "120")  # generous: the watchdog never fires
     get_settings.cache_clear()
 
