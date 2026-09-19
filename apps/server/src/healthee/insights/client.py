@@ -163,7 +163,6 @@ class LLMClient(Protocol):
         tools: list[dict] | None = None,
         model: str | None = None,
         response_format: dict | None = None,
-        reasoning: bool | None = None,
     ) -> ChatResponse: ...
 
 

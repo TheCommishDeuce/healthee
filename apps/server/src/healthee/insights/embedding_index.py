@@ -46,6 +46,7 @@ from fastembed import TextEmbedding
 from numpy.typing import NDArray
 
 from healthee.core.config import get_settings
+from healthee.core.knowledge import knowledge_dir
 from healthee.core.logging import get_logger
 from healthee.insights import passages
 from healthee.insights.passages import Passage
@@ -55,12 +56,11 @@ log = get_logger(__name__)
 _VECTORS_FILE = "passages.npy"
 _META_FILE = "passages.json"
 
-# The committed artifact — repo root / packages/knowledge/embeddings. Machine-
-# independent (the cache key is model id + passage texts only), so it ships with the
-# corpus like the manifest does. This file lives at
-# apps/server/src/healthee/insights/embedding_index.py; parents[5] from here is the
-# repo root (insights -> healthee -> src -> server -> apps -> repo root).
-_COMMITTED_DIR = Path(__file__).resolve().parents[5] / "packages" / "knowledge" / "embeddings"
+# The committed artifact — `<knowledge dir>/embeddings`, machine-independent (the key is
+# model id + passage texts only), shipped with the corpus like the manifest. Resolved
+# through `core.knowledge.knowledge_dir()`, NOT a `parents[n]` offset: the image keeps
+# the corpus at /app/packages/knowledge, and an offset raised IndexError at import.
+_COMMITTED_DIR = knowledge_dir() / "embeddings"
 
 
 class EmbeddingIndexUnavailableError(RuntimeError):
