@@ -32,6 +32,10 @@ class Meter:
     three: summed across every completion, reset with them, and left at 0 (not "unknown")
     when a response carries no usage at all, because a call the provider didn't meter is
     not evidence the cache missed.
+
+    ``cost`` is OpenRouter's own BILLED dollars (``Usage.cost``), summed the same way —
+    a provider-measured figure independent of ``report.py``'s published-rate estimate,
+    which can only be as right as the rate table it hardcodes.
     """
 
     llm_calls: int = 0
@@ -41,6 +45,7 @@ class Meter:
     reasoning_tokens: int = 0
     cached_prompt_tokens: int = 0
     unmetered_calls: int = 0
+    cost: float = 0.0
 
     def plus(self, response: ChatResponse) -> Meter:
         """This meter with one more completion folded in (frozen — never mutated)."""
@@ -55,6 +60,7 @@ class Meter:
             cached_prompt_tokens=self.cached_prompt_tokens
             + (usage.cached_prompt_tokens if usage else 0),
             unmetered_calls=self.unmetered_calls + (0 if usage else 1),
+            cost=self.cost + (usage.cost if usage and usage.cost else 0.0),
         )
 
 

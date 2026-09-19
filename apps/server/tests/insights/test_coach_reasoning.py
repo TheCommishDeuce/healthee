@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from tests.insights.test_client import _client_with_fake
+from tests.insights._client_fakes import _client_with_fake
 
 from healthee.core.config import get_settings
 from healthee.insights import coach_loop, pipeline

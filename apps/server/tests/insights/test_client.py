@@ -1,10 +1,15 @@
-"""Transport unit tests — the JSON output-format seam, and the model id stays unlogged.
+"""Transport unit tests — provider routing, the JSON output-format seam, the model id
+stays unlogged, and the transport-health record.
 
-No network: the OpenAI SDK object is replaced by a fake that records the kwargs
-handed to ``chat.completions.create`` so we can assert ``response_format`` is (and
-is NOT) forwarded, without changing the prose path.
+No network: the OpenAI SDK object is replaced by a fake (`_client_fakes.py`, shared
+with `test_client_streaming.py` and `test_coach_reasoning.py`) that records the kwargs
+handed to ``chat.completions.create`` so we can assert ``response_format``/
+``extra_body`` fields are (and are not) forwarded. The streamed-response assembly
+itself (content deltas, tool calls, usage, the wall-clock deadline) is
+`test_client_streaming.py` — split out purely to keep both files under the 400-line
+gate.
 
-The second concern here is a standing owner constraint: **the model we run must not be
+The model-id concern is a standing owner constraint: **the model we run must not be
 discoverable**. Keeping the ids out of git (they resolve from ``DEFAULT_MODEL`` /
 ``COACH_MODEL``) is undone by a runtime log line that prints them, which is what
 ``llm completion: model=…`` did on every single call. The tests below capture the log
@@ -20,39 +25,12 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from tests.insights._client_fakes import _client_with_fake
 
 from healthee.core.config import get_settings
 from healthee.insights import client as client_module
 from healthee.insights import transport_health
 from healthee.insights.client import OpenRouterClient, tier_of
-
-
-class _FakeCompletions:
-    def __init__(self, finish_reason: str | None = None, usage: Any = None) -> None:
-        self.kwargs: dict[str, Any] | None = None
-        self._finish_reason = finish_reason
-        self._usage = usage
-
-    def create(self, **kwargs: Any) -> Any:
-        self.kwargs = kwargs
-        message = SimpleNamespace(content="ok", tool_calls=None)
-        choice = SimpleNamespace(message=message, finish_reason=self._finish_reason)
-        return SimpleNamespace(choices=[choice], usage=self._usage)
-
-
-class _FakeSDK:
-    def __init__(self, finish_reason: str | None = None, usage: Any = None) -> None:
-        self.chat = SimpleNamespace(completions=_FakeCompletions(finish_reason, usage))
-
-
-def _client_with_fake(
-    finish_reason: str | None = None, usage: Any = None
-) -> tuple[OpenRouterClient, _FakeSDK]:
-    client = OpenRouterClient()
-    fake = _FakeSDK(finish_reason, usage)
-    client._client = lambda: fake  # type: ignore[method-assign]  # inject the fake SDK
-    return client, fake
-
 
 # A value that could not plausibly be anything but the id we passed, so "the id is
 # absent" is a real assertion rather than a coincidence of short strings.
@@ -106,6 +84,7 @@ def provider_order(monkeypatch: pytest.MonkeyPatch) -> Any:
                 coach_model=real.coach_model,
                 llm_provider_order=order,
                 llm_provider_sort=sort,
+                llm_deadline_s=real.llm_deadline_s,
             ),
         )
 
@@ -115,12 +94,13 @@ def provider_order(monkeypatch: pytest.MonkeyPatch) -> Any:
 def test_no_provider_block_is_sent_when_neither_order_nor_sort_is_configured(
     provider_order: Any, configured_models: None
 ) -> None:  # noqa: ARG001 — the fixture is the environment
-    """Both empty means "say nothing", so OpenRouter's own routing is untouched."""
+    """Both empty means "say nothing" about PROVIDER routing — the mandatory usage-cost
+    request (``extra_body["usage"]``, sent on every call) is the only thing there."""
     provider_order("", sort="")
     client, fake = _client_with_fake()
     client.complete([{"role": "user", "content": "x"}], model=_SECRET_MODEL)
     assert fake.chat.completions.kwargs is not None
-    assert "extra_body" not in fake.chat.completions.kwargs
+    assert "provider" not in fake.chat.completions.kwargs["extra_body"]
 
 
 def test_the_coach_tier_sorts_by_throughput_when_no_order_is_given(
@@ -131,7 +111,10 @@ def test_the_coach_tier_sorts_by_throughput_when_no_order_is_given(
     provider_order("", sort="throughput")
     client, fake = _client_with_fake()
     client.complete([{"role": "user", "content": "x"}], model=_SECRET_MODEL)
-    assert fake.chat.completions.kwargs["extra_body"] == {"provider": {"sort": "throughput"}}
+    assert fake.chat.completions.kwargs["extra_body"] == {
+        "usage": {"include": True},
+        "provider": {"sort": "throughput"},
+    }
 
 
 def test_an_order_wins_over_the_sort(provider_order: Any, configured_models: None) -> None:  # noqa: ARG001
@@ -150,7 +133,7 @@ def test_the_sort_is_coach_tier_only(provider_order: Any, configured_models: Non
     provider_order("", sort="throughput")
     client, fake = _client_with_fake()
     client.complete([{"role": "user", "content": "x"}], model="vendor-x/cheap-tier-1")
-    assert "extra_body" not in fake.chat.completions.kwargs
+    assert "provider" not in fake.chat.completions.kwargs["extra_body"]
 
 
 def test_the_coach_tier_gets_the_order_and_keeps_fallbacks(
@@ -162,10 +145,11 @@ def test_the_coach_tier_gets_the_order_and_keeps_fallbacks(
     client.complete([{"role": "user", "content": "x"}], model=_SECRET_MODEL)
     assert fake.chat.completions.kwargs is not None
     assert fake.chat.completions.kwargs["extra_body"] == {
+        "usage": {"include": True},
         "provider": {
             "order": ["baidu/fp8", "wafer/fast", "reka/fp4", "fireworks"],
             "allow_fallbacks": True,
-        }
+        },
     }
 
 
@@ -181,7 +165,7 @@ def test_the_DEFAULT_tier_is_never_routed(provider_order: Any, configured_models
     client, fake = _client_with_fake()
     client.complete([{"role": "user", "content": "x"}], model="vendor-x/cheap-tier-1")
     assert fake.chat.completions.kwargs is not None
-    assert "extra_body" not in fake.chat.completions.kwargs
+    assert "provider" not in fake.chat.completions.kwargs["extra_body"]
 
 
 # ── the model id must not be discoverable from the logs ──────────────────────

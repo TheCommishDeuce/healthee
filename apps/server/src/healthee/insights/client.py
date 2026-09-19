@@ -18,13 +18,27 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from functools import lru_cache
+from types import SimpleNamespace
 from typing import Any, Protocol
 
 from healthee.core.config import get_settings
 from healthee.core.logging import get_logger
-from healthee.insights import transport_health
+from healthee.insights import client_stream, transport_health
 
 log = get_logger(__name__)
+
+
+class LLMDeadlineExceeded(TimeoutError):  # noqa: N818 — named to match `transport_health`'s lookup
+    """One completion ran past `Settings.llm_deadline_s` of WALL-CLOCK time.
+
+    A `TimeoutError`, the family `openai.APITimeoutError` is diagnosed as too — every
+    handler here catches broad `Exception` at its supervised boundary (`jobs/chain.py`,
+    `api/routers/coach.py`) rather than the SDK's own class, so nothing had to change
+    there; `transport_health.classify` names it by class name for the same reason.
+    Raised by `client_stream.accumulate`/`watchdog_accumulate` as an injected
+    `deadline_exc`, not imported, so that module never has to import this one back.
+    """
+
 
 # Model ids live in settings (env: DEFAULT_MODEL / COACH_MODEL), NOT hardcoded here —
 # the source never reveals which models we run; they're resolved per call. Per-surface
@@ -105,20 +119,30 @@ class Usage:
     that re-reads the corpus and one that does not, and it decides which lever makes
     the coach faster. Nothing recorded it, so "is the prompt the problem?" could only
     be answered by guessing.
+
+    ``cost`` is OpenRouter's own BILLED dollar figure for this completion — not the
+    published-rate estimate `tests/grounding_eval/report.py` computes from token counts,
+    which is wrong whenever a provider's actual price differs from the rate table (or
+    the table is stale). Requesting it costs nothing extra; ``None`` means the provider
+    didn't report one, same "unknown, not zero" rule as every other field here.
     """
 
     prompt_tokens: int = 0
     completion_tokens: int = 0
     reasoning_tokens: int = 0
     cached_prompt_tokens: int = 0
+    cost: float | None = None
 
 
 @dataclass(frozen=True)
 class ChatResponse:
     """A single assistant turn: its text plus any tool calls it requested.
 
-    ``tool_calls`` is the raw OpenAI-shaped list (or None); the coach tool-loop
-    (WP5b) consumes it. Insight surfaces use only ``text``.
+    ``tool_calls`` is a list of ``client_stream.ToolCall`` (or None) — reassembled from
+    the streamed deltas, but carrying the same ``.id`` / ``.function.name`` /
+    ``.function.arguments`` shape the coach tool-loop (WP5b) always read off a
+    non-streamed response, so nothing downstream of this type changed. Insight
+    surfaces use only ``text``.
 
     ``usage`` is None when the provider (or a test stub) reported none — "we don't know"
     and "zero tokens" are different states and stay distinguishable.
@@ -181,7 +205,7 @@ class OpenRouterClient:
         response_format: dict | None = None,
         reasoning: bool | None = None,
     ) -> ChatResponse:
-        """One completion. Returns the assistant text + any tool calls.
+        """One completion, STREAMED, assembled back into one assistant turn.
 
         ``response_format`` (e.g. ``{"type": "json_object"}``) is forwarded to the
         SDK when supplied — the grounded-ask choke point sets it for JSON surfaces
@@ -195,22 +219,31 @@ class OpenRouterClient:
         "send nothing": the shipped behaviour IS the model default, and asking for
         thinking explicitly would change the request for models that never think.
 
-        Errors propagate (the endpoint layer degrades to an honest error body) —
-        never swallowed. A timeout is one of them: the SDK raises
-        ``openai.APITimeoutError`` once ``llm_timeout_s`` is exceeded and it travels
-        out through the choke point untouched, so it lands on the chain's supervisor
-        (logged + Telegram-notified) instead of quietly becoming an empty answer.
-        A blank card and a broken transport are different states and must stay so
-        (standards §Errors). The key is passed to the SDK, never logged.
+        Every call is made with ``stream=True``: a non-streaming call's ``httpx`` read
+        timeout (``llm_timeout_s``) only fires when the socket goes silent, and
+        OpenRouter's keepalive bytes during a long generation mean it never is —
+        measured, one coach question ran 594 s across 3 calls under a supposed 60 s
+        cap. Streaming lets ``client_stream.watchdog_accumulate`` enforce a WALL-CLOCK
+        deadline (``llm_deadline_s``) instead — a per-chunk check plus a real timer
+        backstop for the phase before the first chunk, where OpenRouter's own
+        keepalives never reach the SDK as a chunk at all (module docstring).
 
-        Every attempt — success or failure — is recorded in ``insights.transport_health``,
-        which is what makes a dead AI layer VISIBLE without any probe ever paying for a
-        completion. The recording brackets the SDK call only: `_client()` raising for an
-        unset key is a *configuration* fact, not a transport one, and counting it as a
-        failed call would report the AI layer as broken on a box deliberately running
-        without it.
+        Errors propagate (the endpoint layer degrades to an honest error body) — never
+        swallowed. Two exceptions carry a timeout: the SDK's own
+        ``openai.APITimeoutError`` (``llm_timeout_s``, a dead socket) and
+        :class:`LLMDeadlineExceeded` (``llm_deadline_s``, a live-but-slow one). Both
+        travel out untouched, landing on the chain's supervisor (logged +
+        Telegram-notified) instead of quietly becoming an empty answer — a blank card
+        and a broken transport must stay distinguishable (standards §Errors). The key
+        is passed to the SDK, never logged.
+
+        Every attempt — success, failure or deadline — is recorded in
+        ``insights.transport_health``, which is what makes a dead AI layer VISIBLE
+        without any probe ever paying for a completion. `_client()` raising for an
+        unset key is a *configuration* fact, not a transport one, and is not counted.
         """
-        model = model or get_settings().default_model  # resolve the env-configured default
+        settings = get_settings()
+        model = model or settings.default_model  # resolve the env-configured default
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -218,29 +251,37 @@ class OpenRouterClient:
             "top_p": DEFAULT_TOP_P,
             "max_tokens": DEFAULT_MAX_TOKENS,
             "extra_headers": {"X-Title": "healthee"},
+            "stream": True,
+            "stream_options": {"include_usage": True},
         }
         if tools:
             kwargs["tools"] = tools
         if response_format is not None:
             kwargs["response_format"] = response_format
+        # `usage: {"include": true}` is OpenRouter's own extension for the provider-
+        # BILLED `cost` field (Usage.cost) — sent unconditionally, unlike `reasoning`/
+        # `provider` below, which stay opt-in so the request is otherwise unchanged.
+        extra_body: dict[str, Any] = {"usage": {"include": True}}
         if reasoning is False:
-            kwargs["extra_body"] = {"reasoning": {"enabled": False}}
+            extra_body["reasoning"] = {"enabled": False}
         provider = _provider_routing(model)
         if provider is not None:
-            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), "provider": provider}
+            extra_body["provider"] = provider
+        kwargs["extra_body"] = extra_body
         sdk = self._client()
         started = time.monotonic()
         try:
-            raw = sdk.chat.completions.create(**kwargs)
+            stream = sdk.chat.completions.create(**kwargs)
+            acc = client_stream.watchdog_accumulate(
+                stream, deadline_s=settings.llm_deadline_s, deadline_exc=LLMDeadlineExceeded
+            )
         except Exception as exc:  # recorded on the health surface, then re-raised untouched
             transport_health.record_failure(exc)
             raise
         elapsed = time.monotonic() - started
         transport_health.record_success()
-        choice = raw.choices[0]
-        message = choice.message
-        _warn_if_truncated(choice, model)
-        usage = _usage(raw)
+        _warn_if_truncated(SimpleNamespace(finish_reason=acc.finish_reason), model)
+        usage = _usage(SimpleNamespace(usage=acc.usage_raw))
         # tier, never the id: the model we run must not be discoverable, and a log line
         # is a place it reaches operators, log shippers and anyone with read access.
         #
@@ -254,7 +295,7 @@ class OpenRouterClient:
         # them apart. Counts and seconds only — never a prompt, never an answer.
         log.info(
             "llm completion: tier=%s tools=%d in %.1fs "
-            "(prompt=%d cached=%d completion=%d reasoning=%d)",
+            "(prompt=%d cached=%d completion=%d reasoning=%d cost=%s)",
             tier_of(model),
             len(tools or []),
             elapsed,
@@ -262,10 +303,11 @@ class OpenRouterClient:
             usage.cached_prompt_tokens if usage else -1,
             usage.completion_tokens if usage else -1,
             usage.reasoning_tokens if usage else -1,
+            f"${usage.cost:.4f}" if usage and usage.cost is not None else "n/a",
         )
         return ChatResponse(
-            text=message.content or "",
-            tool_calls=getattr(message, "tool_calls", None),
+            text=acc.text,
+            tool_calls=acc.tool_calls or None,
             usage=usage,
         )
 
@@ -344,6 +386,10 @@ def _usage(raw: Any) -> Usage | None:
         # hit" — the log line says the number, and reading it as a claim either way
         # would be exactly the guess this field exists to replace.
         cached_prompt_tokens=getattr(prompt_details, "cached_tokens", 0) or 0,
+        # Only present when the request carries `usage: {"include": true}` (sent on
+        # every call below). `or None`, not `or 0`: a provider that billed nothing is a
+        # real (rare) fact, distinct from one that never told us at all.
+        cost=getattr(usage, "cost", None),
     )
 
 

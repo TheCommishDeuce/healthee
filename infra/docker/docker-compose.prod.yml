@@ -89,6 +89,7 @@ services:
       COACH_REASONING: ${COACH_REASONING:-on}
       LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-60}
       LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-1}
+      LLM_DEADLINE_S: ${LLM_DEADLINE_S:-120}
       GATHERING_DEADLINE_S: ${GATHERING_DEADLINE_S:-150}
       # Read by /readyz's balance state. The ALERT on it is the scheduler's job;
       # this container only has to agree with it about where "low" starts.
@@ -117,6 +118,10 @@ services:
       # container recreation.
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
       EMBEDDING_CACHE_DIR: ${EMBEDDING_CACHE_DIR:-/var/cache/healthee/embeddings}
+      # The coach's own evidence passage budget (Step 2b) — every other grounded
+      # surface is unaffected and keeps embedding whole notes.
+      EVIDENCE_TOKEN_BUDGET: ${EVIDENCE_TOKEN_BUDGET:-8000}
+      EVIDENCE_RERANK: ${EVIDENCE_RERANK:-false}
       # The basemap this deployment proxies, and who it credits. The app talks
       # only to this container; repointing the url needs the attribution changed
       # with it (GET /api/map serves the pair).
@@ -184,6 +189,7 @@ services:
       # 600 s × 3 default applied to the container that can least afford it.
       LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-60}
       LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-1}
+      LLM_DEADLINE_S: ${LLM_DEADLINE_S:-120}
       GATHERING_DEADLINE_S: ${GATHERING_DEADLINE_S:-150}
       # This container is the one that ALERTS on the LLM layer (jobs/llm_watch.py):
       # it polls the free credits endpoint hourly and pushes a Telegram warning below
@@ -218,6 +224,11 @@ services:
       # cache — sharing the volume, not a second download dir.
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
       EMBEDDING_CACHE_DIR: ${EMBEDDING_CACHE_DIR:-/var/cache/healthee/embeddings}
+      # The coach's own evidence passage budget (Step 2b) — not on this container's
+      # own call path today, but the api and scheduler agree on every LLM-adjacent
+      # setting so neither drifts if that changes.
+      EVIDENCE_TOKEN_BUDGET: ${EVIDENCE_TOKEN_BUDGET:-8000}
+      EVIDENCE_RERANK: ${EVIDENCE_RERANK:-false}
     volumes:
       - healthee-geocache:/var/cache/healthee
     networks:

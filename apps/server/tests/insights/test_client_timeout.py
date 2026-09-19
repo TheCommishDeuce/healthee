@@ -15,6 +15,14 @@ Two separate properties, because the bug had two halves:
    reported `failed`.
 
 No network: the SDK constructor is faked and the client stub raises.
+
+None of this exercises the real transport's request shape, only `_client()`'s SDK
+construction and a `LLMClient`-protocol stub that raises directly — so its premise
+holds unchanged now that `OpenRouterClient.complete` streams: `llm_timeout_s` is
+still exactly this per-read socket bound, just no longer the ONLY wall-clock bound
+(`llm_deadline_s`, enforced in `client_stream.accumulate` and tested in
+`test_client.py`, catches the failure this file's read timeout cannot: a socket kept
+busy by keepalive bytes rather than gone silent).
 """
 
 from __future__ import annotations

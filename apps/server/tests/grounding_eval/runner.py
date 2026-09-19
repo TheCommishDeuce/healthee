@@ -125,6 +125,7 @@ def _run_one(
         reasoning_tokens=meter.reasoning_tokens,
         cached_prompt_tokens=meter.cached_prompt_tokens,
         unmetered_calls=meter.unmetered_calls,
+        cost=meter.cost,
         latency_ms=elapsed_ms,
         error=error,
         warnings=captured.lines,

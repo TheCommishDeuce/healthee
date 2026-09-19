@@ -111,6 +111,9 @@ _NAME_KINDS: dict[str, str] = {
     "ConnectError": NETWORK,
     "ConnectTimeout": TIMEOUT,
     "ReadTimeout": TIMEOUT,
+    # `insights.client.LLMDeadlineExceeded` — our own WALL-CLOCK deadline, distinct from
+    # the SDK's read timeout above but the same diagnosis for an operator either way.
+    "LLMDeadlineExceeded": TIMEOUT,
 }
 
 

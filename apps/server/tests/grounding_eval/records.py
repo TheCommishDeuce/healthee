@@ -66,6 +66,10 @@ class RunRecord:
     # still load, the same as every other counter here.
     cached_prompt_tokens: int = 0
     unmetered_calls: int = 0
+    # Provider-BILLED dollars (``meter.Meter.cost``, from ``Usage.cost``) — independent
+    # of ``report.py``'s published-rate estimate. 0.0 for arms recorded before this field
+    # existed, same convention as every other counter here.
+    cost: float = 0.0
     latency_ms: int = 0
     error: str = ""
     # The final text the pipeline returned — the validated answer, or the fallback/

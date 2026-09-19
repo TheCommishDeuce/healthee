@@ -104,6 +104,28 @@ def _support_lines(records: Sequence[RunRecord]) -> list[str]:
     return lines
 
 
+def _spend_lines(records: Sequence[RunRecord]) -> list[str]:
+    """The SPEND block's body — split out of :func:`summary` to keep its own mccabe
+    complexity under the gate, same reason as :func:`_support_lines`."""
+    models = sorted({r.model for r in records if r.model})
+    header = "SPEND (measured tokens × each model's published rate)"
+    if not cost_is_exact(records):
+        header += "  ⚠ APPROXIMATE — a record carried no model id, or an unknown one"
+    lines = [
+        header,
+        f"  input {sum(r.prompt_tokens for r in records):,} tok · "
+        f"output {sum(r.completion_tokens for r in records):,} tok "
+        f"(of which {sum(r.reasoning_tokens for r in records):,} reasoning) "
+        f"⇒ ${_cost_usd(records):.2f} for this run",
+    ]
+    billed = sum(r.cost for r in records)
+    if billed:
+        lines.append(f"  provider-billed: ${billed:.2f}  (OpenRouter's own metered figure)")
+    if models:
+        lines.append("  models: " + " · ".join(models))
+    return lines
+
+
 def summary(run: EvalRun) -> str:
     """The whole arm in one block: rates with intervals, spend, and the weak spots."""
     records = run.records
@@ -162,20 +184,7 @@ def summary(run: EvalRun) -> str:
     if stats.is_scored(records):
         lines += ["", "CITATION SUPPORT (scored answers only — `score` re-checked each claim)"]
         lines += _support_lines(records)
-    models = sorted({r.model for r in records if r.model})
-    exact = cost_is_exact(records)
-    header = "SPEND (measured tokens × each model's published rate)"
-    if not exact:
-        header += "  ⚠ APPROXIMATE — a record carried no model id, or an unknown one"
-    lines += ["", header]
-    lines += [
-        f"  input {sum(r.prompt_tokens for r in records):,} tok · "
-        f"output {sum(r.completion_tokens for r in records):,} tok "
-        f"(of which {sum(r.reasoning_tokens for r in records):,} reasoning) "
-        f"⇒ ${_cost_usd(records):.2f} for this run",
-    ]
-    if models:
-        lines += ["  models: " + " · ".join(models)]
+    lines += ["", *_spend_lines(records)]
     causes = stats.failure_causes(records)
     if causes:
         lines += ["", "WHY ANSWERS DID NOT SHIP (issue causes, commonest first)"]

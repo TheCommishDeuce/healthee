@@ -177,18 +177,19 @@ class Settings(BaseSettings):
     # call blocks EVERY later owner's chain for half an hour — silently, because the
     # tick that would have run them is simply still waiting.
     #
-    # 60 s: the default tier is a Flash-class model that answers an ~8k-in/700-out
-    # prompt in seconds (PRICING.md §3.1), so this is ~10× the expected worst case —
-    # generous enough that a slow-but-fine call still returns (too tight would convert
-    # them into failures and empty cards, which is the honesty cost of over-tuning),
-    # and short enough that a hang is a hang. Nothing here is latency-sensitive: the
-    # warm/recs/briefing surfaces are all off the read path, so the number only has to
-    # bound the damage.
+    # 60 s: ~10× a Flash-class call's expected worst case (PRICING.md section 3.1) —
+    # generous enough that a slow-but-fine call still returns, short enough that a hang is a hang.
     # 1 retry: retries MULTIPLY the timeout, which is what turns a bad call into an
     # outage — the SDK's 2 keep the worst case at 3 × 60 s = 3 min, one keeps it at
     # 2 min while preserving recovery from a transient 429/5xx. The scheduler's own
     # `_ATTEMPT_BUDGET` and tomorrow's tick are the outer retries.
     llm_timeout_s: float = 60.0
+
+    # The WALL-CLOCK cap on ONE completion, streamed or not — a different failure mode
+    # than the read timeout above, which only fires when the socket goes silent.
+    # OpenRouter's keepalive bytes during a long generation mean it often never is:
+    # measured, one coach question ran 594 s across 3 calls under the 60 s "cap" above.
+    llm_deadline_s: float = 120.0
 
     # ── How long one grounded run may spend GATHERING before it must answer ──
     #
@@ -254,13 +255,9 @@ class Settings(BaseSettings):
     llm_provider_sort: Literal["throughput", "latency", "price", ""] = "throughput"
 
     # ── On-disk caches for public geodata (SRTM elevation + basemap tiles) ─
-    # Both hold PUBLIC data — squares of the world this server fetched, never an
-    # owner's coordinates. Config rather than constants for one reason each: the
-    # elevation cache defaulted to `/tmp/srtm` with no volume behind it, so every
-    # container restart re-downloaded what it had already paid for; and a basemap
-    # cache that does not persist hands the provider the same request rate as no
-    # proxy at all. `map_tile_cache_mb` is the eviction budget — tiles are fetched
-    # per z/x/y, and unbounded is tens of thousands of files.
+    # Both hold PUBLIC data this server fetched, never an owner's coordinates.
+    # Config, not constants: an unpersisted cache re-downloads on every restart
+    # (SRTM once sat under `/tmp`) and `map_tile_cache_mb` bounds tile eviction.
     srtm_cache_dir: str = "/var/cache/healthee/srtm"
     map_tile_cache_dir: str = "/var/cache/healthee/tiles"
     map_tile_cache_mb: int = 512
@@ -270,21 +267,25 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_cache_dir: str = "/var/cache/healthee/embeddings"
 
+    # Per-note passage budget for the COACH's evidence block only (Step 2b) — other
+    # grounded surfaces still embed whole notes; insights/evidence.py's docstring has
+    # the full argument. Approx tokens = chars / 4.
+    evidence_token_budget: int = 8000
+    # The cross-encoder rerank stage (Xenova/ms-marco-MiniLM-L-6-v2, ONNX/CPU). OFF by
+    # default: measured 1.6 s for 60 pairs on four fast cores (3.5 s on one), against a
+    # 43 ms fused hybrid order — the cost of a whole model round for a reorder.
+    evidence_rerank: bool = False
+
     # ── Basemap (the tile proxy — core/map_tiles.py) ───────────────────────
-    # The upstream template is CONFIGURATION on purpose: the owner may repoint it
-    # at a commercial provider or their own rendering stack with no new build of
-    # the app, because the app only ever talks to this server. http(s), and it
-    # must carry {z}, {x} and {y}. The default is OpenStreetMap's own server —
-    # their policy asks applications not to point at it directly and does permit
-    # one cached server sending a real User-Agent, which is this module.
+    # Repointable to a commercial provider or your own tile stack with no app
+    # rebuild — the app only ever talks to this server. http(s), must carry
+    # {z}/{x}/{y}. Default is OSM's own server, whose policy permits one cached
+    # server with a real User-Agent (this module) rather than the app itself.
     map_tile_url: str = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-    # Who the basemap is credited to, on screen. It travels WITH the url because
-    # it is a fact about that url: an operator who repoints one and not the other
-    # would have the app crediting the wrong project, and the app cannot tell.
-    # `GET /api/map` serves it, and the app draws no basemap without it.
+    # Travels WITH the url (`GET /api/map` serves both) — repointing one without
+    # the other credits the wrong project, and the app cannot tell.
     map_tile_attribution: str = "© OpenStreetMap contributors"
-    # The zoom range served. Outside it a request is refused here rather than
-    # forwarded — it is either a bug or someone using us as an open relay.
+    # Outside this range a request is refused here, never forwarded.
     map_tile_min_zoom: int = 1
     map_tile_max_zoom: int = 17
 

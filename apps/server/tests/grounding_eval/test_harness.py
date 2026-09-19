@@ -119,6 +119,29 @@ def test_a_response_with_no_usage_counts_zero_cached_not_unknown_as_free() -> No
     assert client.meter.unmetered_calls == 1
 
 
+def test_the_meter_sums_provider_billed_cost_across_every_call() -> None:
+    """``Usage.cost`` is OpenRouter's own metered dollar figure — summed like every
+    other field, so an arm can report what it actually spent, not an estimate."""
+    inner = _FakeInner(
+        [
+            ChatResponse(text="", usage=Usage(30_000, 100, 0, cost=0.0041)),
+            ChatResponse(text="answer", usage=Usage(33_000, 400, 0, cost=0.0189)),
+        ]
+    )
+    client = MeteredClient(inner)
+    client.complete([])
+    client.complete([])
+    assert client.meter.cost == pytest.approx(0.023)
+
+
+def test_a_response_with_no_cost_reported_adds_nothing_not_an_error() -> None:
+    """``Usage.cost`` defaults to ``None`` — a provider that never reports it must not
+    crash the meter or invent a figure."""
+    client = MeteredClient(_FakeInner([ChatResponse(text="x", usage=Usage(10, 2, 0))]))
+    client.complete([])
+    assert client.meter.cost == 0.0
+
+
 def test_the_metered_client_returns_the_inner_response_untouched() -> None:
     """It observes; it must never become a second place that shapes an answer."""
     original = ChatResponse(text="verbatim", usage=Usage(1, 1, 0))
