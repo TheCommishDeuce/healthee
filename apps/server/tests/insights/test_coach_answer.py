@@ -27,7 +27,7 @@ assertion that the substitution was on disk, and every one turned this file red:
   * a cited claim ships with no ids at all (``_cite_sentence`` returns the sentence);
   * only the LAST sentence of a multi-sentence claim is cited;
   * the frame may carry a claim (``_opening_issues`` reads nothing);
-  * a declared grade is believed rather than checked (``_grade_issue`` returns early);
+  * a declared grade is believed rather than replaced (``_with_provable_grade`` returns early);
   * raw prose is accepted (``pipeline._structure_gate`` reports nothing);
   * a malformed payload degrades back to free text instead of raising an issue.
 """
@@ -48,7 +48,7 @@ from tests.insights._coach_stub import (
     text_turn,
     valid_turn,
 )
-from tests.insights._ids import CONTESTED_ID, ESTABLISHED_ID, PROBABLE_ID
+from tests.insights._ids import ESTABLISHED_ID, PROBABLE_ID
 
 from healthee.core.tenancy import SENTINEL_TZ, SENTINEL_USER_ID
 from healthee.insights import coach, coach_answer, coach_thread, prompts
@@ -251,19 +251,6 @@ def test_a_hard_output_guardrail_still_blocks_a_claim_without_a_retry() -> None:
     stub, result = _run(text_turn(json.dumps(payload)))
     assert result.refused is True
     assert stub.calls == 1, "a blocked answer is never nudged"
-
-
-def test_an_overclaimed_grade_is_refused_rather_than_believed() -> None:
-    """INTELLIGENCE §5.6's hole, closed on the coach: a declared grade is CHECKED.
-
-    Declaring Established over a Contested note is the shape that let a rec ship a debated
-    claim as settled. The issue names both grades, because a nudge that does not say what
-    the right answer is buys a second identical attempt.
-    """
-    claim = ("Cold exposure may aid recovery", [CONTESTED_ID], "Established")
-    payload = answer_payload(claims=[claim])
-    _, issues = coach_answer.parse(json.dumps(payload))
-    assert any("declares Established" in issue and "Contested" in issue for issue in issues)
 
 
 def test_declaring_a_weaker_grade_than_the_notes_require_is_allowed() -> None:

@@ -34,16 +34,17 @@ depends on the model remembering anything:
   is an ADDITIONAL constraint, never a replacement: the rendered text still goes through
   every answer gate unchanged (``pipeline.answer_gates``).
 
-## The declared grade is checked, not trusted
+## The declared grade is replaced, not trusted and not refused
 
-``grade`` is the second half of the win, and it is the same hole INTELLIGENCE §5.6
-records for recs: a self-declared grade nobody compares against the cited notes lets a
-Contested claim ship labelled Established. :func:`_grade_issue` resolves the provable
-grade from the strictest cited note in the manifest and refuses an **overclaim**.
-Under-claiming is allowed on purpose — declaring Emerging while citing Established costs
-the answer a hedge it did not owe, which is honest, and failing it would spend a retry to
-make an answer less careful. It never *rewrites* the sentence: putting a hedge into the
-model's mouth would be this product asserting something nobody wrote.
+``grade`` is the same hole INTELLIGENCE section 5.6 records for recs: a self-declared
+grade nobody compares against the cited notes lets a Contested claim ship labelled
+Established. :func:`_with_provable_grade` resolves the provable grade from the strictest
+cited note in the manifest and puts THAT on the claim. It used to refuse an overclaim and
+nudge the model to redeclare; measured, that was the commonest cause of a rewritten turn,
+and the redeclaration bought nothing the server did not already know. Under-claiming
+stays allowed — declaring Emerging while citing Established costs the answer a hedge it
+did not owe, which is honest. Nothing here *rewrites* a sentence: the hedge the wording
+owes is the validator's call, made on the rendered text against the same note grades.
 
 Nothing here validates. It parses, checks its own shape, and renders; the issues it
 returns travel to ``pipeline._structure_gate`` through ``AnswerContext``, so they obey
@@ -260,31 +261,34 @@ def _one_claim(item: object, index: int) -> tuple[Claim | None, str]:
     grade = item.get("grade") if isinstance(item.get("grade"), str) else ""
     note_ids = tuple(i.strip() for i in ids if i.strip())
     claim = Claim(text=text.strip(), note_ids=note_ids, grade=(grade or "").strip())
-    return claim, _grade_issue(claim, index)
+    return _with_provable_grade(claim), ""
 
 
-def _grade_issue(claim: Claim, index: int) -> str:
-    """Refuse an OVERCLAIM — a declared grade stronger than the cited notes support.
+def _with_provable_grade(claim: Claim) -> Claim:
+    """The claim carrying the grade its cited notes actually PROVE — never the model's.
 
-    The check INTELLIGENCE §5.6 records recs learning the hard way, applied to the coach:
-    a grade the model declares about itself and nobody compares against the manifest lets
-    a Contested claim ship labelled Established. Silence when nothing is cited (the escape
-    carries no grade) and when nothing gradeable was cited (a fabricated id is the
-    validator's issue to raise, on the rendered text, and raising it twice would report
-    one defect as two).
+    The declared grade used to be checked and an overclaim refused with a nudge
+    (INTELLIGENCE section 5.6's hole, closed here). Measured 2026-09-16/20 on the owner's
+    real data, that refusal was the commonest reason a turn was rewritten: 11 of 14
+    off-arm fallbacks and two of three live turns spent one or two whole model calls
+    on "declares Established but its weakest cited note is Probable". The declaration
+    was always redundant — the manifest knows every cited note's grade, and
+    ``validator._grade_floor`` computes the floor from the cited ids regardless — so the
+    server now takes the provable grade and moves on. Nothing about calibration is lost:
+    the WORDING gate still judges every rendered sentence's hedge against those same note
+    grades, and an overstated sentence still fails there. What is gone is a second
+    round-trip to make the model restate a number the server already had. The field
+    stays in the answer shape as guidance: asking for it keeps the model looking at the
+    grade while it writes. Silence (grade unchanged) when nothing gradeable is cited.
     """
-    if not claim.note_ids or not claim.grade:
-        return ""
-    if claim.grade not in GRADE_RANK:
-        return f"Claim {index} declares an unknown evidence grade {claim.grade!r}: use ours."
+    if not claim.note_ids:
+        return claim
     provable = _provable_rank(claim.note_ids)
-    if provable is None or GRADE_RANK[claim.grade] <= provable:
-        return ""
-    weakest = _weakest_grade(claim.note_ids)
-    return (
-        f"Claim {index} declares {claim.grade} but its weakest cited note is {weakest}: "
-        "declare the grade of the weakest note you cite, and word the sentence to match."
-    )
+    if provable is None:
+        return claim
+    if claim.grade in GRADE_RANK and GRADE_RANK[claim.grade] <= provable:
+        return claim
+    return Claim(text=claim.text, note_ids=claim.note_ids, grade=_weakest_grade(claim.note_ids))
 
 
 def _provable_rank(note_ids: tuple[str, ...]) -> int | None:
