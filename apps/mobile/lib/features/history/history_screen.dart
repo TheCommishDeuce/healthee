@@ -178,13 +178,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         FlushCard(
           rows: <Widget>[
             V02ListRow(
-              icon: SolarIconsOutline.book,
-              title: 'Your journal',
-              detail: 'See what was happening alongside the data',
-              tone: Tone.sleep,
-              onOpen: () => unawaited(context.push(Routes.journal)),
-            ),
-            V02ListRow(
               icon: SolarIconsOutline.chatRound,
               title: 'Ask about this trend',
               detail: 'Explore the reading with your coach',

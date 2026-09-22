@@ -19,7 +19,7 @@
 ///   Sleep efficiency           the fortnight
 ///   Sleep regularity           the fortnight
 ///   Heart-rate variability     the fortnight
-///   Naps & your day            the daytime sleep, and the journal
+///   Naps & your day            the daytime sleep
 ///   footer
 /// ```
 ///
@@ -107,7 +107,6 @@ class SleepExtras {
   const SleepExtras({
     this.onOpenProfile,
     this.onOpenMetric,
-    this.onOpenJournal,
     this.onOpenHistory,
     this.onOpenAllMetrics,
   });
@@ -117,10 +116,6 @@ class SleepExtras {
 
   /// Opens one measurement's own history.
   final void Function(String metric)? onOpenMetric;
-
-  /// Opens the journal.
-  final VoidCallback? onOpenJournal;
-
 
   /// Opens the sleep history.
   ///
@@ -283,7 +278,7 @@ List<PageSection> sleepSections({
   if (!past) {
     sections
       ..add(
-        NapsPanel(naps: page.naps, onOpenJournal: extras.onOpenJournal),
+        NapsPanel(naps: page.naps),
       )
       ..gap(PageSpacing.block);
   }

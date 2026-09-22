@@ -93,7 +93,6 @@ class InsightsExtras {
     this.onOpenMetric,
     this.onOpenHistory,
     this.onOpenOutcomes,
-    this.onOpenJournal,
     this.onOpenCoach,
     this.onOpenSleepHistory,
     this.onOpenFitness,
@@ -110,9 +109,6 @@ class InsightsExtras {
 
   /// Opens the challenge outcomes.
   final VoidCallback? onOpenOutcomes;
-
-  /// Opens the journal.
-  final VoidCallback? onOpenJournal;
 
   /// Opens the coach sheet.
   final VoidCallback? onOpenCoach;
@@ -269,12 +265,8 @@ void _entries(SectionList sections, double? age, List<Finding> findings) {
   sections.gap(PageSpacing.panel);
 }
 
-/// `What changed together?` — the findings, the notable days, and two ways in.
-///
-/// The heading is the prototype's and it is also the findings' own framing: what
-/// moved together, never what caused what. The two rows are the prototype's
-/// (`H.row('flag', …, 'outcomes')` and `H.row('journal', …, 'journal')`), pointed
-/// at the screens this app actually has.
+/// Findings, notable days and links to outcomes, sleep history and fitness.
+/// The framing stays observational: what moved together, not what caused what.
 void _changedTogether(
   SectionList sections,
   List<Finding> findings,
@@ -297,13 +289,6 @@ void _changedTogether(
           detail: 'Progress, data coverage and what changed together',
           tone: Tone.movement,
           onOpen: extras.onOpenOutcomes,
-        ),
-        V02ListRow(
-          icon: SolarIconsOutline.book,
-          title: 'Notable moments',
-          detail: 'Your caffeine, meditation and fasting context',
-          tone: Tone.stress,
-          onOpen: extras.onOpenJournal,
         ),
         V02ListRow(
           icon: SolarIconsOutline.moonSleep,

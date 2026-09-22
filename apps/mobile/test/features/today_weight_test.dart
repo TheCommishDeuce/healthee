@@ -9,7 +9,7 @@ import 'package:healthee/data/api/cache_session.dart';
 import 'package:healthee/data/journal/journal_repository.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/today/widgets/weight_entry.dart';
-import 'package:healthee/shared/sheets/log_sheet.dart';
+import 'package:healthee/shared/sheets/weight_log_sheet.dart';
 
 import '_today_host.dart';
 
@@ -64,7 +64,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Log weight'));
     await tester.pumpAndSettle();
-    expect(find.byType(LogSheet), findsOneWidget);
+    expect(find.byType(WeightLogSheet), findsOneWidget);
   }
 
   String draft(WidgetTester tester) =>
@@ -75,9 +75,11 @@ void main() {
     (tester) async {
       await openWeight(tester);
       expect(find.text('kg'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Notes (optional)'), findsNothing);
       expect(writes, isEmpty);
       expect(
-        tester.getRect(find.byType(LogSheet)).bottom,
+        tester.getRect(find.byType(WeightLogSheet)).bottom,
         closeTo(tester.getRect(find.byType(MaterialApp)).bottom, 0.5),
       );
     },
@@ -104,7 +106,7 @@ void main() {
       expect(find.text('Opening weight entry'), findsOneWidget);
       ready.complete(repository);
       await tester.pumpAndSettle();
-      expect(find.byType(LogSheet), findsOneWidget);
+      expect(find.byType(WeightLogSheet), findsOneWidget);
     },
   );
 
@@ -127,7 +129,7 @@ void main() {
       );
       await tester.tap(find.text('Log weight'));
       await tester.pumpAndSettle();
-      expect(find.byType(LogSheet), findsNothing);
+      expect(find.byType(WeightLogSheet), findsNothing);
       expect(
         find.textContaining('Could not open weight entry'),
         findsOneWidget,
@@ -160,9 +162,30 @@ void main() {
     await tester.tap(find.text('Log weight'));
     await tester.pumpAndSettle();
     expect(attempts, 2);
-    expect(find.byType(LogSheet), findsOneWidget);
+    expect(find.byType(WeightLogSheet), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'retrying an unconfirmed weight keeps the observation timestamp',
+    (tester) async {
+      reject = true;
+      await openWeight(tester);
+      await tester.enterText(find.byType(TextField).first, '73.2');
+      await tester.tap(find.text('Save entry'));
+      await tester.pumpAndSettle();
+      final firstAt = (writes.single.data as Map)['at'];
+      expect(find.text('When: now'), findsNothing);
+      reject = false;
+      await tester.tap(find.text('Save entry'));
+      await tester.pumpAndSettle();
+      expect(writes, hasLength(2));
+      expect(writes.last.data, containsPair('at', firstAt));
+      expect(writes.last.data, containsPair('type', 'weight'));
+      expect(find.text('Saved.'), findsOneWidget);
+      expect(find.text('When: now'), findsOneWidget);
+    },
+  );
 
   testWidgets('invalid weight never reaches the server', (tester) async {
     await openWeight(tester);
@@ -171,6 +194,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(writes, isEmpty);
     expect(draft(tester), '-4');
+    expect(find.text('Enter an amount greater than zero.'), findsOneWidget);
     expect(find.text('Saved.'), findsNothing);
   });
 
@@ -180,6 +204,8 @@ void main() {
       acknowledgement = Completer<void>();
       await openWeight(tester);
       await tester.enterText(find.byType(TextField).first, '73.2');
+      await tester.tap(find.text('Save entry'));
+      // Before the button can rebuild as disabled, another tap must not post again.
       await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
       expect(writes, hasLength(1));

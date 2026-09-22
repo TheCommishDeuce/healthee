@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:healthee/data/journal/journal_repository.dart';
-import 'package:healthee/data/journal/log_kind.dart';
 import 'package:healthee/shared/sheets/app_sheet.dart';
-import 'package:healthee/shared/sheets/log_sheet.dart';
+import 'package:healthee/shared/sheets/weight_log_sheet.dart';
 import 'package:healthee/shared/states/async_view.dart';
 import 'package:healthee/shared/states/current_account_value.dart';
 import 'package:healthee/shared/v02/controls.dart';
@@ -61,10 +60,9 @@ class _WeightSheet extends ConsumerWidget {
         loadingLabel: 'Opening weight entry',
         errorMessage: 'Could not open weight entry',
         onRetry: () => ref.invalidate(journalRepositoryProvider),
-        builder: (context, repository) => LogSheet(
+        builder: (context, repository) => WeightLogSheet(
           key: ObjectKey(repository),
           repository: repository,
-          kind: LogKind.weight,
         ),
       );
 }

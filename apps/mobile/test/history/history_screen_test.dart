@@ -98,7 +98,6 @@ void main() {
         'Range', // H.note
         'See dated readings', // <details>
         'Put this in context', // H.section
-        'Your journal', // the two rows
         'Ask about this trend',
         kEvidenceLabel, // H.evidence
         'Your data. A little better understood.', // the footer

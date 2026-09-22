@@ -44,7 +44,6 @@ void main() {
       for (final String location in <String>[
         Routes.outcomes,
         Routes.recommendations,
-        Routes.journal,
         '${Routes.challenge}/7',
         '${Routes.program}/3',
       ]) {

@@ -66,7 +66,7 @@ const String kLinkedNote =
 
 /// `H.bridge('stress', …)` — what a sensor cannot see.
 const String kJournalBridge =
-    'A journal entry can explain a busy hour in ways a sensor cannot.';
+    'Sensors cannot tell what was happening around a busy hour.';
 
 /// `Effort & stress, side by side` — two signals, one hour cursor, two scales.
 class EffortStressPanel extends StatelessWidget {

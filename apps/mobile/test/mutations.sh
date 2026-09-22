@@ -97,9 +97,9 @@ mutate 'Today overview sleep card opens the wrong tab' \
   'onOpenSleep: () => context.go(Routes.activity),'
 
 mutate 'Today overview weight form clears before acknowledgement' \
-  test/features/today_weight_test.dart lib/shared/sheets/log_sheet.dart \
-  '      final notice = await operation();' \
-  '      unawaited(operation());
+  test/features/today_weight_test.dart lib/shared/sheets/weight_log_sheet.dart \
+  '      final notice = await widget.repository.save(draft);' \
+  '      unawaited(widget.repository.save(draft));
       const String? notice = null;'
 
 mutate 'Today overview entry stops observing credential loading' \
@@ -1506,13 +1506,12 @@ CHOICES=lib/shared/v02/choices.dart
 COACH_SCREEN=lib/features/coach/coach_screen.dart
 COACH_CTRL=lib/features/coach/coach_controller.dart
 COMPOSER=lib/features/coach/v02/coach_composer.dart
-JOURNAL_GRID=lib/features/journal/v02/journal_grid.dart
-LOG_SHEET=lib/shared/sheets/log_sheet.dart
+LOG_SHEET=lib/shared/sheets/weight_log_sheet.dart
 ACTIONS_TEST=test/features/actions_v02_test.dart
 CARDS_TEST=test/features/actions_cards_test.dart
 COACH_TEST=test/features/coach_screen_test.dart
 COMPOSER_TEST=test/features/coach_composer_test.dart
-JOURNAL_TEST=test/journal/journal_screen_test.dart
+JOURNAL_TEST=test/features/today_weight_test.dart
 
 # A snake_case token on a health screen is a log line where a source belongs.
 mutate 'a raw signal id reaches the suggestion card' "$ACTIONS_TEST" "$SUGGESTION" \
@@ -1643,33 +1642,30 @@ mutate 'the composer stops making room for its input' "$COMPOSER_TEST" "$COMPOSE
   '  static const double sendSize = 44;' \
   '  static const double sendSize = 240;'
 
-# ── the journal ────────────────────────────────────────────────────────────
-# Current fasting state is FETCHED, never inferred.
-mutate 'the fast tile guesses instead of reading the state' \
-  "$JOURNAL_TEST" "$JOURNAL_GRID" \
-  "    final label = tile.kind == null && fastOpen ? 'End fast' : tile.label;" \
-  '    final label = tile.label;'
-
-# `grid-template-columns: repeat(3, minmax(0, 1fr))`.
-mutate 'the journal grid loses a column' "$JOURNAL_TEST" "$JOURNAL_GRID" \
-  '  static const int columns = 3;' \
-  '  static const int columns = 2;'
-
-# `screens-actions.js::H.journalKinds`, in its order.
-mutate 'the journal kinds are reordered' "$JOURNAL_TEST" "$JOURNAL_GRID" \
-  "  JournalKindTile(SolarIconsOutline.waterdrop, 'Water', LogKind.water),
-  JournalKindTile(SolarIconsOutline.smileCircle, 'Mood', LogKind.mood)," \
-  "  JournalKindTile(SolarIconsOutline.smileCircle, 'Mood', LogKind.mood),
-  JournalKindTile(SolarIconsOutline.waterdrop, 'Water', LogKind.water),"
+# The journal UI is gone; direct weight entry must still post the right kind.
+mutate 'journal removal redirects weight into another log kind' \
+  "$JOURNAL_TEST" "$LOG_SHEET" \
+  'kind: LogKind.weight,' \
+  'kind: LogKind.caffeine,'
 
 # An entry nobody acknowledged must not clear the form — the owner types a
 # weight once.
 mutate 'a failed journal write clears the draft anyway' "$JOURNAL_TEST" "$LOG_SHEET" \
-  "      AppLog.failure('journal', 'saving an observation', error, stack);
+  "      AppLog.failure('weight', 'saving a weigh-in', error, stack);
       if (mounted) {" \
-  "      AppLog.failure('journal', 'saving an observation', error, stack);
+  "      AppLog.failure('weight', 'saving a weigh-in', error, stack);
       _value.clear();
       if (mounted) {"
+
+mutate 'weight save permits a second tap before the button rebuilds' \
+  "$JOURNAL_TEST" "$LOG_SHEET" \
+  '    if (_busy) return;' \
+  ''
+
+mutate 'weight retry loses the original observation timestamp' \
+  "$JOURNAL_TEST" "$LOG_SHEET" \
+  '      _at = draft.at;' \
+  '      _at = null;'
 
 # The phone and the endpoint agree about what a valid entry is.
 mutate 'an invalid amount reaches the wire' "$JOURNAL_TEST" "$LOG_SHEET" \

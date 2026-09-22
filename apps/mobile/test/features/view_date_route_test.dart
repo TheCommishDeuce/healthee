@@ -82,10 +82,11 @@ void main() {
       expect(viewDateOf(Uri.parse('/?date=2026-02-31')), isNull);
     });
 
-    test('the fourteen date-aware routes are thirteen paths here', () {
+    test('the remaining date-aware routes exclude the retired journal', () {
       // `metrics` and `metric` are one route in this app — `/history` with and
       // without a `metric=`. Everything else maps one to one.
-      expect(kDateAwareRoutes.length, 13);
+      expect(kDateAwareRoutes.length, 12);
+      expect(isDateAwareRoute('/journal'), isFalse);
       for (final path in <String>[
         Routes.today,
         Routes.sleep,
@@ -98,7 +99,6 @@ void main() {
         Routes.history,
         Routes.sleepHistory,
         Routes.workouts,
-        Routes.journal,
         Routes.recommendations,
       ]) {
         expect(isDateAwareRoute(path), isTrue, reason: path);

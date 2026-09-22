@@ -9,7 +9,6 @@
 ///   header                       date · "Small steps. / Your pace." · avatar
 ///   focus-card                   Today’s suggestion
 ///   section  What you’re working on   challenge card(s) + program row
-///   section  Your daily check-in     journal strip
 ///   section  Look back, learn a little   outcomes · previous suggestions
 ///   footer
 /// ```
@@ -75,7 +74,7 @@ const String kActionsTitle = 'Actions';
 /// What Actions cannot date. `screens.actions`'s own past-day heading.
 const String kActionsPastTitle = 'No saved suggestion';
 
-/// The one heading over the owner's own record — the journal and its history.
+/// The heading over recorded outcomes and previous suggestions.
 ///
 /// It is the screen's ONLY section head now. `What you’re working on` moved
 /// into `WorkingOn`, which draws it with its content so an empty section takes
@@ -108,7 +107,6 @@ class ActionsLinks {
   /// Every destination the screen offers.
   const ActionsLinks({
     this.onOpenProfile,
-    this.onOpenJournal,
     this.onOpenOutcomes,
     this.onOpenHistory,
   });
@@ -116,16 +114,12 @@ class ActionsLinks {
   /// The set bound to a real router.
   factory ActionsLinks.of(BuildContext context) => ActionsLinks(
     onOpenProfile: () => unawaited(context.push(Routes.settings)),
-    onOpenJournal: () => unawaited(context.push(Routes.journal)),
     onOpenOutcomes: () => unawaited(context.push(Routes.outcomes)),
     onOpenHistory: () => unawaited(context.push(Routes.recommendations)),
   );
 
   /// The avatar.
   final VoidCallback? onOpenProfile;
-
-  /// The check-in strip.
-  final VoidCallback? onOpenJournal;
 
   /// `What changed?`
   final VoidCallback? onOpenOutcomes;
@@ -208,29 +202,10 @@ List<PageSection> actionsSections(ScreenData data, ActionsLinks links) {
         gap: PageSpacing.block,
       ),
 
-    // ── your daily check-in ────────────────────────────────────────────────
-    // ── your own record ────────────────────────────────────────────────────
-    //
-    // **One section where there were two.** `Your daily check-in` was a heading
-    // over a single bespoke card, and `Look back, learn a little` a heading over
-    // two rows — two headings and two containers for three destinations, filling
-    // the bottom half of a screen whose subject is the suggestions at the top.
-    //
-    // They belong together: all three are the owner's own record of what they
-    // did, one to add to it and two to read it back. The journal keeps its `+`
-    // and leads, because adding is the only one of the three that is an action
-    // and this is the Actions tab.
+    // Recorded outcomes and previous suggestions remain readable.
     const PageSection(SectionHead(title: kRecordHeading), gap: 0),
     PageSection(
       RowCard(<Widget>[
-        ListRow(
-          icon: SolarIconsOutline.notebook,
-          title: 'Add to your journal',
-          subtitle: 'Coffee, a walk, how you felt',
-          tone: Tone.sleep,
-          trailing: const Icon(SolarIconsOutline.addCircle, size: 20),
-          onTap: links.onOpenJournal,
-        ),
         ListRow(
           icon: SolarIconsOutline.chartSquare,
           title: 'What changed?',

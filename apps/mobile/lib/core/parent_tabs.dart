@@ -5,7 +5,7 @@
 ///   workouts:'activity',workout:'activity',
 ///   fitness:'activity',body:'activity',metric:'insights',metrics:'insights',
 ///   insight:'insights',challenge:'actions',program:'actions',
-///   outcomes:'actions','action-history':'actions',journal:'actions' };
+///   outcomes:'actions','action-history':'actions' };
 /// H.back = () => routeHistory.length
 ///   ? history.back()
 ///   : H.navigate(parents[H.route.split('/')[0]] || 'today');
@@ -51,7 +51,6 @@ const Map<String, String> kParentTabs = <String, String>{
   'program': Routes.actions,
   'outcomes': Routes.actions,
   'recommendations': Routes.actions,
-  'journal': Routes.actions,
 };
 
 /// The tab [location] belongs under, or [Routes.today] when it belongs to none.

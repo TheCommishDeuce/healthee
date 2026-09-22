@@ -27,9 +27,6 @@ abstract final class Routes {
   /// Daily metric observations over selectable periods.
   static const String history = '/history';
 
-  /// Manual observations and recent entries.
-  static const String journal = '/journal';
-
   /// The daily snapshot. The app's home.
   static const String today = '/';
 
@@ -220,7 +217,6 @@ const Set<String> kDateAwareRoutes = <String>{
   Routes.history,
   Routes.sleepHistory,
   Routes.workouts,
-  Routes.journal,
   Routes.recommendations,
 };
 

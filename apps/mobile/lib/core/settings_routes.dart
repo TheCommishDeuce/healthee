@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
 import 'package:healthee/features/diagnostics/diagnostics_screen.dart';
-import 'package:healthee/features/journal/journal_screen.dart';
 import 'package:healthee/features/pairing/pairing_screen.dart';
 import 'package:healthee/features/profile/profile_screen.dart';
 import 'package:healthee/features/settings/about_screen.dart';
@@ -84,11 +83,6 @@ List<RouteBase> settingsRoutes() => <RouteBase>[
     path: Routes.profile,
     builder: (BuildContext context, GoRouterState state) =>
         const ProfileScreen(),
-  ),
-  GoRoute(
-    path: Routes.journal,
-    builder: (BuildContext context, GoRouterState state) =>
-        const JournalScreen(),
   ),
   GoRoute(
     path: Routes.diagnostics,
