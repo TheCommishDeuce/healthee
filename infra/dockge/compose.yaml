@@ -1,0 +1,260 @@
+# Healthee — Dockge stack, behind Traefik.
+#
+# Copy this directory's contents to the stack dir on the VPS (default
+# /opt/stacks/healthee/), fill in `.env` from `.env.example`, and Dockge owns it.
+# Setup + the first-run checks: infra/dockge/README.md.
+#
+#   db          TimescaleDB. Internal-only, never published, never on the proxy net.
+#   preflight   One-shot gate on the NEW image. See "THE UPDATE BUTTON" below.
+#   api         FastAPI. No published port — Traefik reaches it on the proxy network.
+#   scheduler   The nightly chain. Same image, different command.
+#
+# ── THE UPDATE BUTTON, and what it can and cannot do ────────────────────────
+#
+# Dockge's update control is `docker compose pull` + `docker compose up -d`, and
+# nothing more. That aligns the running IMAGE with the repo. It does not run
+# migrations and it does not know that a release added a required env var.
+#
+# `preflight` is what makes the button safe. It runs `migrate --check` on the newly
+# pulled image, and `api`/`scheduler` are gated on it exiting 0:
+#
+#   • code-only release  → preflight passes → the button is correct, one click;
+#   • schema change, or a new required var → preflight FAILS → compose stops and
+#     the update is refused, with the pending migrations named in its log.
+#
+# A refusal is not a bug report against this file. It means the release needs the
+# real deploy — backup → stop → migrate → provision role → start — which is
+# `infra/deploy.sh`, runnable from Dockge's own terminal tab for this stack.
+#
+# ⛔ Do NOT "fix" a failing preflight by deleting it from `depends_on`. Our
+# migrations are not backwards-compatible (0004 folds `user_id` into the natural
+# keys; 0007 drops a DEFAULT), so the new image on the old schema does not degrade,
+# it breaks — and it breaks while writing health data.
+#
+# ── What Traefik CANNOT do from labels ──────────────────────────────────────
+#
+# Two protections the retired nginx vhost had are static Traefik config and are NOT
+# in this file, because no label can express them. Both are live-fire issues, not
+# tidiness: infra/traefik/CHECKLIST.md. In short — trust the Cloudflare IP ranges on
+# the entrypoint (or the rate limiter throttles the whole world as one client), and
+# keep request PATHS out of Traefik's access log (`/api/map/tiles/17/x/y` + a
+# timestamp is a location history, which is the exact thing the tile proxy exists to
+# prevent).
+
+# Every container gets the SAME environment, from the one `.env` Dockge edits.
+#
+# `env_file` rather than a 47-line `environment:` block on purpose. The listing had
+# to be repeated per service and stay in step with `core/config.Settings`, and when
+# it did not, the result was a var documented in the template, set on the box, and
+# never received by the process — `LLM_TIMEOUT_S` shipped that way. A whole-file
+# pass-through cannot drift. The `environment:` blocks below override only the few
+# values that are facts about this topology rather than operator choices.
+x-healthee-env: &healthee-env
+  env_file: .env
+
+x-healthee-image: &healthee-image
+  # WHERE the image comes from is a deployment decision, not a property of the code,
+  # so both halves are in .env:
+  #
+  #   HEALTHEE_IMAGE      the repository — your own GHCR namespace if you forked,
+  #                       any registry you can push to, or a bare local tag if you
+  #                       build on the box (see infra/dockge/README.md "Where the
+  #                       image comes from").
+  #   HEALTHEE_IMAGE_TAG  `main` MOVES, which is what gives the update button
+  #                       something to pull; `sha-<short>` is immutable and is what
+  #                       you pin to freeze a build or roll one back.
+  #
+  # HEALTHEE_IMAGE is REQUIRED (`:?`), with no default, deliberately. A default would
+  # name somebody's namespace — and the one it would name is the upstream project's,
+  # so an operator who never set it would silently deploy an image they did not build,
+  # from a repository they do not control, and the stack would come up green. A
+  # missing value must be a refusal, not a guess about whose code you meant to run.
+  image: ${HEALTHEE_IMAGE:?set HEALTHEE_IMAGE in .env — see infra/dockge/README.md "Where the image comes from"}:${HEALTHEE_IMAGE_TAG:-main}
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg17
+    container_name: healthee-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - healthee-pgdata:/var/lib/postgresql/data
+    # Never published to the host and never on the proxy network. The app reaches
+    # it as `db` on healthee-net.
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - healthee-net
+
+  # ── preflight ───────────────────────────────────────────────────────────
+  # Runs to completion, then exits. Asks the NEW image two questions against the
+  # REAL database and the REAL .env:
+  #
+  #   1. does the config load?  (`get_settings()` runs inside admin_connection();
+  #      a new required var, or OPENROUTER_API_KEY set with a blank model id,
+  #      raises here rather than in a container that already replaced the good one)
+  #   2. is the schema current? (`migrate --check` — exit 1 names what is pending)
+  #
+  # It INSPECTS and never applies: applying would move the schema under the
+  # still-running old containers with no dump taken. Enforced by a test
+  # (tests/test_migrate.py::test_check_never_applies_anything), not by this comment.
+  #
+  # It connects as the ADMIN role — reading `schema_migrations` is the admin's job,
+  # the same identity the real migration runs as.
+  preflight:
+    <<: [*healthee-image, *healthee-env]
+    container_name: healthee-preflight
+    # One-shot. Never restart it: a restart loop would turn a clear refusal into a
+    # container that looks merely unhealthy.
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-m", "healthee.db.migrate", "--check"]
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+    networks:
+      - healthee-net
+
+  api:
+    <<: [*healthee-image, *healthee-env]
+    container_name: healthee-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      preflight:
+        condition: service_completed_successfully
+    environment:
+      # Topology, not operator choice — set here so editing .env in Dockge's UI
+      # cannot point the app at a database that is not on this network, or bind
+      # it somewhere Traefik cannot reach.
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      API_HOST: 0.0.0.0
+      API_PORT: 8765
+    volumes:
+      - healthee-geocache:/var/cache/healthee
+    # ⛔ NO `ports:`. Traefik reaches this container on the proxy network; nothing
+    # about the API should be reachable on the host. (The old stack published
+    # 127.0.0.1:8765 because nginx ran on the host and had no other route in.)
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8765/healthz', timeout=2)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - healthee-net
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      # Which network Traefik should dial — required when a container is on more
+      # than one, or Traefik may pick healthee-net and never reach it.
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-proxy}"
+      - "traefik.http.routers.healthee.rule=Host(`${PUBLIC_HOST}`)"
+      - "traefik.http.routers.healthee.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.healthee.tls=true"
+      - "traefik.http.routers.healthee.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.services.healthee.loadbalancer.server.port=8765"
+      - "traefik.http.routers.healthee.middlewares=healthee-ratelimit@docker,healthee-inflight@docker,healthee-body@docker,healthee-headers@docker"
+
+      # ── Rate limit — was `limit_req zone=… rate=20r/s burst=100 nodelay` ──
+      # The number comes from what the CLIENT does: a full sync drain is at most
+      # maxPages 20 × maxDrainRounds 12 sequential POSTs, and a screen load is a
+      # handful of GETs. 20/s with a burst of 100 is far above either and still a
+      # bound. It exists because /healthz and /readyz are unauthenticated and both
+      # run a SELECT 1 on a pool of at most 10 — pool exhaustion by anybody at all.
+      #
+      # ⚠ `depth` MUST match your edge. 0 uses the TCP peer, which behind Cloudflare
+      # is a Cloudflare IP — so every visitor on earth shares one bucket and one
+      # user's sync throttles everybody. Behind CF set TRAEFIK_IP_DEPTH=1 AND trust
+      # the CF ranges on the entrypoint (infra/traefik/CHECKLIST.md §1).
+      - "traefik.http.middlewares.healthee-ratelimit.ratelimit.average=20"
+      - "traefik.http.middlewares.healthee-ratelimit.ratelimit.period=1s"
+      - "traefik.http.middlewares.healthee-ratelimit.ratelimit.burst=100"
+      - "traefik.http.middlewares.healthee-ratelimit.ratelimit.sourcecriterion.ipstrategy.depth=${TRAEFIK_IP_DEPTH:-0}"
+
+      # ── Concurrent requests per client — was `limit_conn healthee_conn 24` ──
+      - "traefik.http.middlewares.healthee-inflight.inflightreq.amount=24"
+      - "traefik.http.middlewares.healthee-inflight.inflightreq.sourcecriterion.ipstrategy.depth=${TRAEFIK_IP_DEPTH:-0}"
+
+      # ── Body cap 8 MB — was `client_max_body_size 8M` ──
+      # The largest body this API accepts is bounded by the models: 4,000 samples a
+      # page (~a few hundred KB) and GpsTrackIn's 28,800 points (~1 MB). There is no
+      # multipart route. 8 MB is an order of magnitude above either.
+      # ⚠ Unlike nginx, Traefik BUFFERS to enforce this; memrequestbodybytes is how
+      # much stays in RAM before it spills to disk.
+      - "traefik.http.middlewares.healthee-body.buffering.maxrequestbodybytes=8388608"
+      - "traefik.http.middlewares.healthee-body.buffering.memrequestbodybytes=2097152"
+
+      # ── Security headers — were `add_header … always` ──
+      # Traefik sets these on error responses too, which is where a missing nosniff
+      # actually bites.
+      - "traefik.http.middlewares.healthee-headers.headers.contenttypenosniff=true"
+      - "traefik.http.middlewares.healthee-headers.headers.framedeny=true"
+      - "traefik.http.middlewares.healthee-headers.headers.referrerpolicy=no-referrer"
+      # HSTS, which the nginx template deliberately did NOT set — it only owned the
+      # :80 vhost and could not keep that promise. Traefik owns TLS here, so it can.
+      - "traefik.http.middlewares.healthee-headers.headers.stsseconds=31536000"
+      - "traefik.http.middlewares.healthee-headers.headers.stsincludesubdomains=false"
+
+  # ── scheduler ───────────────────────────────────────────────────────────
+  # The supervised in-process job runner: the self-rescheduling loop that fires
+  # correlate → recs → briefing on their daily IST timers. Same image, CMD
+  # overridden to the module entrypoint.
+  #
+  # Gated on api being healthy, which is in turn gated on preflight — so the
+  # scheduler cannot come up against a schema the preflight refused.
+  scheduler:
+    <<: [*healthee-image, *healthee-env]
+    container_name: healthee-scheduler
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "healthee.jobs.scheduler"]
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+    volumes:
+      # The SAME volume as the api, deliberately: the nightly re-derive resolves
+      # terrain elevation for GPS tracks and the chain's retrieval uses the same
+      # embedding model. Two caches would download every tile and every model twice.
+      - healthee-geocache:/var/cache/healthee
+    # Not on the proxy network. It serves nothing and must not be routable.
+    networks:
+      - healthee-net
+
+volumes:
+  healthee-pgdata:
+  # Public geodata only — SRTM elevation tiles, basemap tiles, and the 69 MB query
+  # embedding model. Nothing in here is an owner's data; losing it costs a
+  # re-download rather than a measurement. It exists because NOT having it cost that
+  # re-download on every single container restart.
+  healthee-geocache:
+
+networks:
+  healthee-net:
+    driver: bridge
+  # Traefik's network, created and owned OUTSIDE this stack. `external: true` means
+  # compose will refuse to start rather than quietly create a second, unrouted
+  # network of the same name.
+  proxy:
+    external: true
+    name: ${TRAEFIK_NETWORK:-proxy}
