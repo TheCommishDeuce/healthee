@@ -12,7 +12,6 @@ import 'package:healthee/shared/charts/v02/chart_scrub.dart';
 import 'package:healthee/shared/charts/v02/column_painter.dart';
 import 'package:healthee/shared/charts/v02/linked_painter.dart';
 import 'package:healthee/shared/charts/v02/v02_bar_chart.dart';
-import 'package:healthee/shared/charts/v02/v02_bucket_chart.dart';
 import 'package:healthee/shared/charts/v02/v02_linked_chart.dart';
 
 import '_chart_probe.dart';
@@ -153,53 +152,6 @@ void main() {
         findsNothing,
       );
       expect(tester.getSize(bars).height, 150);
-    });
-  });
-
-  group('intraday buckets', () {
-    final buckets = find.byType(V02BucketChart);
-
-    testWidgets('draw one column per measured quarter hour, and no more', (
-      tester,
-    ) async {
-      final day = <double?>[
-        for (var i = 0; i < 96; i++)
-          i < 24 || i > 88 ? null : (i * 7 % 90).toDouble(),
-      ];
-      await pumpChart(
-        tester,
-        V02BucketChart(
-          day,
-          progress: 1,
-          captions: const <String>['00:00', '23:45'],
-        ),
-        tone: Tone.movement,
-        dark: false,
-      );
-      final measured = day.whereType<double>().length;
-      expect(columnsOf(paintedAt(tester, buckets)).length, measured);
-    });
-
-    testWidgets('keep their captions out of the plot', (tester) async {
-      await pumpChart(
-        tester,
-        V02BucketChart(
-          List<double?>.generate(96, (i) => (i % 17) * 6.0),
-          progress: 1,
-          captions: const <String>['00:00', '23:45'],
-        ),
-        tone: Tone.movement,
-      );
-      final calls = paintedAt(tester, buckets);
-      final plot = ChartMetrics.framed.box(paintSize(tester, buckets)).plot;
-      final glyphs = glyphRectsOf(calls);
-      expect(glyphs, isNotEmpty);
-      for (final glyph in glyphs) {
-        expect(glyph.overlaps(plot), isFalse);
-        for (final mark in markRectsOf(calls)) {
-          expect(clearsBy(glyph, mark, ChartMetrics.clearance), isTrue);
-        }
-      }
     });
   });
 

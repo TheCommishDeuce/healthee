@@ -19,7 +19,7 @@ import 'package:healthee/data/journal/journal_feed.dart';
 import 'package:healthee/data/journal/journal_repository.dart';
 import 'package:healthee/features/journal/journal_screen.dart';
 import 'package:healthee/features/journal/v02/journal_grid.dart';
-import 'package:healthee/features/journal/v02/log_sheet.dart';
+import 'package:healthee/shared/sheets/log_sheet.dart';
 
 void main() {
   late Dio dio;

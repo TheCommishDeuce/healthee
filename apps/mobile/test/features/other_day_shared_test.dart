@@ -19,7 +19,6 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/models/recommendation.dart';
-import 'package:healthee/features/today/widgets/actions_section.dart';
 import 'package:healthee/shared/format/other_day.dart';
 
 Recommendation _rec(String? date) => Recommendation.fromJson(<String, Object?>{
@@ -76,23 +75,6 @@ void main() {
       );
     });
 
-    test('ActionsSection.otherDay IS the shared function, not a second copy', () {
-      // The Today card's static kept its name so no call site moved, but it must answer
-      // identically — two implementations of one rule is how one surface got fixed and
-      // the other did not.
-      for (final viewed in <String?>['2026-09-08', '2026-09-06', null]) {
-        for (final rows in <List<Recommendation>>[
-          <Recommendation>[_rec('2026-09-06')],
-          <Recommendation>[_rec(null)],
-          const <Recommendation>[],
-        ]) {
-          expect(
-            ActionsSection.otherDay(rows, viewed),
-            recommendationsFromDay(rows, viewed),
-          );
-        }
-      }
-    });
   });
 
   group('the two wordings are different on purpose', () {
@@ -101,7 +83,6 @@ void main() {
         writtenForDay('2026-09-06'),
         'Written for 6 Sep — nothing was written for this day.',
       );
-      expect(actionsFromDay('2026-09-06'), writtenForDay('2026-09-06'));
     });
 
     test('raised-on is about a MEASURED signal, and says nothing about a job', () {

@@ -27,7 +27,6 @@ import 'package:healthee/data/api/server_snapshot.dart';
 import 'package:healthee/data/insights/generated_insight.dart';
 import 'package:healthee/data/insights/insight_repository.dart';
 import 'package:healthee/data/insights/notable_event.dart';
-import 'package:healthee/data/models/recommendation.dart';
 import 'package:healthee/data/models/sleep_consistency.dart';
 import 'package:healthee/data/models/sleep_insight.dart';
 import 'package:healthee/data/sleep_repository.dart';
@@ -38,7 +37,6 @@ import 'package:healthee/features/coach/widgets/coach_thread.dart';
 import 'package:healthee/features/insights/widgets/notable_events.dart';
 import 'package:healthee/features/sleep/v02/tail_panels.dart';
 import 'package:healthee/features/sleep/v02/timing_panel.dart';
-import 'package:healthee/features/today/widgets/actions_section.dart';
 import 'package:healthee/shared/format/note_names.dart';
 import 'package:healthee/shared/insight_card.dart';
 import 'package:healthee/shared/reveal_once.dart';
@@ -70,33 +68,6 @@ void main() {
         );
       }
       expect(find.text('Probable'), findsOneWidget, reason: 'the proved grade');
-    });
-
-    testWidgets('Today’s action row', (tester) async {
-      // Drawn on its own: the section only builds rows once expanded, and the
-      // row is what carries the rec's ⓘ.
-      await pumpAt(tester, 390, ActionRow(recommendation: kRec));
-
-      expectGrounds(
-        tester,
-        ActionRow,
-        '${kRec.action} ${kRec.rationale} ${kRec.expectedEffect}',
-        alsoCites: kRec.researchNoteIds,
-      );
-    });
-
-    testWidgets('Today’s block head, for the daily line', (tester) async {
-      const daily = 'Take a short walk today [exercise_mortality].';
-      await pumpAt(
-        tester,
-        390,
-        const ActionsSection(
-          recommendations: <Recommendation>[],
-          action: daily,
-        ),
-      );
-
-      expectGrounds(tester, ActionsSection, daily);
     });
 
     testWidgets('the v02 challenge card', (tester) async {

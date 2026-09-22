@@ -40,7 +40,6 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/models/finding.dart';
-import 'package:healthee/features/today/widgets/insights_section.dart';
 import 'package:healthee/shared/findings_section.dart';
 import 'package:healthee/shared/format/metric_names.dart';
 
@@ -106,10 +105,6 @@ final List<({String name, String Function(Finding) compose})> _surfaces =
       (
         name: 'shared/findings_section.dart::findingHeadline',
         compose: findingHeadline,
-      ),
-      (
-        name: 'features/today/widgets/insights_section.dart::describeFinding',
-        compose: (finding) => describeFinding(finding).headline,
       ),
     ];
 
@@ -189,21 +184,11 @@ void main() {
       // `event_kind` was parsed by both models and used by one. This is the sentence
       // that exists precisely so the raw string is never needed.
       expect(
-        describeFinding(_event).headline,
-        'Your sleep health on caffeine days, against your other days.',
-      );
-      expect(
         findingHeadline(_event),
         'Your sleep health on caffeine days, against your other days',
       );
     });
 
-    test('with no event kind the sentence says only what is known', () {
-      expect(
-        describeFinding(_lonely).headline,
-        'Your sleep health, on the days it was recorded.',
-      );
-    });
   });
 
   group('the headline is a sentence in the owner\'s language', () {

@@ -954,7 +954,16 @@ and saved-route maps were removed in the personal-use cleanup (2026-09-22); loca
 tracking is handled separately in Dawarich. Insights adds notable events and 20-metric history with
 30/90/365/1825-day ranges, log markers and detail analysis. Settings adds profile
 editing, separate scheduled collection/upload controls, opt-in reminders and
-persisted appearance variants. Today restores active commitments and Tonight.
+persisted appearance variants.
+
+The personal-use rebuild (2026-09-22) simplifies **Today** to a dated sleep summary,
+overnight recovery with factor breakdown, and **Log weight**. The full Sleep page stays
+unchanged. Heart rate/stress now belongs to Activity. The Today age hero, chapters,
+recommendation/journal dashboard and floating coach button are removed; shared detail
+pages remain reachable elsewhere. Weight entry uses the existing online form and retains
+unconfirmed input, but is not yet a durable offline queue. See
+[Design decisions](../../docs/DESIGN_DECISIONS.md) for scope and
+[Local verification](../../docs/LOCAL_VERIFICATION.md) for test/build results.
 
 Legacy GPS recordings/fixes remain in Drift for data preservation; this build no
 longer records, displays or uploads routes. The schema and earlier account-cache

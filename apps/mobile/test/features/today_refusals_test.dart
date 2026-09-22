@@ -226,7 +226,7 @@ void main() {
             'different repairs',
       );
       expect(
-        find.text('9,264'),
+        find.text('6h 20m'),
         findsOneWidget,
         reason: 'brief §7.4 — the app must be readable with no network',
       );
@@ -287,18 +287,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Nothing from your strap yet'), findsOneWidget);
-      expect(
-        find.textContaining('nothing is estimated'),
-        findsOneWidget,
-        reason:
-            'ONCE. The connection strip is loud on this phone too, and it says '
-            'a different sentence on purpose — the strip is about the link, the '
-            'card is about why the screen is empty',
-      );
-      expect(
-        find.textContaining('never — nothing has been pulled'),
-        findsOneWidget,
-      );
+      expect(find.byType(WithheldPanel), findsOneWidget,
+          reason: 'missing local sleep stays a refusal, not a zero duration');
+      expect(find.text('0h 0m'), findsNothing);
     });
   });
 }

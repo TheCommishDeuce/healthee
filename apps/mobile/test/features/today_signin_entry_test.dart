@@ -146,7 +146,7 @@ void main() {
       expect(find.text('Sign in to your server'), findsOneWidget);
       // Not a wall: the strap's own numbers are on the same screen. The daily
       // step counter is the phone's own reading and needs no server at all.
-      expect(find.text('9,264'), findsWidgets);
+      expect(find.text('6h 20m'), findsOneWidget);
     });
 
     testWidgets('a signed-in phone is not nagged', (tester) async {

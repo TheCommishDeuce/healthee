@@ -58,6 +58,7 @@ import 'package:healthee/data/models/fitness_plan.dart';
 import 'package:healthee/data/models/vo2max.dart';
 import 'package:healthee/features/activity/activity_extras.dart';
 import 'package:healthee/features/activity/v02/fitness_plan_panel.dart';
+import 'package:healthee/features/activity/v02/heart_stress_panel.dart';
 import 'package:healthee/features/activity/v02/movement_panels.dart';
 import 'package:healthee/features/activity/v02/training_panels.dart';
 import 'package:healthee/features/activity/v02/zones_panel.dart';
@@ -235,6 +236,17 @@ List<PageSection> activitySections(ScreenData data, ActivityExtras extras) {
       onDetails: _metric(extras, 'steps_total'),
     ),
   );
+  if (snapshot != null && HeartStressPanel.hasSomethingToDraw(
+    snapshot.hourlyHeartRate, snapshot.hourlyStress,
+  )) {
+    sections
+      ..gap(PageSpacing.panel)
+      ..add(HeartStressPanel(
+        heartRate: snapshot.hourlyHeartRate,
+        stress: snapshot.hourlyStress,
+        reveals: reveals,
+      ));
+  }
   sections.add(
     ContextBridge.link(
       kActivityRecoveryBridge,

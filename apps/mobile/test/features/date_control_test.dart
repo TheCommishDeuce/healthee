@@ -28,7 +28,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/device/device_day.dart';
 import 'package:healthee/data/history/dated_history.dart';
-import 'package:healthee/data/models/biological_age.dart';
+import 'package:healthee/data/models/recovery_score.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/data/store/store_provider.dart';
 import 'package:healthee/data/store/view_date.dart';
@@ -37,8 +37,8 @@ import 'package:healthee/features/today/today_sections.dart';
 import 'package:healthee/features/today/v02/date_calendar_sheet.dart';
 import 'package:healthee/features/today/v02/date_control.dart';
 import 'package:healthee/features/today/v02/today_header.dart';
-import 'package:healthee/features/today/v02/today_hero.dart';
 import 'package:healthee/features/today/widgets/data_health_section.dart';
+import 'package:healthee/features/today/widgets/sleep_summary.dart';
 import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/states/reading_view.dart';
 import 'package:healthee/shared/states/state_scaffold.dart';
@@ -167,14 +167,14 @@ void main() {
       // states, which is the distinction the whole product turns on.
       final past = _sectionsFor('2026-08-01');
       expect(
-        _has<ReadingView<BiologicalAge>>(past),
+        _has<ReadingView<RecoveryScore>>(past),
         isTrue,
-        reason: 'the biological age, as of that day',
+        reason: 'the overnight recovery, as of that day',
       );
-      expect(_has<TodaySummaryTiles>(past), isTrue, reason: 'the tiles');
+      expect(_has<SleepSummary>(past), isTrue, reason: 'the dated sleep summary');
     });
 
-    test('AND IT IS THAT DAY’S CHAPTERS, NOT THE DATED-HISTORY ONES', () {
+    test('past days also use the short overview without chapters', () {
       // A past day now draws Today's own three chapters, because it is Today —
       // answered for another date. `Overnight readings` and its two siblings were
       // the CALENDAR view that stood in while there was nothing derived to head.
@@ -182,10 +182,7 @@ void main() {
         for (final section in _sectionsFor('2026-08-01'))
           if (section.child case final ChapterHeading heading) heading.title,
       ];
-      expect(
-        headings,
-        containsAll(<String>['Last night → today', 'Movement → recovery']),
-      );
+      expect(headings, isEmpty);
       expect(headings, isNot(contains('Overnight readings')));
     });
 
@@ -208,7 +205,7 @@ void main() {
         TodayExtras(navigation: _window()),
       );
       expect(
-        _has<ReadingView<BiologicalAge>>(mid),
+        _has<ReadingView<RecoveryScore>>(mid),
         isFalse,
         reason: "the previous day's hero was drawn under the new date",
       );
@@ -231,9 +228,9 @@ void main() {
     test('and the current day is unchanged', () {
       // The half a reversal test is blind to: the live path must not move.
       final today = _sectionsFor(todayDate);
-      expect(_has<ReadingView<BiologicalAge>>(today), isTrue);
-      expect(_has<ChapterHeading>(today), isTrue);
-      expect(_has<TodaySummaryTiles>(today), isTrue);
+      expect(_has<ReadingView<RecoveryScore>>(today), isTrue);
+      expect(_has<ChapterHeading>(today), isFalse);
+      expect(_has<SleepSummary>(today), isTrue);
     });
 
     testWidgets('the header reads the day being shown', (tester) async {

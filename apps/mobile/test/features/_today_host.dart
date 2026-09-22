@@ -28,6 +28,7 @@ import 'package:healthee/data/challenges/program_feed.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/honesty/last_known.dart';
 import 'package:healthee/data/insights/notable_event.dart';
+import 'package:healthee/data/journal/journal_repository.dart';
 import 'package:healthee/data/models/sleep_consistency.dart';
 import 'package:healthee/data/models/sleep_insight.dart';
 import 'package:healthee/data/models/sleep_page.dart';
@@ -94,6 +95,7 @@ Widget todayHost(
   LastKnown<double>? lastKnownBioAge,
   List<HealthProgram> suggestedPrograms = const [],
   DatedHistory? history,
+  JournalRepository? journalRepository,
 }) {
   return _scoped(
     store,
@@ -106,6 +108,7 @@ Widget todayHost(
     consistency: consistency,
     lastKnownBioAge: lastKnownBioAge, suggestedPrograms: suggestedPrograms,
     history: history,
+    journalRepository: journalRepository,
     child: MaterialApp(
       theme: themeOverride ?? AppTheme.light,
       // **Reduced motion, always.** Today's hero carries `BioHalo`, an ambient
@@ -171,9 +174,12 @@ Widget _scoped(
   LastKnown<double>? lastKnownBioAge,
   List<HealthProgram> suggestedPrograms = const [],
   DatedHistory? history,
+  JournalRepository? journalRepository,
 }) {
   return ProviderScope(
     overrides: [
+      if (journalRepository != null)
+        journalRepositoryProvider.overrideWith((ref) async => journalRepository),
       // ALWAYS overridden, defaulting to "this phone holds no earlier value".
       // The real provider walks the cached-payload table through
       // `TodayRepository`, which reaches `credentialsProvider` and the api

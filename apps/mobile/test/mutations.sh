@@ -75,6 +75,43 @@ mutate() {
   mv "$file.orig" "$file"
 }
 
+# The simplified Today must retain honest values, navigation and confirmed writes.
+mutate 'Today overview bypasses a server sleep refusal with local data' \
+  test/features/today_minimal_test.dart lib/features/today/widgets/sleep_summary.dart \
+  '    if (server case final Reading<LastSleep> reading) {' \
+  '    if (server case final Reading<LastSleep> reading when false) {'
+
+mutate 'Today overview invents a zero sleep duration' \
+  test/features/today_minimal_test.dart lib/features/today/widgets/sleep_summary.dart \
+  '          minutes: night.durationMin,' \
+  '          minutes: 0,'
+
+mutate 'Today overview replaces stable recovery context with live readiness' \
+  test/features/today_minimal_test.dart lib/features/today/v02/recovery_panel.dart \
+  "? _side(score) : 'Overnight estimate'" \
+  '? _side(score) : _side(score)'
+
+mutate 'Today overview sleep card opens the wrong tab' \
+  test/features/v02_screen_links_test.dart lib/features/today/today_screen.dart \
+  'onOpenSleep: () => context.go(Routes.sleep),' \
+  'onOpenSleep: () => context.go(Routes.activity),'
+
+mutate 'Today overview weight form clears before acknowledgement' \
+  test/features/today_weight_test.dart lib/shared/sheets/log_sheet.dart \
+  '      final notice = await operation();' \
+  '      unawaited(operation());
+      const String? notice = null;'
+
+mutate 'Today overview entry stops observing credential loading' \
+  test/features/today_weight_test.dart lib/features/today/widgets/weight_entry.dart \
+  'currentAccountValue(ref.watch(journalRepositoryProvider))' \
+  'currentAccountValue(ref.read(journalRepositoryProvider))'
+
+mutate 'Today overview shifts the server sleep date into the phone timezone' \
+  test/features/today_minimal_test.dart lib/features/today/widgets/sleep_summary.dart \
+  "DateTime.tryParse(night.endIso?.split('T').first ?? '')" \
+  "DateTime.tryParse(night.endIso ?? '')"
+
 # GPS removal must not hide strap workouts or request modern location access.
 mutate 'GPS removal accidentally hides recorded workouts' \
   test/features/gps_removal_test.dart lib/features/activity/activity_sections.dart \
@@ -378,65 +415,6 @@ mutate 'the strap row stops naming its instrument' "$TABS" "$STRAP_STRIP" \
 mutate 'the canonical row stops naming its method' "$TABS" "$SERVER_STRIP" \
   '        if (_instrumentNote(card.metric) case final String note)' \
   '        if (_instrumentNote(card.metric) case final String note when false)'
-
-# ── Today is LEGACY'S screen, in legacy's order ─────────────────────────────
-BODY=lib/features/today/today_body.dart
-ORDER_TEST=test/features/today_order_test.dart
-
-# A re-ordering. The v02 prototype reads night, then day, then the longer view,
-# and the whole point of the rebuild is that the owner's screen matches it. A
-# swap like this compiles, renders, and looks like a design decision somebody
-# made.
-mutate "the prototype's chapter order is swapped" "$ORDER_TEST" "$BODY" \
-  '  _nightChapter(sections, facts, reveals, extras);
-  todayDaySections(sections, facts, data, extras);' \
-  '  todayDaySections(sections, facts, data, extras);
-  _nightChapter(sections, facts, reveals, extras);'
-
-# The bridge under the hero moves above it. It still reads as a sentence about
-# the estimate, the chapters are untouched, and nothing looks wrong — the
-# connective line has simply stopped connecting the two things it names.
-mutate 'the context bridge is drawn before the hero' "$ORDER_TEST" "$BODY" \
-  '  sections.add(
-    TodaySummaryTiles(
-      facts: facts,
-      onOpenRecovery: extras.onOpenRecovery,
-      onOpenSleep: extras.onOpenSleep,
-      onOpenActivity: extras.onOpenActivity,
-    ),
-  );
-  // No spacer: the bridge carries the gap itself so its rule can span it and
-  // reach the tiles above. See `ContextBridge.leadIn`.
-  sections.add(
-    ContextBridge.link(
-      kAgeBridge,
-      label: '"'"'See the contributors'"'"',
-      onOpen: extras.onOpenBody,
-    ),
-  );' \
-  '  sections.add(
-    ContextBridge.link(
-      kAgeBridge,
-      label: '"'"'See the contributors'"'"',
-      onOpen: extras.onOpenBody,
-    ),
-  );
-  sections.add(
-    TodaySummaryTiles(
-      facts: facts,
-      onOpenRecovery: extras.onOpenRecovery,
-      onOpenSleep: extras.onOpenSleep,
-      onOpenActivity: extras.onOpenActivity,
-    ),
-  );
-  sections.gap(PageSpacing.block);'
-
-# A section quietly dropped. Legacy draws the week whenever it has two nights;
-# a card that stops appearing is the failure mode a rendered-scroll test cannot
-# see, because most of Today is never built at 800x600.
-mutate 'a legacy section is dropped' "$ORDER_TEST" "$BODY" \
-  '  if (snapshot.sleepHistory7d.length >= 2) {' \
-  '  if (snapshot.sleepHistory7d.length >= 2 \&\& false) {'
 
 # ── the connection surface may only be quiet when nothing is wrong ──────────
 HEALTH=lib/data/sync/connection_health.dart
@@ -772,8 +750,7 @@ mutate 'the withheld panel drops its reason' "$WITHHELD_TEST" \
 # broken — that is the entire risk, and it is worse than the essay was.
 VIEW=lib/shared/states/reading_view.dart
 CAVEAT=lib/shared/states/caveat_disclosure.dart
-MODULE=lib/shared/instrument_module.dart
-CAVEAT_TEST="test/features/today_caveat_surface_test.dart test/shared/reading_view_test.dart test/shared/caveat_carriers_test.dart test/features/caveat_attribution_test.dart"
+CAVEAT_TEST="test/features/card_provenance_test.dart test/shared/reading_view_test.dart test/shared/caveat_carriers_test.dart test/features/caveat_attribution_test.dart"
 
 # THE mutation: a Caveated renders exactly like a Present. This is what "just
 # stop printing the bullet points" would have been if nobody replaced them, and
@@ -787,20 +764,11 @@ mutate 'a caveated value renders as if it were Present' "$CAVEAT_TEST" "$VIEW" \
 # The module ignoring what it was handed — same outcome, one layer down, and it
 # takes out the blood-oxygen module, the HRV module and every card a ReadingView
 # hands its disclosures down to.
-mutate 'the module drops the caveat note' "$CAVEAT_TEST" "$MODULE" \
-  '                if (disclosed.isNotEmpty)
-                  CaveatNote(caveats: disclosed, label: named),' \
-  ''
 
 # The module stops CLAIMING the scope. This is the 2026-08-06 orphan defect
 # reintroduced: the disclosure is still drawn, by `ReadingView`, as a sibling
 # beneath the whole card — in the gutter, naming neither card. Nothing looks
 # missing, which is exactly why it needs a mutation.
-mutate 'the card stops claiming its own caveats' "$CAVEAT_TEST" "$MODULE" \
-  '    final scope = CaveatScope.of(context);
-    final disclosed = <Disclosure>[...caveats, ...?scope?.caveats];' \
-  '    final scope = CaveatScope.of(context);
-    final disclosed = <Disclosure>[...caveats];'
 
 # The sheet keeping only the first disclosure. The card still says "4 things
 # tilt this number", so the count and the contents disagree and only the sheet
@@ -860,17 +828,7 @@ mutate 'the reference line goes back to full-strength ink' "$CHART_INK" \
 # `every sleep stage is drawn the same width` sat here too, against
 # `h_stage_bar.dart`. That file is unreachable from `main.dart` now, so the
 # mutation went with it.
-SLEEP_CELL_TEST="test/features/grid_sleep_cell_test.dart test/features/today_charts_test.dart"
 
-mutate 'the seven-night stack is drawn from no nights' "$SLEEP_CELL_TEST" \
-  lib/features/today/v02/night_panels.dart \
-  '            builder: (context, t) =>
-                HStackedSleep(nights, progress: t, height: chartHeight),' \
-  '            builder: (context, t) => HStackedSleep(
-                  const <SleepNightSummary>[],
-                  progress: t,
-                  height: chartHeight,
-                ),'
 
 # A factor the model did not score, drawn as a factor scored zero. An empty
 # track and a full-length zero-width fill are the same picture; the em dash in
@@ -1170,10 +1128,8 @@ mutate 'the error magnitude is called a confidence interval' "$FITNESS_TEST" "$R
 PANEL=lib/shared/v02/panel.dart
 HERO=lib/shared/v02/bio_hero.dart
 HERO_PARTS=lib/shared/v02/bio_hero_parts.dart
-MINI=lib/features/today/v02/mini_trend_panel.dart
-FITNESS=lib/features/today/v02/longer_panels.dart
 HERO_TEST=test/features/today_hero_test.dart
-V02_CAVEAT_TEST="test/features/today_caveat_surface_test.dart test/features/caveat_attribution_test.dart"
+V02_CAVEAT_TEST="test/features/card_provenance_test.dart test/shared/caveat_carriers_test.dart test/features/caveat_attribution_test.dart"
 
 # The v02 carrier stops reading the scope it was handed. `ReadingView` draws
 # nothing itself under `CaveatCarrier.insideCard`, so this is the disclosure
@@ -1199,34 +1155,16 @@ mutate 'the hero drops the caveats it was handed' "$V02_CAVEAT_TEST" "$HERO" \
 # `vitals_thresholds_test.dart`, which was the suite for legacy's four vitals
 # cards, but this half of it was always about `MiniTrendPanel` and never about a
 # card. It is in `today_screen_test.dart` now, on the real payload.
-mutate 'a twin panel blanks instead of saying why' \
-  test/features/today_screen_test.dart "$MINI" \
-  '      withheldBuilder: (context, disclosure) =>
-          _panel(value: '"'"'—'"'"', note: disclosure.message),' \
-  '      withheldBuilder: (context, disclosure) =>
-          _panel(value: '"'"'—'"'"', note: '"'"''"'"'),'
 
 # The tier id printed raw. `gps_graded` under a VO₂max figure is an identifier
 # where an instrument's name belongs, and it looks like a deliberate label.
-mutate 'the VO2max method is printed as its wire id' \
-  test/features/today_screen_test.dart "$FITNESS" \
-  "      'Read by \${methodLabel(vo2max.method)}'," \
-  '      vo2max.method,'
 
 # The server's 300-character method prose back inline. This is the owner's
 # *"raw text below the fitness card"* report, arriving by the shortest route.
-mutate "the method essay is printed on the card again" \
-  "test/features/today_caveat_surface_test.dart" "$FITNESS" \
-  '          PanelNote(_qualifiers(vo2max)),' \
-  '          PanelNote(vo2max.methodCaveat),'
 
 # A meter drawn against a target the payload never sent. `/api/today` carries no
 # step goal, so any fraction here is this app inventing the owner's target and
 # then reporting progress against it.
-mutate 'the movement tile invents a step target' "$HERO_TEST" \
-  lib/features/today/v02/today_hero.dart \
-  '      fraction: plateau == null ? null : steps / plateau,' \
-  '      fraction: steps / 10000,'
 
 # The halo placed outside the scroll it watches. It still animates, it still
 # looks right on the first screen, and it never pauses again.
@@ -1244,7 +1182,6 @@ NIGHT=lib/features/today/v02/night_panels.dart
 RECOVERY=lib/features/today/v02/recovery_panel.dart
 CHAPTER=lib/shared/v02/chapter.dart
 EXCLUDED=lib/shared/states/withheld_card.dart
-BODY=lib/features/today/today_body.dart
 WITHHELD_HERO_TEST=test/features/today_withheld_hero_test.dart
 PROVENANCE_TEST=test/features/card_provenance_test.dart
 SWEEP_TEST=test/features/citation_sweep_test.dart
@@ -1294,19 +1231,6 @@ mutate 'the last-known date is blanked' \
 
 # The refused hero collapsed back into a panel — the small dashed box the owner
 # read as the card being missing.
-mutate 'the refused hero collapses into a panel' \
-  "$WITHHELD_HERO_TEST" "$BODY" \
-  '      withheldBuilder: (context, disclosure) => TodayBioHeroWithheld(
-        withheld: disclosure,
-        exclusions: switch (snapshot.biologicalAge) {
-          Withheld<BiologicalAge>(:final exclusions) => exclusions,
-          _ => const <Disclosure>[],
-        },
-      ),' \
-  '      withheldBuilder: (context, disclosure) => WithheldPanel(
-        disclosure: disclosure,
-        label: '"'"'Biological age · estimate'"'"',
-      ),'
 
 # The ⓘ sheet emptied of the sources the cards handed it. Every card would keep
 # its ⓘ and lose its grounding — the one way this change can do harm.
@@ -1316,10 +1240,6 @@ mutate "the info sheet drops the card's citations" \
   '              noteIds: const <String>[],'
 
 # A reference pill back on a card's face.
-mutate 'an unscored dimension prints its cutoff as a reading' \
-  test/features/today_withheld_test.dart "$NIGHT" \
-  '            dimension.reading ?? '"'"'—'"'"',' \
-  '            dimension.reading ?? dimension.cutoff,'
 
 # Clinical routing swept away with the method text. A symptom outranks the score
 # above it, and that sentence is not clutter.
@@ -1351,9 +1271,8 @@ mutate 'the chapter title goes back to sharing the row' \
 # were not ours to make. Each mutation below is the drift coming back, and every
 # one of them renders perfectly.
 SHELL_SRC=lib/shared/instrument_screen.dart
-BODY_SRC=lib/features/today/today_body.dart
 REVEAL=lib/shared/reveal_once.dart
-PINNED_TEST=test/features/chapter_nav_pinned_test.dart
+TAB_CHART_TEST=test/features/tab_shell_test.dart
 REVEAL_TEST=test/shared/reveal_once_test.dart
 HALO=lib/shared/v02/instruments/halo_painter.dart
 HALO_TEST=test/shared/instruments/halo_ink_test.dart
@@ -1366,23 +1285,14 @@ DATE_TEST=test/features/date_control_test.dart
 
 # The nav un-pinned — the edit that reads as a simplification and silently gives
 # back `position: sticky`.
-mutate 'the chapter nav scrolls away again' "$PINNED_TEST" "$BODY_SRC" \
-  '    sections.addPinned(
-      TodayChapterNav(chapters: chapters),
-      ChapterNav.extentOf,
-    );' \
-  '    sections.add(TodayChapterNav(chapters: chapters));'
 
 # The pin kept but the shell told to ignore it. Same rendered result, different
 # line, and a test that only watched the call site would miss it.
-mutate 'the shell stops honouring a pinned section' "$PINNED_TEST" "$SHELL_SRC" \
-  '      if (section.pinnedExtent case final SectionExtent extent) {' \
-  '      if (section.pinnedExtent case final SectionExtent extent when false) {'
 
 # `CLAUDE.md`'s hard rule, broken inside the restructured scroll: every chart
 # replays its reveal on the way back, which is the known expensive legacy bug.
 mutate 'a chart replays its reveal on scroll-back' \
-  "$REVEAL_TEST $PINNED_TEST" "$REVEAL" \
+  "$REVEAL_TEST $TAB_CHART_TEST" "$REVEAL" \
   '  bool markSeen(Object id) => _seen.add(id);' \
   '  bool markSeen(Object id) {
     _seen.add(id);
@@ -1415,10 +1325,6 @@ mutate 'the panel figure goes back to sharing the row' "$PARTS_TEST" "$PARTS" \
 # answers for, which lives in `ScreenData.snapshot` and is mutated at the end of
 # this file. What survives here is the LAYOUT decision, which must still follow
 # the reader'"'"'s selection: force it and a past day is dressed as the current one.
-mutate "the past-day layout stops following the selection" \
-  "$DATE_TEST" "$SECTIONS" \
-  '  final past = data.view.isPast;' \
-  '  const past = false;'
 
 # The window gone: the control can ask for tomorrow, or for a day the horizon
 # already pruned, and both answer with a screen of withholds.
@@ -1601,7 +1507,7 @@ COACH_SCREEN=lib/features/coach/coach_screen.dart
 COACH_CTRL=lib/features/coach/coach_controller.dart
 COMPOSER=lib/features/coach/v02/coach_composer.dart
 JOURNAL_GRID=lib/features/journal/v02/journal_grid.dart
-LOG_SHEET=lib/features/journal/v02/log_sheet.dart
+LOG_SHEET=lib/shared/sheets/log_sheet.dart
 ACTIONS_TEST=test/features/actions_v02_test.dart
 CARDS_TEST=test/features/actions_cards_test.dart
 COACH_TEST=test/features/coach_screen_test.dart
@@ -2318,8 +2224,6 @@ mutate 'an opening question characterises what it names' "$TOPIC_TEST" \
 # the tap does something, and a screen appears.
 LINKS_TEST=test/features/panel_links_test.dart
 TODAY_SCREEN=lib/features/today/today_screen.dart
-TODAY_BODY=lib/features/today/today_body.dart
-TODAY_DAY=lib/features/today/today_day_sections.dart
 EXPLORER=lib/features/history/metric_explorer_screen.dart
 
 # The device strip answers "is my strap current?". The settings index is a
@@ -2335,28 +2239,10 @@ mutate 'the sync row opens the settings index again' \
   '              onTap: () => unawaited(context.push(Routes.settings)),'
 
 # A panel pointed at a metric other than the one it draws.
-mutate 'a panel Details opens a neighbouring metric' "$LINKS_TEST" "$TODAY_BODY" \
-  '        onDetails: _metric(extras, TodayMetricIds.heartRateVariability),' \
-  '        onDetails: _metric(extras, TodayMetricIds.restingHeartRate),'
 
 # `.context-bridge` is one thought that ends in a link. Dropping the link is
 # the state this screen shipped in, and it reads as prose rather than as a gap.
-mutate 'the sleep bridge loses the link that ends it' "$LINKS_TEST" "$TODAY_BODY" \
-  '    ContextBridge.link(
-      kSleepBridge,
-      label: '"'"'Open your night'"'"',
-      onOpen: extras.onOpenSleep,
-    ),' \
-  '    ContextBridge.text(kSleepBridge),'
 
-mutate 'the movement bridge loses the link that ends it' \
-  "$LINKS_TEST" "$TODAY_DAY" \
-  '    ContextBridge.link(
-      kMovementBridge,
-      label: '"'"'See the relationship'"'"',
-      onOpen: extras.onOpenRecovery,
-    ),' \
-  '    ContextBridge.text(kMovementBridge),'
 
 # The directory row promising "duration, stages and regularity" opens last
 # night instead of the thirty nights it names — two screens, one subject.
@@ -2484,9 +2370,7 @@ mutate 'an offline past day falls back to the newest cached payload' \
 # its facts.
 mutate 'the live trust card is drawn on a past day' \
   "$DATE_TEST" lib/features/today/today_sections.dart \
-  '  if (!past) {
-    sections.add(_dataHealth(data, extras));
-  }' \
+  '  if (!data.view.isPast) sections.add(_dataHealth(data, extras));' \
   '  sections.add(_dataHealth(data, extras));'
 
 # The same failure a chart at a time: window on today and every dated panel
@@ -2533,7 +2417,6 @@ H_SLEEP_TEST=test/features/sleep_surface_test.dart
 H_FINDING_MODEL=lib/data/models/finding.dart
 H_SCATTER=lib/shared/charts/h_scatter.dart
 H_SCATTER_TEST=test/shared/scatter_test.dart
-H_TODAY_BODY=lib/features/today/today_body.dart
 H_GOLDEN_TEST=test/data/today_snapshot_golden_test.dart
 
 # A1. The nap's stage TOTALS read as an empty split — the defect the server just
@@ -2570,10 +2453,6 @@ mutate 'a scatter is drawn from too few pairs to be a shape' \
 
 # B4. The centre ships and the spread is dropped, so "baseline 44" is a bare
 # point again and a reading of 50 could be an ordinary night or a remarkable one.
-mutate 'the baseline loses the spread it is only meaningful with' \
-  "$H_GOLDEN_TEST test/features/today_screen_test.dart" "$H_TODAY_BODY" \
-  "  final spread = sd == null ? '' : ' ± \${sd.round()}';" \
-  "  final spread = '';"
 
 # ── BACKEND_AUDIT.md section A — the client half ─────────────────────────────
 #
@@ -2703,7 +2582,7 @@ SHARED_OTHER_DAY=lib/shared/format/other_day.dart
 GEN_INSIGHT=lib/data/insights/generated_insight.dart
 BUDGET_TEST=test/data/coach_ask_budget_test.dart
 CHARGE_TEST=test/features/coach_charge_honesty_test.dart
-DATING_TEST=test/features/actions_dating_test.dart
+DATING_TEST="test/features/other_day_shared_test.dart test/features/actions_v02_test.dart"
 FALLBACK_TEST=test/features/insight_fallback_test.dart
 TOPIC_TEST=test/features/coach_topic_test.dart
 
@@ -2915,9 +2794,7 @@ mutate 'a sourced claim goes back under the not-covered disclaimer' \
 # ── the four on the today.json wire (final audit A1-A4, C4-C6) ───────────────
 # The prose moved out of `insights_section.dart` at the 400-line gate; the
 # sentences these four mutations are about live in `finding_prose.dart` now.
-INSIGHTS=lib/features/today/widgets/finding_prose.dart
 WORDING_BOTH=test/features/findings_wording_test.dart
-EFFECT_TEST=test/features/finding_effect_metric_test.dart
 
 # A2. THE defect, and the exact code that shipped: the one-metric branch falls
 # back to the server's raw debug string as the headline of the home screen.
@@ -2926,33 +2803,15 @@ EFFECT_TEST=test/features/finding_effect_metric_test.dart
 # same test named only `shared/findings_section.dart` while THIS function went on
 # printing `description_raw`, so it went green against the live defect. If it is
 # ever re-aimed at one composer again, this survives.
-mutate 'the raw string is the home-screen headline again' "$WORDING_BOTH" "$INSIGHTS" \
-  '    return (
-      headline: _oneMetricHeadline(a, finding.eventKind),
-      context: context,
-    );' \
-  '    return (
-      headline: finding.description ?? '"'"'Pattern found in your data.'"'"',
-      context: context,
-    );'
 
 # A2, the other half: the event kind is ignored, so an event finding loses the
 # one structured field that says what it was compared against.
-mutate 'the event kind stops reaching the sentence' "$WORDING_BOTH" "$INSIGHTS" \
-  "  return eventKind == null" \
-  "  return true || eventKind == null"
 
 # A1. The letter goes back to being the client's, whatever statistic it is — a
 # Spearman rho drawn under the symbol for Pearson'"'"'s r.
-mutate 'every effect is labelled r again' "$EFFECT_TEST" "$INSIGHTS" \
-  "  final figure = metric == null ? effect : '\$metric \$effect';" \
-  "  final figure = 'r \$effect';"
 
 # A1, the withholding half: an absent metric name is filled in rather than left
 # out, so a number we cannot name is named anyway.
-mutate 'an unnamed effect is given a name anyway' "$EFFECT_TEST" "$INSIGHTS" \
-  "  final metric = finding.effectMetric;" \
-  "  final metric = finding.effectMetric ?? 'r';"
 
 # ── A4 · C4 — the illness banner ─────────────────────────────────────────────
 BANNER=lib/features/today/widgets/illness_banner.dart

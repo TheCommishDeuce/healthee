@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/tabs.dart';
 import 'package:healthee/data/store/local_store.dart';
+import 'package:healthee/features/activity/activity_screen.dart';
 import 'package:healthee/features/sleep/sleep_screen.dart';
 import 'package:healthee/features/today/today_screen.dart';
 import 'package:healthee/shared/app_tab_bar.dart';
@@ -53,7 +54,7 @@ double _todayOffset(WidgetTester tester) {
 /// Every live `RevealOnce` state object on the Today branch, in tree order.
 List<State<RevealOnce>> _revealStates(WidgetTester tester) {
   final reveals = find.descendant(
-    of: find.byType(TodayScreen),
+    of: find.byType(ActivityScreen),
     matching: find.byType(RevealOnce),
   );
   return tester.stateList<State<RevealOnce>>(reveals).toList();
@@ -106,12 +107,13 @@ void main() {
     await tester.pumpWidget(routedApp(store));
     await tester.pumpAndSettle();
 
-    // Every reveal on the first screenful has now played out.
+    // Charts live on Activity now, but tab round trips must still preserve them.
+    await tapTab(tester, 'Activity');
     final before = _revealStates(tester);
-    expect(before, isNotEmpty, reason: 'Today opens on charts');
+    expect(before, isNotEmpty, reason: 'Activity contains charts');
 
     await tapTab(tester, 'Sleep');
-    await tapTab(tester, 'Today');
+    await tapTab(tester, 'Activity');
 
     // Identity, not "is anything animating". `RevealOnce` asks the registry
     // exactly once, in `initState` — so the same `State` objects coming back is

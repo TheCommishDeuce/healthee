@@ -252,11 +252,10 @@ void main() {
       await tester.pumpWidget(todayHost(store));
       await tester.pumpAndSettle();
 
-      // The fixture's band is `high` and its guidance is the illness override,
-      // which the recovery card renders verbatim.
-      await reveal(tester, find.textContaining('An illness signal is active'));
+      // The safety banner remains above the stable overnight recovery summary.
+      await reveal(tester, find.text('POSSIBLE EARLY SIGNAL'));
       expect(
-        find.textContaining('An illness signal is active'),
+        find.text('POSSIBLE EARLY SIGNAL'),
         findsOneWidget,
       );
       for (final flattery in <String>[

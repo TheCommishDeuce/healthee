@@ -26,6 +26,7 @@ import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/activity/fitness_screen.dart';
+import 'package:healthee/features/activity/v02/movement_panels.dart';
 import 'package:healthee/features/history/metric_explorer_screen.dart';
 import 'package:healthee/features/settings/data_freshness_screen.dart';
 import 'package:healthee/features/settings/settings_screen.dart';
@@ -34,6 +35,7 @@ import 'package:healthee/features/sleep/sleep_screen.dart';
 import 'package:healthee/features/today/recovery_screen.dart';
 import 'package:healthee/features/today/today_screen.dart';
 import 'package:healthee/features/today/v02/today_header.dart';
+import 'package:healthee/features/today/widgets/sleep_summary.dart';
 import 'package:healthee/shared/v02/panel.dart';
 
 import '_today_host.dart';
@@ -150,7 +152,7 @@ void main() {
       await tester.pumpWidget(routedApp(store));
       await tester.pumpAndSettle();
 
-      await tapPanelDetails(tester, 'Recovery, explained');
+      await tapPanelDetails(tester, 'Recovery');
 
       expect(find.byType(RecoveryScreen), findsOneWidget);
     });
@@ -165,7 +167,8 @@ void main() {
       await tester.pumpWidget(routedApp(store));
       await tester.pumpAndSettle();
 
-      await tapText(tester, 'Open your night');
+      await tester.tap(find.byType(SleepSummary));
+      await tester.pumpAndSettle();
 
       expect(find.byType(SleepScreen), findsOneWidget);
     });
@@ -178,7 +181,8 @@ void main() {
       await tester.pumpWidget(routedApp(store));
       await tester.pumpAndSettle();
 
-      await tapText(tester, 'See the relationship');
+      await tapTab(tester, 'Activity');
+      await tapText(tester, 'View recovery');
 
       expect(find.byType(RecoveryScreen), findsOneWidget);
     });
@@ -190,7 +194,8 @@ void main() {
       await tester.pumpWidget(routedApp(store));
       await tester.pumpAndSettle();
 
-      await tapPanelDetails(tester, 'Cardiorespiratory fitness');
+      await tapTab(tester, 'Activity');
+      await tapPanelDetails(tester, 'Fitness with its source');
 
       expect(find.byType(FitnessScreen), findsOneWidget);
     });
@@ -208,9 +213,10 @@ void main() {
       await tester.pumpWidget(routedApp(store));
       await tester.pumpAndSettle();
 
-      await tapPanelDetails(tester, 'Overnight HRV', settle: false);
+      await tapTab(tester, 'Activity');
+      await tapPanelDetails(tester, MovementPanel.title, settle: false);
 
-      expect(locationOf(tester), '/history?metric=hrv_sleep_avg');
+      expect(locationOf(tester), '/history?metric=steps_total');
     });
   });
 
