@@ -9,8 +9,8 @@
 /// This file is the other half, and it is per call site rather than per screen.
 /// A screen-level suite can only cover screens somebody wrote a suite for, and
 /// the surfaces here are the ones the sweep just took chips off: Sleep's lever,
-/// its timing action and its analysis, Actions' suggestions and challenges, the
-/// coach, Insights' notable days, Today's rows and every disclosure.
+/// its timing action and its analysis, Actions' suggestions and challenges,
+/// Insights' notable days, Today's rows and every disclosure.
 ///
 /// The assertion is the same everywhere: **whatever `parseGrounded` finds in the
 /// prose the surface drew, its ⓘ is carrying.** Not a fixed list — the parse
@@ -32,8 +32,6 @@ import 'package:healthee/data/models/sleep_insight.dart';
 import 'package:healthee/data/sleep_repository.dart';
 import 'package:healthee/features/actions/v02/challenge_card.dart';
 import 'package:healthee/features/actions/v02/suggestion_card.dart';
-import 'package:healthee/features/coach/coach_conversation.dart';
-import 'package:healthee/features/coach/widgets/coach_thread.dart';
 import 'package:healthee/features/insights/widgets/notable_events.dart';
 import 'package:healthee/features/sleep/v02/tail_panels.dart';
 import 'package:healthee/features/sleep/v02/timing_panel.dart';
@@ -209,18 +207,7 @@ void main() {
         analysis,
         alsoCites: const <String>['vo2max'],
       );
-    });
-
-    testWidgets('the coach bubble', (tester) async {
-      await pumpAt(tester, 390, CoachEntryView(entry: CoachReply(kAnswer)));
-
-      expectGrounds(
-        tester,
-        CoachEntryView,
-        kAnswer.reply,
-        alsoCites: kAnswer.citations,
-      );
-      expect(detailIn(tester, find.byType(CoachEntryView)).grade, 'Probable');
+      expect(detailIn(tester, find.byType(InsightCard)).grade, 'Probable');
     });
 
     testWidgets('a disclosure whose answer is server prose', (tester) async {

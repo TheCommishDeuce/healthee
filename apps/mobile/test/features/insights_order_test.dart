@@ -78,8 +78,6 @@ void main() {
         _indexOf<NotableEvents>(list),
         // The section's two `.list-row`s: outcomes, and the journal.
         _indexOf<FlushCard>(list),
-        // `H.panel('A useful question comes next', …, 'coach')`.
-        _indexOf<CoachQuestionPanel>(list),
         // `H.footer()`.
         _indexOf<DataFooter>(list),
       ];

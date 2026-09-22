@@ -16,7 +16,6 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/challenges/challenge.dart';
-import 'package:healthee/data/coach/coach_answer.dart';
 import 'package:healthee/data/honesty/citations.dart';
 import 'package:healthee/data/models/recommendation.dart';
 import 'package:healthee/data/models/sleep_consistency.dart';
@@ -60,15 +59,6 @@ final TonightLever kLever = TonightLever.maybe(const <String, Object?>{
   'target_clock': '23:15',
   'coach': 'Aim for 23:15 tonight [sleep_regularity_index].',
 })!;
-
-/// A coach answer citing inline and structurally, with the server's grade floor.
-final CoachAnswer kAnswer = CoachAnswer.fromJson(const <String, Object?>{
-  'reply': 'Your recovery supports it [recovery_readiness].',
-  'citations': <String>['vo2max'],
-  'grade_floor': 'Probable',
-  'refused': false,
-  'validated': true,
-});
 
 /// The ids the sheet behind [surface]'s ⓘ must be carrying: exactly what
 /// [parseGrounded] reads out of [prose], plus anything the payload sent.

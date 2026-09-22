@@ -103,9 +103,6 @@ void main() {
       ]) {
         expect(isDateAwareRoute(path), isTrue, reason: path);
       }
-      // The coach is not about a day, so a day would be a parameter nothing
-      // reads — and it carries a `topic` of its own that must not be disturbed.
-      expect(isDateAwareRoute(Routes.coach), isFalse);
       expect(isDateAwareRoute(Routes.settings), isFalse);
     });
   });

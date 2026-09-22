@@ -65,8 +65,6 @@ import 'package:healthee/features/actions/outcomes_screen.dart';
 import 'package:healthee/features/actions/program_detail_screen.dart';
 import 'package:healthee/features/actions/recommendation_history_screen.dart';
 import 'package:healthee/features/activity/fitness_screen.dart';
-import 'package:healthee/features/coach/coach_history_screen.dart';
-import 'package:healthee/features/coach/coach_screen.dart';
 import 'package:healthee/features/history/history_screen.dart';
 import 'package:healthee/features/history/metric_explorer_screen.dart';
 import 'package:healthee/features/insights/v02/finding_detail_screen.dart';
@@ -78,7 +76,7 @@ import 'package:healthee/features/workouts/workout_history_screen.dart';
 import 'package:healthee/shared/app_shell.dart';
 import 'package:healthee/shared/foundation_screen.dart';
 
-// The path table and the coach's location builder live in `routes.dart`
+// The path table lives in `routes.dart`
 // (Standards section 1, the 400-line gate). Re-exported so this file stays
 // the one import a screen needs to name a destination.
 export 'package:healthee/core/routes.dart';
@@ -173,17 +171,6 @@ GoRouter buildRouter(WidgetRef ref) {
       GoRoute(
         path: Routes.outcomes,
         builder: (context, state) => const OutcomesScreen(),
-      ),
-      GoRoute(
-        path: Routes.coach,
-        // `coachTopicOf` is `coachLocation` read back, and both live in
-        // `routes.dart` so the round trip has one owner.
-        builder: (context, state) =>
-            CoachScreen(topic: coachTopicOf(state.uri)),
-      ),
-      GoRoute(
-        path: Routes.coachHistory,
-        builder: (context, state) => const CoachHistoryScreen(),
       ),
       GoRoute(
         path: Routes.body,

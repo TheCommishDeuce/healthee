@@ -112,6 +112,13 @@ mutate 'Today overview drops the timezone before interpreting a sleep instant' \
   "DateTime.tryParse(night.endIso ?? '')" \
   "DateTime.tryParse(night.endIso?.split('T').first ?? '')"
 
+# Coach removal must drop its stored conversations and nothing else.
+mutate 'coach removal leaves the stored conversations on the phone' \
+  test/features/coach_removal_test.dart lib/data/store/local_store.dart \
+  "        await m.deleteTable('stored_coach_turns');
+        await m.deleteTable('stored_coach_threads');" \
+  '        // tables kept'
+
 # GPS removal must not hide strap workouts or request modern location access.
 mutate 'GPS removal accidentally hides recorded workouts' \
   test/features/gps_removal_test.dart lib/features/activity/activity_sections.dart \
@@ -1503,14 +1510,9 @@ CHALLENGE_CARD=lib/features/actions/v02/challenge_card.dart
 ACTIONS_SCREEN=lib/features/actions/actions_screen.dart
 OUTCOME_CARD=lib/shared/challenge_outcome_card.dart
 CHOICES=lib/shared/v02/choices.dart
-COACH_SCREEN=lib/features/coach/coach_screen.dart
-COACH_CTRL=lib/features/coach/coach_controller.dart
-COMPOSER=lib/features/coach/v02/coach_composer.dart
 LOG_SHEET=lib/shared/sheets/weight_log_sheet.dart
 ACTIONS_TEST=test/features/actions_v02_test.dart
 CARDS_TEST=test/features/actions_cards_test.dart
-COACH_TEST=test/features/coach_screen_test.dart
-COMPOSER_TEST=test/features/coach_composer_test.dart
 JOURNAL_TEST=test/features/today_weight_test.dart
 
 # A snake_case token on a health screen is a log line where a source belongs.
@@ -1595,52 +1597,6 @@ mutate 'the outcome drops its "not a proven effect" sentence' \
     'That is an observation, not a proven effect of the challenge.';" \
   "const String kObservationNote =
     'The challenge raised your average over the window.';"
-
-# ── the coach's meter, which is the only spend in the product ───────────────
-# An input beside an unknown or empty balance is the silent spend the feature is
-# not allowed to have.
-mutate 'the coach composer appears with no balance behind it' \
-  "$COACH_TEST" "$COACH_SCREEN" \
-  '  return uncapped || (allowance?.hasRemaining ?? false);' \
-  '  return true;'
-
-# A prompt button asks a question, so it costs one — same gate as the input.
-mutate 'the opening prompts stop being gated by the balance' \
-  "$COMPOSER_TEST" "$COACH_SCREEN" \
-  '              canAsk ? ask : null),' \
-  '              ask),'
-# (anchor re-cut TWICE now: once when `ask` grew a `topic:` argument, and again
-#  when the openers moved out of `_tail` into `CoachPrompts` so the ask box could
-#  come before them. A stale patch runs the UNMUTATED suite and reports a pass,
-#  which reads exactly like a working guard — so every move of this call is a
-#  re-cut, not a hope.)
-
-# `routers/coach.py` refunds three of five outcomes, so a local subtraction is
-# wrong — and wrong the flattering way round. THE METER IS RE-READ.
-mutate 'the meter stops being re-read after an attempt' "$COACH_TEST" "$COACH_CTRL" \
-  '      if (_isCurrent(generation)) {
-        ref.invalidate(coachEntitlementProvider);
-        state = state.copyWith(asking: false);
-      }' \
-  '      if (_isCurrent(generation)) {
-        state = state.copyWith(asking: false);
-      }'
-
-# The cost is on the button, before the tap, in the number.
-mutate 'the cost comes off the ask button' "$COACH_TEST" "$COMPOSER" \
-  "    remaining == null ? 'Ask' : 'Ask — uses 1 of your \$remaining';" \
-  "    remaining == null ? 'Ask' : 'Ask';"
-
-# A cost label that squeezes the input off the page satisfies "the label is
-# present" and makes the surface unusable.
-# The width negotiation went with the full-width ask bar: the field is
-# `Expanded` beside a fixed send control, so an input that can be typed in is
-# structural rather than negotiated. What can still take the room away is the
-# control beside it growing — `Expanded` yields whatever is left, however
-# little that is.
-mutate 'the composer stops making room for its input' "$COMPOSER_TEST" "$COMPOSER" \
-  '  static const double sendSize = 44;' \
-  '  static const double sendSize = 240;'
 
 # The journal UI is gone; direct weight entry must still post the right kind.
 mutate 'journal removal redirects weight into another log kind' \
@@ -2109,19 +2065,12 @@ mutate 'an unrecorded night invents its bedtime and wake' \
         '\${end == null ? '—' : clock(end)}';" \
   "    return '23:00 → 06:30';"
 
-# ── the way OFF a screen, and the subject a link carries ONTO one ───────────
-# Both are silent. A back control that lands on the wrong tab looks like a back
-# control, and a topic that never reaches the input looks like a coach that was
-# simply opened.
+# ── the way OFF a screen ────────────────────────────────────────────────────
+# Silent: a back control that lands on the wrong tab looks like a back control.
 DETAIL_PAGE=lib/shared/v02/detail_page.dart
 PARENTS=lib/core/parent_tabs.dart
 NAV_TEST=test/features/out_of_shell_navigation_test.dart
 PARENTS_TEST=test/core/parent_tabs_test.dart
-TOPIC_TEST=test/features/coach_topic_test.dart
-# `coachLocation` lives with the path table, not with the wiring — `routes.dart`
-# was split out of `router.dart` at the 400-line gate and is re-exported from it.
-ROUTES=lib/core/routes.dart
-COACH_TOPICS=lib/features/coach/coach_topics.dart
 
 # THE ORIGINAL DEFECT: no stack, no control, no way off the screen. It is
 # invisible until something opens a detail screen without pushing it.
@@ -2167,54 +2116,6 @@ mutate 'the system back gesture stops taking the same door' \
           return;
         }'
 
-# The subject is the whole reason the coach became a route. A dropped topic
-# leaves `Discuss this workout` opening a coach that knows nothing about it —
-# which is what the sheet did, and it looked fine.
-mutate 'the coach topic never reaches the location' "$TOPIC_TEST" "$ROUTES" \
-  "  return subject.isEmpty
-      ? Routes.coach
-      : '\${Routes.coach}?topic=\${Uri.encodeQueryComponent(subject)}';" \
-  '  return Routes.coach;'
-
-# ...or reaches the location and is dropped reading it back off the route.
-mutate 'the route drops the topic it was given' "$TOPIC_TEST" "$ROUTES" \
-  "  final String subject = uri.queryParameters['topic']?.trim() ?? '';
-  return subject.isEmpty ? null : subject;" \
-  '  return null;'
-
-# ...or reaches it and is dropped on the way into the input.
-mutate 'the seeded topic never reaches the input' "$TOPIC_TEST" \
-  lib/features/coach/coach_screen.dart \
-  '            initialQuestion: conversation.isEmpty ? topic : null,' \
-  '            initialQuestion: null,'
-
-# A blank topic from a caller that had no label would open the coach with an
-# empty box claiming to hold a question.
-mutate 'a blank topic is carried into the route as one' "$TOPIC_TEST" "$ROUTES" \
-  "  final String subject = topic?.trim() ?? '';" \
-  "  final String subject = topic ?? ' ';"
-
-# THE SPEND. Asking on arrival charges one of twenty for a navigation, and the
-# owner never sees the sentence before it is sent.
-mutate 'arriving with a topic asks it immediately' "$TOPIC_TEST" \
-  lib/features/coach/coach_body.dart \
-  '    void ask(String question) => unawaited(
-      ref.read(coachControllerProvider.notifier).ask(question, topic: topic),
-    );' \
-  '    void ask(String question) => unawaited(
-      ref.read(coachControllerProvider.notifier).ask(question, topic: topic),
-    );
-    if (topic != null && conversation.isEmpty && !conversation.asking) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => ask(topic!));
-    }'
-
-# These sentences are read as the owner's own. A verdict in one is this product
-# asserting something in their voice, before the coach has looked at anything.
-mutate 'an opening question characterises what it names' "$TOPIC_TEST" \
-  "$COACH_TOPICS" \
-  "    'What should I notice in my \${metricName(metric)} trend?';" \
-  "    'Why has my \${metricName(metric)} been getting worse?';"
-
 # ── the links section 2 found undrawn, and the ones drawn at a neighbour ────
 # A link that lands on the wrong screen is the hard one: the control is there,
 # the tap does something, and a screen appears.
@@ -2251,24 +2152,6 @@ mutate 'the metric directory sends Fitness estimates to the Activity tab' \
   "$LINKS_TEST" "$EXPLORER" \
   '              onOpen: () => unawaited(context.push(Routes.fitness)),' \
   '              onOpen: () => context.go(Routes.activity),'
-
-# The coach stops carrying its history, so every question arrives contextless.
-# The other half of the same rule: `ask` sends the WHOLE thread, which is why
-# the thread must be endable — see `CoachController.newThread`.
-mutate 'the coach forgets the conversation it is in' \
-  "test/features/coach_thread_test.dart" "lib/features/coach/coach_conversation.dart" \
-  "    final wire = <CoachTurn>[];
-    for (final entry in entries) {" \
-  "    final wire = <CoachTurn>[];
-    for (final entry in <CoachEntry>[]) {"
-
-# The refusal notes start reaching the model as conversation.
-mutate 'a coach trouble note becomes a turn' \
-  "test/features/coach_thread_test.dart" "lib/features/coach/coach_conversation.dart" \
-  "        case CoachTrouble():
-          break;" \
-  "        case CoachTrouble(:final message):
-          wire.add(CoachTurn(role: 'user', content: message));"
 
 # ── the selected day, carried in the route ─────────────────────────────────
 # Four failures that are all silent: the screen still draws, the header still
@@ -2569,60 +2452,11 @@ mutate 'a step bucket parses a distance nobody measured' \
 # rather than a number, which is the class this app has the least other cover
 # for: none of them fails loudly, and all four read as working code.
 
-COACH_CLIENT=lib/data/coach/coach_client.dart
-COACH_THREAD_W=lib/features/coach/widgets/coach_thread.dart
-COACH_CTRL=lib/features/coach/coach_controller.dart
-COACH_SCREEN=lib/features/coach/coach_screen.dart
 REC_MODEL=lib/data/models/recommendation.dart
 SHARED_OTHER_DAY=lib/shared/format/other_day.dart
 GEN_INSIGHT=lib/data/insights/generated_insight.dart
-BUDGET_TEST=test/data/coach_ask_budget_test.dart
-CHARGE_TEST=test/features/coach_charge_honesty_test.dart
 DATING_TEST="test/features/other_day_shared_test.dart test/features/actions_v02_test.dart"
 FALLBACK_TEST=test/features/insight_fallback_test.dart
-TOPIC_TEST=test/features/coach_topic_test.dart
-
-# ── A1 ───────────────────────────────────────────────────────────────────────
-# The ask goes back to the app's 10-second READ default while one coach turn is
-# budgeted at up to 22 model calls. The server charges the slot before the
-# handler starts, so this is a charge for an answer nobody receives.
-mutate 'the coach ask goes back to the read timeout' \
-  "$BUDGET_TEST" "$COACH_CLIENT" \
-  '        options: Options(
-          receiveTimeout: Env.coachTimeout,
-          sendTimeout: Env.coachTimeout,
-        ),' \
-  '        options: Options(
-          receiveTimeout: Env.requestTimeout,
-          sendTimeout: Env.requestTimeout,
-        ),'
-
-# The timeout stays and the SENTENCE goes back to denying the charge — the half
-# a fix is most likely to stop at, and the half the owner actually reads.
-mutate 'a receive timeout claims nothing was charged again' \
-  "$BUDGET_TEST" "$COACH_CLIENT" \
-  '      DioExceptionType.badCertificate => CoachCharge.notCharged,
-      _ => CoachCharge.unknown,' \
-  '      DioExceptionType.badCertificate => CoachCharge.notCharged,
-      _ => CoachCharge.notCharged,'
-
-# The thread prints the denial for an unknown charge — the exact sentence that
-# shipped, over a meter showing one fewer.
-mutate 'the thread denies a charge it cannot see' \
-  "$CHARGE_TEST" "$COACH_THREAD_W" \
-  "            CoachCharge.unknown =>
-              'We could not confirm whether this was counted. The number '
-                  'above is the server’s own, re-read just now.'," \
-  "            CoachCharge.unknown =>
-              'Nothing was counted for this. The number above is the '
-                  'server’s own, re-read just now.',"
-
-# The controller flattens the client's verdict back to "not charged", which is
-# where the false sentence was actually produced.
-mutate 'the controller overrides what the client worked out' \
-  "$CHARGE_TEST" "$COACH_CTRL" \
-  '        _trouble(failure.message, charge: failure.charge);' \
-  '        _trouble(failure.message, charge: CoachCharge.notCharged);'
 
 # ── A3 ───────────────────────────────────────────────────────────────────────
 # The row's own date is dropped again, so a two-day-old action is drawn as the
@@ -2672,21 +2506,6 @@ mutate 'the fallback is shown as though it were a finding' \
   "$FALLBACK_TEST" "$GEN_INSIGHT" \
   "      validated: json['validated'] == true," \
   '      validated: true,'
-
-# ── the coach topic ──────────────────────────────────────────────────────────
-# The subject stops reaching the server, so grounding is back to whatever the
-# model infers from prose — the gap the field was added to close.
-mutate 'the topic never leaves the phone' \
-  "$TOPIC_TEST" "$COACH_SCREEN" \
-  '      ref.read(coachControllerProvider.notifier).ask(question, topic: topic),' \
-  '      ref.read(coachControllerProvider.notifier).ask(question),'
-
-# The topic is sent on the first turn only, so a thread opened about a workout
-# stops being about it as soon as the owner asks a follow-up.
-mutate 'the topic is dropped after the first turn' \
-  "$BUDGET_TEST" "$COACH_CLIENT" \
-  "          if (subject.isNotEmpty) 'topic': subject," \
-  "          if (subject.isNotEmpty && messages.length == 1) 'topic': subject,"
 
 # ── the redirect policy (AUTH_AUDIT.md A1) ───────────────────────────────────
 API_CLIENT=lib/data/api/api_client.dart

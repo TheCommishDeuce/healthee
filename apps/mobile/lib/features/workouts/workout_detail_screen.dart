@@ -10,15 +10,10 @@
 /// fix. The registry belongs to the screen, not to the card.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:healthee/core/router.dart';
 import 'package:healthee/data/workouts/workout_detail.dart';
 import 'package:healthee/data/workouts/workout_repository.dart';
-import 'package:healthee/features/coach/coach_topics.dart';
 import 'package:healthee/features/workouts/workout_detail_sections.dart';
 import 'package:healthee/shared/format/date_labels.dart';
 import 'package:healthee/shared/format/time_labels.dart';
@@ -62,25 +57,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
           builder: (context, detail) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
-            children: workoutDetailSections(
-              detail,
-              _reveals,
-              // The session is the subject, so its own sport and date open
-              // the conversation — `coach_topics.dart` owns that sentence, and
-              // `coach_screen.dart` says why it is written rather than sent.
-              onDiscuss: () => unawaited(
-                context.push(
-                  coachLocation(
-                    workoutTopic(
-                      sport: detail.workout.sportName,
-                      date: shortDate(
-                        detail.workout.start.toLocal().toIso8601String(),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            children: workoutDetailSections(detail, _reveals),
           ),
         ),
       ],

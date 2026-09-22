@@ -22,23 +22,17 @@
 /// only numbers it exists to show.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:healthee/core/router.dart';
 import 'package:healthee/core/theme/dimensions.dart';
 import 'package:healthee/data/models/finding.dart';
 import 'package:healthee/data/today_repository.dart';
-import 'package:healthee/features/coach/coach_topics.dart';
 import 'package:healthee/features/insights/v02/finding_detail_parts.dart';
 import 'package:healthee/shared/metric_info/metric_detail.dart';
 import 'package:healthee/shared/metric_info/metric_info_sheet.dart';
 import 'package:healthee/shared/states/current_account_value.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/detail_page.dart';
-import 'package:healthee/shared/v02/full_button.dart';
 import 'package:healthee/shared/v02/surfaces.dart';
 
 /// The route segment for [finding] — `metric_a~metric_b~lag`.
@@ -125,16 +119,6 @@ class _FindingDetail extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Insets.lg),
-        V02FullButton(
-          label: 'Talk this through',
-          // The finding is the subject. It rides in the location as the
-          // conversation's opening message, which is the only place
-          // `/api/coach` has for it — `coach_screen.dart` argues that.
-          onPressed: () => unawaited(
-            context.push(coachLocation(findingTopic(title))),
-          ),
-        ),
-        const SizedBox(height: Insets.xl),
         const DataFooter(),
       ],
     );

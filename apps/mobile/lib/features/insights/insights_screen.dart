@@ -12,10 +12,10 @@
 /// data.
 ///
 /// The findings used to be on a tab called Coach. That was wrong twice over —
-/// the coach is not a tab in legacy (it is a button on Today, and it is one
-/// again), and the findings are not the coach: they are the evidence a coach
-/// question would be answered *from*. The prototype says the same thing in its
-/// own order, by ending this screen on `A useful question comes next`.
+/// the coach was never a tab in legacy (the interactive coach has since been
+/// removed entirely), and the findings are not the coach: they are evidence
+/// read from the owner's own history. The prototype ended this screen on a
+/// coach prompt, `A useful question comes next`; that panel went with the coach.
 library;
 
 import 'dart:async';
@@ -52,10 +52,6 @@ class InsightsScreen extends ConsumerWidget {
           onOpenMetric: (metric) => openMetricHistory(context, metric),
           onOpenHistory: () => unawaited(context.push(Routes.history)),
           onOpenOutcomes: () => unawaited(context.push(Routes.outcomes)),
-          // `H.panel('A useful question comes next', …, 'coach')` — the panel
-          // whose Details link and whose button both open the coach. No topic:
-          // the panel's own question is what would you like to understand.
-          onOpenCoach: () => unawaited(context.push(Routes.coach)),
           onOpenSleepHistory: () =>
               unawaited(context.push(Routes.sleepHistory)),
           onOpenFitness: () => unawaited(context.push(Routes.fitness)),

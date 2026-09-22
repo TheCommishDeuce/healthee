@@ -93,7 +93,6 @@ class InsightsExtras {
     this.onOpenMetric,
     this.onOpenHistory,
     this.onOpenOutcomes,
-    this.onOpenCoach,
     this.onOpenSleepHistory,
     this.onOpenFitness,
   });
@@ -109,9 +108,6 @@ class InsightsExtras {
 
   /// Opens the challenge outcomes.
   final VoidCallback? onOpenOutcomes;
-
-  /// Opens the coach sheet.
-  final VoidCallback? onOpenCoach;
 
   /// Opens the sleep history — every night in the window.
   final VoidCallback? onOpenSleepHistory;
@@ -234,8 +230,6 @@ List<PageSection> insightsSections(ScreenData data, InsightsExtras extras) {
     );
   }
   _changedTogether(sections, findings, extras);
-  sections.gap(PageSpacing.block);
-  sections.add(CoachQuestionPanel(onOpenCoach: extras.onOpenCoach));
   sections.gap(PageSpacing.block);
   sections.add(const DataFooter());
   return sections.build();

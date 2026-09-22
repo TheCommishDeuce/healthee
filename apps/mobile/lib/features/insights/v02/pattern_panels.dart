@@ -5,7 +5,7 @@
 /// ```js
 /// .relationship-grid          two cards: a personal pattern, and the age model
 /// H.panel('Effort & stress, side by side','heart', dayTogether + note,'activity')
-/// H.panel('A useful question comes next','fitness', h3 + note + link,'coach','coach')
+/// H.panel('A useful question comes next', …)   not built: the coach is removed
 /// ```
 ///
 /// ## The two entry cards carry no coefficient, and that is not an omission
@@ -41,10 +41,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
-import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/tone.dart';
-import 'package:healthee/core/theme/tone_scope.dart';
-import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/models/biological_age.dart';
 import 'package:healthee/data/models/finding.dart';
 import 'package:healthee/data/models/today_series.dart';
@@ -155,66 +152,6 @@ class EffortStressPanel extends StatelessWidget {
             ),
           ),
           const PanelNote(kLinkedNote),
-        ],
-      ),
-    );
-  }
-}
-
-/// `A useful question comes next` — the way from a pattern to a question.
-class CoachQuestionPanel extends StatelessWidget {
-  /// [onOpenCoach] of null draws the panel without either action.
-  const CoachQuestionPanel({this.onOpenCoach, super.key});
-
-  /// The prototype's title.
-  static const String title = 'A useful question comes next';
-
-  /// The prototype's own question.
-  static const String question = 'What would you like to understand?';
-
-  /// The prototype's own line under it.
-  static const String note =
-      'Follow the evidence and your own data, with the uncertainty kept in '
-      'view.';
-
-  /// Opens the coach sheet.
-  final VoidCallback? onOpenCoach;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Panel(
-      tone: Tone.fitness,
-      head: PanelHead(
-        title: title,
-        icon: SolarIconsOutline.chatRoundDots,
-        actionLabel: onOpenCoach == null ? null : 'Details',
-        onAction: onOpenCoach,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            question,
-            style: TypeScale.entryTitle.copyWith(color: colors.ink),
-          ),
-          const PanelNote(note),
-          if (onOpenCoach case final VoidCallback open)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: open,
-                style: TextButton.styleFrom(
-                  foregroundColor: context.family,
-                  textStyle: TypeScale.textButton,
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, PanelHead.actionMinHeight),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text('Ask your coach'),
-              ),
-            ),
         ],
       ),
     );

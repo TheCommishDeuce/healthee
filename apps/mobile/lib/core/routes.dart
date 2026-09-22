@@ -39,25 +39,6 @@ abstract final class Routes {
   /// The owner's own history — trends, and the patterns found in it.
   static const String insights = '/insights';
 
-  /// The coach conversation, on the frame the prototype draws it on.
-  ///
-  /// **It was a sheet and is now a route.** `screens-actions.js::H.screens.coach`
-  /// is a full screen with a back control, and five surfaces link to it — two of
-  /// them (*Discuss this workout*, *Talk this through*) asking about something
-  /// specific. A sheet cannot be deep linked, does not survive a rotation, and
-  /// cannot carry the subject it was opened about; those two links lost theirs.
-  ///
-  /// The subject rides in `?topic=`, and `coach_screen.dart` says why that is
-  /// the opening message rather than anything the server is told separately.
-  static const String coach = '/coach';
-
-  /// Conversations already had, read back from this device.
-  ///
-  /// A child of [coach] rather than a sibling: it is reached from the coach's
-  /// own head and returns to it, and reopening a thread pops straight back into
-  /// the conversation it belongs to.
-  static const String coachHistory = '/coach/history';
-
   /// The biological-age estimate, opened up: the ladder, its two terms, and
   /// the lever it does not price.
   ///
@@ -162,35 +143,6 @@ abstract final class Routes {
   static const String devFoundation = '/dev/foundation';
 }
 
-/// The coach's location, carrying [topic] as the message to open with.
-///
-/// One builder rather than five call sites composing a query string: the
-/// encoding is easy to get almost right, and a topic that arrived
-/// double-escaped would put `%20` in the middle of the owner's own first
-/// sentence. A blank or whitespace-only topic yields the plain coach, which is
-/// the same decision the route makes when it reads the query back.
-String coachLocation([String? topic]) {
-  final String subject = topic?.trim() ?? '';
-  return subject.isEmpty
-      ? Routes.coach
-      : '${Routes.coach}?topic=${Uri.encodeQueryComponent(subject)}';
-}
-
-/// [coachLocation] read back — the topic in [uri], or null for the plain coach.
-///
-/// The other half of the round trip, and it lives beside the half that writes
-/// it. It was five lines inside the route's own builder, where nothing could
-/// ask it anything: a topic dropped THERE looks exactly like a caller that
-/// passed none, and the coach opens with an empty box either way.
-///
-/// A blank or whitespace-only `topic=` is no topic, the same answer
-/// [coachLocation] gives — a caller that built the query from a label it did
-/// not have must not produce a coach claiming to hold a question.
-String? coachTopicOf(Uri uri) {
-  final String subject = uri.queryParameters['topic']?.trim() ?? '';
-  return subject.isEmpty ? null : subject;
-}
-
 /// The query parameter the selected day rides in — `?date=2026-07-29`.
 ///
 /// The prototype's own name for it (`history-data.js`), kept so a URL read off
@@ -230,8 +182,8 @@ bool isDateAwareRoute(String path) => kDateAwareRoutes.contains(path);
 /// The day named in [uri], or null when it names none this app can read.
 ///
 /// The other half of [dateLocation], and it lives beside the half that writes
-/// it for the reason [coachTopicOf] does: a day dropped HERE looks exactly like
-/// a link that carried none, and the screen opens on the latest day either way.
+/// it: a day dropped HERE looks exactly like a link that carried none, and the
+/// screen opens on the latest day either way.
 ///
 /// **Shape only.** `2026-02-31` is refused because it is not a day at all —
 /// `DateTime` rolls it silently into March, and the app would then be showing a
