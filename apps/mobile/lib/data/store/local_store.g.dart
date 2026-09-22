@@ -3630,6 +3630,257 @@ class GpsFixesCompanion extends UpdateCompanion<GpsFixRow> {
   }
 }
 
+class $PendingWeightsTable extends PendingWeights
+    with TableInfo<$PendingWeightsTable, PendingWeightRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingWeightsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _atMsMeta = const VerificationMeta('atMs');
+  @override
+  late final GeneratedColumn<int> atMs = GeneratedColumn<int>(
+    'at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kgMeta = const VerificationMeta('kg');
+  @override
+  late final GeneratedColumn<double> kg = GeneratedColumn<double>(
+    'kg',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _heldAtMsMeta = const VerificationMeta(
+    'heldAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> heldAtMs = GeneratedColumn<int>(
+    'held_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [atMs, kg, heldAtMs];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_weights';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingWeightRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('at_ms')) {
+      context.handle(
+        _atMsMeta,
+        atMs.isAcceptableOrUnknown(data['at_ms']!, _atMsMeta),
+      );
+    }
+    if (data.containsKey('kg')) {
+      context.handle(_kgMeta, kg.isAcceptableOrUnknown(data['kg']!, _kgMeta));
+    } else if (isInserting) {
+      context.missing(_kgMeta);
+    }
+    if (data.containsKey('held_at_ms')) {
+      context.handle(
+        _heldAtMsMeta,
+        heldAtMs.isAcceptableOrUnknown(data['held_at_ms']!, _heldAtMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_heldAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {atMs};
+  @override
+  PendingWeightRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingWeightRow(
+      atMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}at_ms'],
+      )!,
+      kg: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}kg'],
+      )!,
+      heldAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}held_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingWeightsTable createAlias(String alias) {
+    return $PendingWeightsTable(attachedDatabase, alias);
+  }
+}
+
+class PendingWeightRow extends DataClass
+    implements Insertable<PendingWeightRow> {
+  /// When the weight was observed, Unix milliseconds. The identity.
+  final int atMs;
+
+  /// Kilograms, as entered and validated.
+  final double kg;
+
+  /// When it was stored on this phone, Unix milliseconds.
+  final int heldAtMs;
+  const PendingWeightRow({
+    required this.atMs,
+    required this.kg,
+    required this.heldAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['at_ms'] = Variable<int>(atMs);
+    map['kg'] = Variable<double>(kg);
+    map['held_at_ms'] = Variable<int>(heldAtMs);
+    return map;
+  }
+
+  PendingWeightsCompanion toCompanion(bool nullToAbsent) {
+    return PendingWeightsCompanion(
+      atMs: Value(atMs),
+      kg: Value(kg),
+      heldAtMs: Value(heldAtMs),
+    );
+  }
+
+  factory PendingWeightRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingWeightRow(
+      atMs: serializer.fromJson<int>(json['atMs']),
+      kg: serializer.fromJson<double>(json['kg']),
+      heldAtMs: serializer.fromJson<int>(json['heldAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'atMs': serializer.toJson<int>(atMs),
+      'kg': serializer.toJson<double>(kg),
+      'heldAtMs': serializer.toJson<int>(heldAtMs),
+    };
+  }
+
+  PendingWeightRow copyWith({int? atMs, double? kg, int? heldAtMs}) =>
+      PendingWeightRow(
+        atMs: atMs ?? this.atMs,
+        kg: kg ?? this.kg,
+        heldAtMs: heldAtMs ?? this.heldAtMs,
+      );
+  PendingWeightRow copyWithCompanion(PendingWeightsCompanion data) {
+    return PendingWeightRow(
+      atMs: data.atMs.present ? data.atMs.value : this.atMs,
+      kg: data.kg.present ? data.kg.value : this.kg,
+      heldAtMs: data.heldAtMs.present ? data.heldAtMs.value : this.heldAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingWeightRow(')
+          ..write('atMs: $atMs, ')
+          ..write('kg: $kg, ')
+          ..write('heldAtMs: $heldAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(atMs, kg, heldAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingWeightRow &&
+          other.atMs == this.atMs &&
+          other.kg == this.kg &&
+          other.heldAtMs == this.heldAtMs);
+}
+
+class PendingWeightsCompanion extends UpdateCompanion<PendingWeightRow> {
+  final Value<int> atMs;
+  final Value<double> kg;
+  final Value<int> heldAtMs;
+  const PendingWeightsCompanion({
+    this.atMs = const Value.absent(),
+    this.kg = const Value.absent(),
+    this.heldAtMs = const Value.absent(),
+  });
+  PendingWeightsCompanion.insert({
+    this.atMs = const Value.absent(),
+    required double kg,
+    required int heldAtMs,
+  }) : kg = Value(kg),
+       heldAtMs = Value(heldAtMs);
+  static Insertable<PendingWeightRow> custom({
+    Expression<int>? atMs,
+    Expression<double>? kg,
+    Expression<int>? heldAtMs,
+  }) {
+    return RawValuesInsertable({
+      if (atMs != null) 'at_ms': atMs,
+      if (kg != null) 'kg': kg,
+      if (heldAtMs != null) 'held_at_ms': heldAtMs,
+    });
+  }
+
+  PendingWeightsCompanion copyWith({
+    Value<int>? atMs,
+    Value<double>? kg,
+    Value<int>? heldAtMs,
+  }) {
+    return PendingWeightsCompanion(
+      atMs: atMs ?? this.atMs,
+      kg: kg ?? this.kg,
+      heldAtMs: heldAtMs ?? this.heldAtMs,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (atMs.present) {
+      map['at_ms'] = Variable<int>(atMs.value);
+    }
+    if (kg.present) {
+      map['kg'] = Variable<double>(kg.value);
+    }
+    if (heldAtMs.present) {
+      map['held_at_ms'] = Variable<int>(heldAtMs.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingWeightsCompanion(')
+          ..write('atMs: $atMs, ')
+          ..write('kg: $kg, ')
+          ..write('heldAtMs: $heldAtMs')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalStore extends GeneratedDatabase {
   _$LocalStore(QueryExecutor e) : super(e);
   $LocalStoreManager get managers => $LocalStoreManager(this);
@@ -3641,6 +3892,7 @@ abstract class _$LocalStore extends GeneratedDatabase {
   late final $SyncMetaTable syncMeta = $SyncMetaTable(this);
   late final $GpsRecordingsTable gpsRecordings = $GpsRecordingsTable(this);
   late final $GpsFixesTable gpsFixes = $GpsFixesTable(this);
+  late final $PendingWeightsTable pendingWeights = $PendingWeightsTable(this);
   late final StrapWriter strapWriter = StrapWriter(this as LocalStore);
   late final StrapReader strapReader = StrapReader(this as LocalStore);
   late final PushReader pushReader = PushReader(this as LocalStore);
@@ -3658,6 +3910,7 @@ abstract class _$LocalStore extends GeneratedDatabase {
     syncMeta,
     gpsRecordings,
     gpsFixes,
+    pendingWeights,
   ];
 }
 
@@ -5490,6 +5743,166 @@ typedef $$GpsFixesTableProcessedTableManager =
       GpsFixRow,
       PrefetchHooks Function()
     >;
+typedef $$PendingWeightsTableCreateCompanionBuilder =
+    PendingWeightsCompanion Function({
+      Value<int> atMs,
+      required double kg,
+      required int heldAtMs,
+    });
+typedef $$PendingWeightsTableUpdateCompanionBuilder =
+    PendingWeightsCompanion Function({
+      Value<int> atMs,
+      Value<double> kg,
+      Value<int> heldAtMs,
+    });
+
+class $$PendingWeightsTableFilterComposer
+    extends Composer<_$LocalStore, $PendingWeightsTable> {
+  $$PendingWeightsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get atMs => $composableBuilder(
+    column: $table.atMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get kg => $composableBuilder(
+    column: $table.kg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get heldAtMs => $composableBuilder(
+    column: $table.heldAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PendingWeightsTableOrderingComposer
+    extends Composer<_$LocalStore, $PendingWeightsTable> {
+  $$PendingWeightsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get atMs => $composableBuilder(
+    column: $table.atMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get kg => $composableBuilder(
+    column: $table.kg,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get heldAtMs => $composableBuilder(
+    column: $table.heldAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PendingWeightsTableAnnotationComposer
+    extends Composer<_$LocalStore, $PendingWeightsTable> {
+  $$PendingWeightsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get atMs =>
+      $composableBuilder(column: $table.atMs, builder: (column) => column);
+
+  GeneratedColumn<double> get kg =>
+      $composableBuilder(column: $table.kg, builder: (column) => column);
+
+  GeneratedColumn<int> get heldAtMs =>
+      $composableBuilder(column: $table.heldAtMs, builder: (column) => column);
+}
+
+class $$PendingWeightsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalStore,
+          $PendingWeightsTable,
+          PendingWeightRow,
+          $$PendingWeightsTableFilterComposer,
+          $$PendingWeightsTableOrderingComposer,
+          $$PendingWeightsTableAnnotationComposer,
+          $$PendingWeightsTableCreateCompanionBuilder,
+          $$PendingWeightsTableUpdateCompanionBuilder,
+          (
+            PendingWeightRow,
+            BaseReferences<
+              _$LocalStore,
+              $PendingWeightsTable,
+              PendingWeightRow
+            >,
+          ),
+          PendingWeightRow,
+          PrefetchHooks Function()
+        > {
+  $$PendingWeightsTableTableManager(_$LocalStore db, $PendingWeightsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingWeightsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PendingWeightsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PendingWeightsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> atMs = const Value.absent(),
+                Value<double> kg = const Value.absent(),
+                Value<int> heldAtMs = const Value.absent(),
+              }) => PendingWeightsCompanion(
+                atMs: atMs,
+                kg: kg,
+                heldAtMs: heldAtMs,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> atMs = const Value.absent(),
+                required double kg,
+                required int heldAtMs,
+              }) => PendingWeightsCompanion.insert(
+                atMs: atMs,
+                kg: kg,
+                heldAtMs: heldAtMs,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PendingWeightsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalStore,
+      $PendingWeightsTable,
+      PendingWeightRow,
+      $$PendingWeightsTableFilterComposer,
+      $$PendingWeightsTableOrderingComposer,
+      $$PendingWeightsTableAnnotationComposer,
+      $$PendingWeightsTableCreateCompanionBuilder,
+      $$PendingWeightsTableUpdateCompanionBuilder,
+      (
+        PendingWeightRow,
+        BaseReferences<_$LocalStore, $PendingWeightsTable, PendingWeightRow>,
+      ),
+      PendingWeightRow,
+      PrefetchHooks Function()
+    >;
 
 class $LocalStoreManager {
   final _$LocalStore _db;
@@ -5510,4 +5923,6 @@ class $LocalStoreManager {
       $$GpsRecordingsTableTableManager(_db, _db.gpsRecordings);
   $$GpsFixesTableTableManager get gpsFixes =>
       $$GpsFixesTableTableManager(_db, _db.gpsFixes);
+  $$PendingWeightsTableTableManager get pendingWeights =>
+      $$PendingWeightsTableTableManager(_db, _db.pendingWeights);
 }

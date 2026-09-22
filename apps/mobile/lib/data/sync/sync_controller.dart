@@ -38,7 +38,10 @@ import 'dart:async';
 import 'package:healthee/ble/strap_client.dart';
 import 'package:healthee/ble/strap_scanner.dart';
 import 'package:healthee/core/logging.dart';
+import 'package:healthee/data/api/credentials.dart';
 import 'package:healthee/data/device/device_repository.dart';
+import 'package:healthee/data/journal/journal_repository.dart';
+import 'package:healthee/data/journal/weight_outbox.dart';
 import 'package:healthee/data/push/push_outcome.dart';
 import 'package:healthee/data/push/push_service.dart';
 import 'package:healthee/data/store/store_provider.dart';
@@ -229,13 +232,41 @@ class SyncController extends _$SyncController {
   /// truthful.
   Future<PushOutcome> pushNow() async {
     final outcome = await ref.read(pushServiceProvider).drain();
-    if (outcome.rowsSent > 0) {
+    final weighIns = await _flushWeighIns();
+    if (outcome.rowsSent > 0 || weighIns > 0) {
       // The server has new measurements, so its derived numbers have moved.
       // Invalidating only when something was actually sent keeps a failed push
       // from re-fetching a payload that cannot have changed.
       ref.invalidate(todaySnapshotProvider);
     }
     return outcome;
+  }
+
+  /// Uploads weigh-ins held on the phone (DESIGN_DECISIONS A8); how many landed.
+  ///
+  /// Beside the strap push because both are "what this phone is holding back",
+  /// but not inside it: weigh-ins go to `/api/log`, and a phone that is not
+  /// signed in has no repository to send them with — which is a quiet 0 here,
+  /// not a fault, exactly as the strap push treats a missing token.
+  Future<int> _flushWeighIns() async {
+    final outbox = ref.read(weightOutboxProvider);
+    final JournalRepository repository;
+    try {
+      // Nothing held is the usual case, and no session means nothing to send
+      // with — a request without one would 401 and mark the session rejected.
+      if ((await outbox.pending()).isEmpty ||
+          await ref.read(credentialsProvider).serverSession() == null) {
+        return 0;
+      }
+      repository = await ref.read(journalRepositoryProvider.future);
+    } on Exception catch (error, stack) {
+      AppLog.failure('weight', 'opening the weigh-in upload', error, stack);
+      return 0;
+    }
+    final flushed = await outbox.flush(repository);
+    ref.invalidate(pendingWeightCountProvider);
+    if (flushed.sent > 0) ref.invalidate(journalFeedProvider);
+    return flushed.sent;
   }
 
   /// Asks the running sync to stop at its next phase boundary.

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/theme/app_theme.dart';
 import 'package:healthee/data/api/cache_session.dart';
 import 'package:healthee/data/journal/journal_repository.dart';
+import 'package:healthee/data/journal/weight_outbox.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/today/widgets/weight_entry.dart';
 import 'package:healthee/shared/sheets/weight_log_sheet.dart';
@@ -19,6 +20,7 @@ void main() {
   late JournalRepository repository;
   final writes = <RequestOptions>[];
   var reject = false;
+  var refuse = false;
   Completer<void>? acknowledgement;
 
   setUp(() async {
@@ -26,6 +28,7 @@ void main() {
     await seedDevice(store);
     writes.clear();
     reject = false;
+    refuse = false;
     acknowledgement = null;
     dio = Dio(BaseOptions(baseUrl: 'https://test.example'));
     repository = JournalRepository(dio, await CacheSession.capture(null));
@@ -38,6 +41,16 @@ void main() {
               DioException.connectionError(
                 requestOptions: request,
                 reason: 'offline',
+              ),
+            );
+            return;
+          }
+          if (refuse) {
+            handler.reject(
+              DioException.badResponse(
+                statusCode: 422,
+                requestOptions: request,
+                response: Response(requestOptions: request, statusCode: 422),
               ),
             );
             return;
@@ -167,7 +180,7 @@ void main() {
   });
 
   testWidgets(
-    'retrying an unconfirmed weight keeps the observation timestamp',
+    'an unconfirmed weight is retried later with its original timestamp',
     (tester) async {
       reject = true;
       await openWeight(tester);
@@ -175,15 +188,20 @@ void main() {
       await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
       final firstAt = (writes.single.data as Map)['at'];
-      expect(find.text('When: now'), findsNothing);
       reject = false;
-      await tester.tap(find.text('Save entry'));
-      await tester.pumpAndSettle();
+
+      final flushed = (await tester.runAsync(
+        () => WeightOutbox(store).flush(repository),
+      ))!;
+
+      expect(flushed.sent, 1);
       expect(writes, hasLength(2));
       expect(writes.last.data, containsPair('at', firstAt));
       expect(writes.last.data, containsPair('type', 'weight'));
-      expect(find.text('Saved.'), findsOneWidget);
-      expect(find.text('When: now'), findsOneWidget);
+      expect(
+        (await tester.runAsync(() => WeightOutbox(store).pending()))!,
+        isEmpty,
+      );
     },
   );
 
@@ -225,21 +243,65 @@ void main() {
     },
   );
 
-  testWidgets(
-    'an offline save retains the weight and does not pretend to queue it',
-    (tester) async {
-      reject = true;
-      await openWeight(tester);
-      await tester.enterText(find.byType(TextField).first, '73.2');
-      await tester.tap(find.text('Save entry'));
-      await tester.pumpAndSettle();
-      expect(draft(tester), '73.2');
-      expect(
-        find.textContaining('Save could not be confirmed'),
-        findsOneWidget,
-      );
-      expect(find.text('Saved.'), findsNothing);
-      expect(writes, hasLength(1));
-    },
-  );
+  testWidgets('an offline save is held on the phone and says so', (
+    tester,
+  ) async {
+    reject = true;
+    await openWeight(tester);
+    await tester.enterText(find.byType(TextField).first, '73.2');
+    await tester.tap(find.text('Save entry'));
+    await tester.pumpAndSettle();
+
+    final held = (await tester.runAsync(() => WeightOutbox(store).pending()))!;
+    expect(held.single.amount, 73.2);
+    expect(find.textContaining('Saved on this phone'), findsOneWidget);
+    expect(find.text('Saved.'), findsNothing);
+    expect(draft(tester), isEmpty, reason: 'the entry is stored, not lost');
+    expect(writes, hasLength(1));
+  });
+
+  testWidgets('a confirmed save leaves nothing held', (tester) async {
+    await openWeight(tester);
+    await tester.enterText(find.byType(TextField).first, '73.2');
+    await tester.tap(find.text('Save entry'));
+    await tester.pumpAndSettle();
+    expect(find.text('Saved.'), findsOneWidget);
+    expect(
+      (await tester.runAsync(() => WeightOutbox(store).pending()))!,
+      isEmpty,
+    );
+  });
+
+  testWidgets('a server refusal keeps the form and holds nothing', (
+    tester,
+  ) async {
+    refuse = true;
+    await openWeight(tester);
+    await tester.enterText(find.byType(TextField).first, '73.2');
+    await tester.tap(find.text('Save entry'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('did not accept this entry'), findsOneWidget);
+    expect(draft(tester), '73.2');
+    expect(
+      (await tester.runAsync(() => WeightOutbox(store).pending()))!,
+      isEmpty,
+      reason: 'a refused entry must not wait for a retry that cannot succeed',
+    );
+  });
+
+  testWidgets('a weight the server would refuse never leaves the form', (
+    tester,
+  ) async {
+    await openWeight(tester);
+    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.tap(find.text('Save entry'));
+    await tester.pumpAndSettle();
+    expect(writes, isEmpty);
+    expect(find.text('Enter a weight between 10 and 700 kg.'), findsOneWidget);
+    expect(
+      (await tester.runAsync(() => WeightOutbox(store).pending()))!,
+      isEmpty,
+    );
+  });
 }

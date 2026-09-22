@@ -37,6 +37,7 @@ import 'package:healthee/data/store/push_reader.dart';
 import 'package:healthee/data/store/strap_reader.dart';
 import 'package:healthee/data/store/strap_writer.dart';
 import 'package:healthee/data/store/tables.dart';
+import 'package:healthee/data/store/weight_outbox_table.dart';
 
 part 'local_store.g.dart';
 
@@ -112,6 +113,7 @@ class CachedPayloads extends Table {
     SyncMeta,
     GpsRecordings,
     GpsFixes,
+    PendingWeights,
   ],
   daos: [StrapWriter, StrapReader, PushReader, HorizonPrune],
 )
@@ -127,7 +129,7 @@ class LocalStore extends _$LocalStore {
   LocalStore.at(String path) : super(openFileAt(path));
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   /// v1 → v2 added the five raw-strap tables beside the payload cache.
   /// v2 → v3 added the per-row push marker to the four measurement tables.
@@ -138,6 +140,8 @@ class LocalStore extends _$LocalStore {
   /// two tables are touched; every measurement and pending upload survives.
   /// `deleteTable` is `DROP TABLE IF EXISTS`, so an install older than v6, which
   /// never had them, upgrades through the same branch harmlessly.
+  ///
+  /// v7 → v8 adds the weigh-in outbox (`weight_outbox_table.dart`). Additive.
   ///
   /// v3 → v4 scopes cached server responses to a sign-in. Old cache rows have
   /// no attributable owner and are discarded; every raw measurement and pending
@@ -177,6 +181,9 @@ class LocalStore extends _$LocalStore {
       if (from < 7) {
         await m.deleteTable('stored_coach_turns');
         await m.deleteTable('stored_coach_threads');
+      }
+      if (from < 8) {
+        await m.createTable(pendingWeights);
       }
     },
   );

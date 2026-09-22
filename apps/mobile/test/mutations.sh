@@ -1551,24 +1551,48 @@ mutate 'journal removal redirects weight into another log kind' \
   'kind: LogKind.weight,' \
   'kind: LogKind.caffeine,'
 
-# An entry nobody acknowledged must not clear the form — the owner types a
-# weight once.
-mutate 'a failed journal write clears the draft anyway' "$JOURNAL_TEST" "$LOG_SHEET" \
-  "      AppLog.failure('weight', 'saving a weigh-in', error, stack);
-      if (mounted) {" \
-  "      AppLog.failure('weight', 'saving a weigh-in', error, stack);
-      _value.clear();
-      if (mounted) {"
+# An entry the server refused is not stored anywhere, so the form must keep it —
+# the owner types a weight once. (A merely unreachable server clears the form:
+# the entry is held in the outbox, DESIGN_DECISIONS A8.)
+mutate 'a refused weigh-in clears the draft anyway' "$JOURNAL_TEST" "$LOG_SHEET" \
+  "          if (refused) {" \
+  "          if (refused) {
+            _value.clear();"
 
 mutate 'weight save permits a second tap before the button rebuilds' \
   "$JOURNAL_TEST" "$LOG_SHEET" \
   '    if (_busy) return;' \
   ''
 
+# The retry's identity now lives in the outbox row: holding the storage instant
+# instead of the observation instant would make the upload a different weigh-in.
 mutate 'weight retry loses the original observation timestamp' \
+  test/journal/weight_outbox_test.dart lib/data/journal/weight_outbox.dart \
+  '            atMs: Value(draft.at.millisecondsSinceEpoch),' \
+  '            atMs: Value(moment.millisecondsSinceEpoch),'
+
+# DESIGN_DECISIONS A8: held BEFORE sending, released only on confirmation, and a
+# credential or connection problem is a retry, never a drop.
+mutate 'a weigh-in is sent without being held on the phone first' \
   "$JOURNAL_TEST" "$LOG_SHEET" \
-  '      _at = draft.at;' \
-  '      _at = null;'
+  '      await outbox.hold(draft);' \
+  ''
+
+mutate 'a held weigh-in is released although the server never confirmed it' \
+  test/journal/weight_outbox_test.dart lib/data/journal/weight_outbox.dart \
+  '        if (!isPermanentRefusal(error)) break;
+        refused++;' \
+  '        refused++;'
+
+mutate 'an expired credential drops a held weigh-in' \
+  test/journal/weight_outbox_test.dart lib/data/journal/weight_outbox.dart \
+  '{401, 403, 408, 429}' \
+  '{403, 408, 429}'
+
+mutate 'the phone forgets the server bound on a weigh-in' \
+  test/journal/weight_bounds_test.dart lib/data/journal/log_draft.dart \
+  'const double kMaxWeightKg = 700;' \
+  'const double kMaxWeightKg = 900;'
 
 # The phone and the endpoint agree about what a valid entry is.
 mutate 'an invalid amount reaches the wire' "$JOURNAL_TEST" "$LOG_SHEET" \

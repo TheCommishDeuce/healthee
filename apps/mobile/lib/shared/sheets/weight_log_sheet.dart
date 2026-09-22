@@ -9,6 +9,7 @@ import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/journal/journal_repository.dart';
 import 'package:healthee/data/journal/log_draft.dart';
 import 'package:healthee/data/journal/log_kind.dart';
+import 'package:healthee/data/journal/weight_outbox.dart';
 import 'package:healthee/data/today_repository.dart';
 import 'package:healthee/shared/sheets/app_sheet.dart';
 import 'package:healthee/shared/v02/controls.dart';
@@ -138,6 +139,12 @@ class _WeightLogSheetState extends ConsumerState<WeightLogSheet> {
     await _save(draft);
   }
 
+  /// Holds [draft] on the phone FIRST, then tries the server (DESIGN_DECISIONS A8).
+  ///
+  /// Three outcomes, each told apart: confirmed (released from the outbox),
+  /// refused by the server (released, and the form kept so it can be fixed), or
+  /// not reachable yet (kept in the outbox, which uploads it on the next push —
+  /// the form clears because the entry is stored, not because it was sent).
   Future<void> _save(LogDraft draft) async {
     setState(() {
       _busy = true;
@@ -145,9 +152,25 @@ class _WeightLogSheetState extends ConsumerState<WeightLogSheet> {
       // Weight is upserted by (owner, timestamp). A retry keeps that identity.
       _at = draft.at;
     });
+    final outbox = ref.read(weightOutboxProvider);
+    try {
+      await outbox.hold(draft);
+    } on Exception catch (error, stack) {
+      AppLog.failure('weight', 'storing a weigh-in on the phone', error, stack);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _message = 'This entry could not be stored on the phone. Your form '
+              'is still here.';
+        });
+      }
+      return;
+    }
     try {
       final notice = await widget.repository.save(draft);
+      await outbox.release(draft.at);
       if (!mounted) return;
+      ref.invalidate(pendingWeightCountProvider);
       ref.invalidate(journalFeedProvider);
       ref.invalidate(todaySnapshotProvider);
       setState(() {
@@ -157,12 +180,21 @@ class _WeightLogSheetState extends ConsumerState<WeightLogSheet> {
       });
     } on Exception catch (error, stack) {
       AppLog.failure('weight', 'saving a weigh-in', error, stack);
+      final refused = isPermanentRefusal(error);
+      if (refused) await outbox.release(draft.at);
       if (mounted) {
-        setState(
-          () => _message =
-              'Save could not be confirmed. Check weight history '
-              'before retrying. Your form is still here.',
-        );
+        ref.invalidate(pendingWeightCountProvider);
+        setState(() {
+          if (refused) {
+            _message = 'The server did not accept this entry. Your form is '
+                'still here.';
+          } else {
+            _message = 'Saved on this phone. It uploads to your server as soon '
+                'as it can be reached.';
+            _value.clear();
+            _at = null;
+          }
+        });
       }
     } finally {
       if (mounted) setState(() => _busy = false);

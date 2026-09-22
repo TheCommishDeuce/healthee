@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:healthee/data/journal/journal_repository.dart';
+import 'package:healthee/data/journal/weight_outbox.dart';
 import 'package:healthee/shared/sheets/app_sheet.dart';
 import 'package:healthee/shared/sheets/weight_log_sheet.dart';
 import 'package:healthee/shared/states/async_view.dart';
@@ -41,8 +42,9 @@ class WeightEntry extends StatelessWidget {
         PanelNote(
           signedIn == false
               ? 'Sign in to your server to log weight.'
-              : 'Saved to your server. A connection is required.',
+              : 'Kept on this phone first, then saved to your server.',
         ),
+        const _Waiting(),
       ],
     ),
   );
@@ -50,6 +52,22 @@ class WeightEntry extends StatelessWidget {
 
 /// Watch for the sheet's lifetime: a one-off read can dispose during a retry.
 /// ProviderLogger reports initialization failures through the app's logging path.
+/// How many weigh-ins are held on the phone, when any are. Nothing otherwise.
+class _Waiting extends ConsumerWidget {
+  const _Waiting();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final waiting = ref.watch(pendingWeightCountProvider).value ?? 0;
+    if (waiting == 0) return const SizedBox.shrink();
+    return PanelNote(
+      waiting == 1
+          ? '1 weigh-in is waiting to upload.'
+          : '$waiting weigh-ins are waiting to upload.',
+    );
+  }
+}
+
 class _WeightSheet extends ConsumerWidget {
   const _WeightSheet();
 

@@ -43,6 +43,9 @@ class FakeIngestTransport implements HttpClientAdapter {
   /// The raw JSON of every request body, for secrecy assertions.
   final List<String> rawBodies = [];
 
+  /// The `Authorization` header of every request, in order.
+  final List<Object?> authorizations = [];
+
   /// How many requests were made.
   int get calls => rawBodies.length;
 
@@ -60,6 +63,7 @@ class FakeIngestTransport implements HttpClientAdapter {
         ? options.data as String
         : jsonEncode(options.data);
     rawBodies.add(raw);
+    authorizations.add(options.headers['Authorization']);
     bodies.add(jsonDecode(raw) as Map<String, Object?>);
 
     final shouldFail =
