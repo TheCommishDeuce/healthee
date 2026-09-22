@@ -34,7 +34,8 @@ in front.
 
 ## 0. Install the dynamic config
 
-On the Traefik host, the static config needs a file provider:
+On the Traefik host, the static config needs a file provider **pointed at a
+DIRECTORY**:
 
 ```yaml
 providers:
@@ -42,6 +43,26 @@ providers:
     directory: /etc/traefik/dynamic
     watch: true          # reloads on save; no restart, no dropped connections
 ```
+
+⛔ **Already using a single `config.yml` (`filename:`)?** Convert it. Traefik's file
+provider takes `filename` OR `directory`, not both, so with `filename:` our config
+is never read — `--install` would write a file Traefik ignores, in silence.
+
+```bash
+sudo mkdir -p /etc/traefik/dynamic
+sudo mv /etc/traefik/config.yml /etc/traefik/dynamic/config.yml
+# then in the STATIC config: filename: … -> directory: /etc/traefik/dynamic
+```
+
+Traefik merges every file in the directory, so your existing routers keep working
+untouched and each app owns its own file. This is why `--install` **refuses** to
+write to a file that already contains routers it did not put there: overwriting a
+shared `config.yml` would delete every other app's routing on the host.
+
+If your dynamic config must stay one file, do not use `--install` — run
+`render-dynamic.sh` with no flags and merge the `routers` / `services` /
+`middlewares` entries into your own `http:` block by hand, re-merging on every
+change. The directory is one line and removes that chore permanently.
 
 Then render ours into it, from a checkout on either machine:
 
