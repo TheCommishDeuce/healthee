@@ -2,12 +2,23 @@
 #
 # Install (as root):
 #   cp infra/backup/healthee-backup.{service,timer} /etc/systemd/system/
-#   # edit WorkingDirectory/ExecStart below to your checkout path + user
+#   # edit User + the three paths below to match YOUR box
 #   systemctl daemon-reload
 #   systemctl enable --now healthee-backup.timer
 #   systemctl start healthee-backup.service   # run once now to verify
 #
 # Check results:  journalctl -u healthee-backup.service --since today
+#
+# ⛔ DOCKGE DEPLOYMENTS: the two Environment= lines are not optional.
+# Without them the script falls back to the nginx-topology stack
+# (infra/docker/docker-compose.prod.yml + infra/.env), which on a Dockge box does
+# not exist — so the nightly backup fails every night while the deploy-time backup,
+# which passes these itself, keeps working. That combination is how you discover the
+# gap during a restore instead of before one.
+#
+# Verify after installing, and do not skip this:
+#   systemctl start healthee-backup.service
+#   ls -lh /var/backups/healthee/       # a dated .sql.gz must appear NOW
 
 [Unit]
 Description=Healthee Postgres backup (pg_dump -> gzip -> prune)
@@ -16,9 +27,13 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-# Adjust to the deploy user + checkout path on your VPS.
-User=ashish
-WorkingDirectory=/home/ashish/healthee
-ExecStart=/home/ashish/healthee/infra/backup/pg_dump_backup.sh
+# Adjust all four to your box. The user must be able to talk to the Docker socket.
+User=root
+WorkingDirectory=/opt/healthee
+# Which stack to dump. On a Dockge box these point at the STACK directory, which is
+# outside the repo checkout — see the warning in the header.
+Environment=HEALTHEE_COMPOSE_FILE=/opt/stacks/healthee/compose.yaml
+Environment=HEALTHEE_ENV_FILE=/opt/stacks/healthee/.env
+ExecStart=/opt/healthee/infra/backup/pg_dump_backup.sh
 # The script exits non-zero on failure; systemd records it as failed so a
 # journal/alert watcher can catch it.
