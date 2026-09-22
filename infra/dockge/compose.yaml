@@ -201,6 +201,68 @@ services:
 
 
 
+  # ── auth (self-hosted GoTrue) ────────────────────────────────
+  # The identity provider, run here instead of on hosted Supabase. The API only ever
+  # VERIFIES what this issues (`core/supabase_auth.py`) — it never mints a JWT.
+  #
+  # ⚠ HS256 ONLY. `_jwks_url()` hardcodes `https://<ref>.supabase.co/...`, so the
+  # asymmetric path cannot reach a self-hosted instance. That is why the secret below
+  # is shared with the api rather than a key being published.
+  #
+  # ⛔ GOTRUE_JWT_SECRET and the api's SUPABASE_JWT_SECRET are THE SAME VALUE, and it
+  # is interpolated from the one `.env` key here so they cannot drift. If they ever
+  # differ, every sign-in succeeds at GoTrue and then 401s at the API — which reads
+  # as "the server is broken", not as "two secrets disagree".
+  #
+  # Its tables live in the `auth` schema of the SAME database, on purpose: `pg_dump`
+  # then covers them. A separate database would mean a restore that brings back every
+  # measurement and no way to log in — every `app_user` row keys off a uuid this
+  # service owns.
+  auth:
+    image: supabase/auth:${GOTRUE_VERSION:-v2.197.0}
+    container_name: healthee-auth
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      # What GoTrue believes its public address is — used in email links and in the
+      # issuer claim. Must match what the app is told, which is PUBLIC_HOST + the
+      # /auth/v1 prefix Traefik strips before forwarding.
+      API_EXTERNAL_URL: https://${PUBLIC_HOST}/auth/v1
+      GOTRUE_SITE_URL: https://${PUBLIC_HOST}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://gotrue:${GOTRUE_DB_PASSWORD:?set GOTRUE_DB_PASSWORD and create the role — see infra/dockge/README.md}@db:5432/${POSTGRES_DB}?search_path=auth&sslmode=disable
+      GOTRUE_DB_NAMESPACE: auth
+      GOTRUE_JWT_SECRET: ${SUPABASE_JWT_SECRET:?the api and GoTrue must share one secret}
+      GOTRUE_JWT_AUD: ${SUPABASE_JWT_AUD:-authenticated}
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${GOTRUE_JWT_EXP:-3600}
+      # ⚠ Flip to true once YOUR account exists. This is GoTrue's own gate on
+      # creating accounts; the API keeps its separate SIGNUP_ALLOWLIST, and the two
+      # are deliberately independent — belt and braces on the one irreversible action.
+      GOTRUE_DISABLE_SIGNUP: ${GOTRUE_DISABLE_SIGNUP:-false}
+      # No SMTP on this box, so confirmation mail cannot be delivered. Autoconfirm
+      # makes sign-up work without it. Safe ONLY because signup is gated twice
+      # (above, and the API's allowlist); on an open signup it would let anyone
+      # register any address without proving they hold it.
+      GOTRUE_MAILER_AUTOCONFIRM: ${GOTRUE_MAILER_AUTOCONFIRM:-true}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_LOG_LEVEL: ${GOTRUE_LOG_LEVEL:-info}
+    # Published for the same reason the api is: Traefik is on another machine.
+    # Same required private address — this endpoint accepts passwords, so a 0.0.0.0
+    # bind here is a credential-stuffing target with no edge in front of it.
+    ports:
+      - "${HEALTHEE_BIND_ADDR:?set HEALTHEE_BIND_ADDR to this box's PRIVATE ip — see infra/dockge/README.md}:9999:9999"
+    # No healthcheck: this image is minimal and carries no curl/wget, so any probe
+    # written here would fail forever and paint the container red in Dockge for a
+    # reason that is not true. Traefik health-checks GET /health from the edge
+    # instead, which is where an unreachable auth service actually matters.
+    networks:
+      - healthee-net
+
   # ── scheduler ───────────────────────────────────────────────────────────
   # The supervised in-process job runner: the self-rescheduling loop that fires
   # correlate → recs → briefing on their daily IST timers. Same image, CMD

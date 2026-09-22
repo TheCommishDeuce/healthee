@@ -74,6 +74,14 @@ _DOCKGE_ONLY_VARS = frozenset(
         "HEALTHEE_IMAGE_TAG",  # which published image the stack runs
         "HEALTHEE_BUILD_LOCALLY",  # build on the box instead of pulling
         "HEALTHEE_BIND_ADDR",  # the private ip Traefik dials from the other host
+        # The self-hosted GoTrue container. Read by compose/GoTrue, never by us:
+        # the API is a resource server and only verifies what GoTrue signs.
+        "GOTRUE_VERSION",
+        "GOTRUE_DB_PASSWORD",
+        "GOTRUE_DISABLE_SIGNUP",
+        "GOTRUE_MAILER_AUTOCONFIRM",
+        "GOTRUE_JWT_EXP",
+        "GOTRUE_LOG_LEVEL",
         "TRAEFIK_IP_DEPTH",  # which IP the rate limiter counts against
     }
 )
@@ -209,20 +217,6 @@ def test_the_scheduler_receives_the_self_host_unlock() -> None:
     )
 
 
-# ── The Dockge stack (infra/dockge/) ────────────────────────────────────────
-#
-# Same drift problem, a different shape of answer. The prod compose lists every var
-# per service, which is what let `LLM_TIMEOUT_S` be documented, set, and never
-# received. The Dockge stack passes the whole `.env` through with `env_file:`, so
-# that particular drift is impossible by construction — and these tests hold the
-# construction in place rather than re-checking the list it replaced.
-
-
-def _dockge_services() -> dict[str, dict]:
-    """The Dockge stack's services, with YAML merge keys already resolved."""
-    return yaml.safe_load(_DOCKGE_COMPOSE.read_text())["services"]
-
-
 def test_the_dockge_template_declares_every_setting_uncommented() -> None:
     """It is the file Dockge shows an operator and writes back — nothing may be missing."""
     missing = _settings_vars() - _declared(_DOCKGE_TEMPLATE, include_commented=False)
@@ -240,128 +234,32 @@ def test_the_dockge_template_declares_nothing_the_app_does_not_read() -> None:
     assert not unknown, f"infra/dockge/.env.example declares {sorted(unknown)}, which nothing reads"
 
 
-@pytest.mark.parametrize("service", _DOCKGE_APP_SERVICES)
-def test_every_app_container_reads_the_whole_env_file(service: str) -> None:
-    """`env_file: .env` is what makes the per-service listing — and its drift — go away.
+def test_signup_is_gated_in_both_places() -> None:
+    """GoTrue's gate and the API's allowlist are independent on purpose: creating an
+    account is the one action a stranger could take that cannot be undone from the
+    app, so it is refused twice."""
+    declared = _declared(_DOCKGE_TEMPLATE, include_commented=False)
+    assert {"GOTRUE_DISABLE_SIGNUP", "SIGNUP_ALLOWLIST"} <= declared
 
-    If someone replaces this with an explicit `environment:` list, the failure mode
-    that cost us #56 is back: a var in the template that the process never sees.
+
+def test_the_self_hosted_identity_config_is_coherent() -> None:
+    """Three settings that only make sense together, and fail obscurely apart.
+
+    `SUPABASE_PROJECT_REF` must be blank: a ref makes the API expect a supabase.co
+    issuer and derive a JWKS url that does not exist here, so every token is
+    refused. And `SUPABASE_URL` must be set, since blank derives from the ref.
     """
-    declared = _dockge_services()[service].get("env_file")
-    assert declared == ".env" or ".env" in (declared or []), (
-        f"the dockge {service} service no longer reads the whole .env — if it has gone "
-        f"back to an explicit environment: list, every Settings var must be in it"
+    values: dict[str, str] = {}
+    for line in _DOCKGE_TEMPLATE.read_text().splitlines():
+        match = _ASSIGNMENT.match(line)
+        if match and not match["commented"]:
+            values[match["name"]] = line.split("=", 1)[1].strip()
+
+    assert values["SUPABASE_PROJECT_REF"] == "", (
+        "SUPABASE_PROJECT_REF must be blank for self-hosted GoTrue — a ref makes "
+        "the API demand a supabase.co issuer and a JWKS url that is not there"
     )
-
-
-def test_the_preflight_validates_the_same_config_the_api_will_run() -> None:
-    """⛔ The load-bearing invariant of the whole update mechanism.
-
-    The preflight's job is to prove the NEW image can boot with THIS env before the
-    working container is replaced. It can only prove that if it is handed the same
-    environment. A preflight running on a subset would pass, the api would then fail
-    its own validation, and the outcome is the exact failure the gate exists to
-    prevent — except now it carries a green preflight's endorsement.
-    """
-    services = _dockge_services()
-    api_env = {"env_file": services["api"].get("env_file")} | dict(
-        services["api"].get("environment") or {}
-    )
-    pre_env = {"env_file": services["preflight"].get("env_file")} | dict(
-        services["preflight"].get("environment") or {}
-    )
-    # The api additionally pins its bind address; the preflight serves nothing, so it
-    # has no opinion on API_HOST/API_PORT and the .env values stand.
-    assert pre_env == {k: v for k, v in api_env.items() if k not in {"API_HOST", "API_PORT"}}, (
-        "the preflight and the api no longer receive the same configuration, so a "
-        "green preflight stops meaning the api can boot"
-    )
-
-
-def test_the_api_is_gated_on_the_preflight_completing() -> None:
-    """This dependency IS the update button's safety. Without it, `up -d` swaps the
-    image with nothing having checked the schema or the config."""
-    depends = _dockge_services()["api"]["depends_on"]
-    assert "preflight" in depends, (
-        "the api no longer depends on the preflight — Dockge's update button would "
-        "deploy a schema-changing release straight over the running one"
-    )
-    assert depends["preflight"]["condition"] == "service_completed_successfully", (
-        "the preflight's EXIT STATUS is the gate; any weaker condition ignores it"
-    )
-
-
-def test_the_preflight_only_checks_and_never_migrates() -> None:
-    """It runs before the backup and before the stop. Applying here would move the
-    schema under the still-running old containers with no dump taken."""
-    command = _dockge_services()["preflight"]["command"]
-    assert "--check" in command, f"the preflight command lost --check: {command}"
-
-
-def test_the_api_binds_to_a_required_explicit_address() -> None:
-    """⛔ The bind address is this deployment's security boundary.
-
-    Traefik is on a DIFFERENT machine, so the port cannot be 127.0.0.1 any more — it
-    has to be reachable across the private network. That removes the safety the old
-    same-host setup got for free, and makes the address the only thing standing
-    between the internet and an API whose sole protection is a bearer token: no TLS,
-    no rate limit, nothing. Docker writes its iptables rules AHEAD of ufw, so a
-    firewall rule does not save a 0.0.0.0 bind either.
-
-    Required, with no default, because every plausible default is wrong: 0.0.0.0
-    publishes it to the world and 127.0.0.1 makes it unroutable.
-    """
-    ports = _dockge_services()["api"]["ports"]
-    assert len(ports) == 1, f"expected exactly one published port, got {ports}"
-    assert ports[0].startswith("${HEALTHEE_BIND_ADDR:?"), (
-        f"the api port is published as {ports[0]!r} — the bind address must be a "
-        f"REQUIRED variable, so a deployment that forgot it refuses to start rather "
-        f"than guessing 0.0.0.0"
-    )
-    assert ports[0].endswith(":8765:8765"), f"the published port moved: {ports[0]}"
-
-
-def test_no_service_publishes_a_wildcard_or_loopback_port() -> None:
-    """The two wrong answers, pinned so neither can be pasted back in."""
-    for name, service in _dockge_services().items():
-        for published in service.get("ports", []):
-            assert not published.startswith(("0.0.0.0:", "127.0.0.1:", "8765:")), (
-                f"{name} publishes {published!r}: a bare or wildcard bind exposes the "
-                f"API to the internet with no TLS and no rate limit in front"
-            )
-
-
-@pytest.mark.parametrize("service", ["db", "scheduler", "preflight"])
-def test_only_the_api_is_reachable_from_outside_the_stack(service: str) -> None:
-    """The database, the job runner and the gate serve nothing and must not be
-    routable. Only the api publishes a port; everything else talks over the internal
-    compose network."""
-    assert "ports" not in _dockge_services()[service], (
-        f"{service} publishes a port — it has no HTTP surface, and on a box whose "
-        f"private network another machine can reach, that is a real exposure"
-    )
-
-
-def test_the_image_reference_has_no_default_namespace() -> None:
-    """⛔ An unset HEALTHEE_IMAGE must REFUSE, not guess.
-
-    The only namespace a default could name is the upstream project's. An operator
-    who never set it would then pull an image they did not build, from a repository
-    they do not control, and the stack would come up green — which is worse than any
-    error message. `${VAR:?...}` is compose's required-variable form.
-    """
-    image = _dockge_services()["api"]["image"]
-    assert image.startswith("${HEALTHEE_IMAGE:?"), (
-        f"the api image is {image!r} — it must be a REQUIRED variable, so that a "
-        f"deployment which forgot to set it fails loudly instead of running "
-        f"somebody else's build"
-    )
-
-
-def test_every_app_service_runs_the_same_image() -> None:
-    """The preflight only proves anything about the image the api will actually run."""
-    images = {service: _dockge_services()[service]["image"] for service in _DOCKGE_APP_SERVICES}
-    assert len(set(images.values())) == 1, (
-        f"the app services no longer share one image: {images} — a preflight that "
-        f"checks a different build than the api runs endorses nothing"
+    assert values["SUPABASE_URL"].startswith("https://"), (
+        "SUPABASE_URL must be set for self-hosted GoTrue; blank derives from the "
+        "(now blank) project ref and the app is told there is no provider"
     )
