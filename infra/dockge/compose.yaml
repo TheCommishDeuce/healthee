@@ -4,10 +4,23 @@
 # /opt/stacks/healthee/), fill in `.env` from `.env.example`, and Dockge owns it.
 # Setup + the first-run checks: infra/dockge/README.md.
 #
-#   db          TimescaleDB. Internal-only, never published, never on the proxy net.
+#   db          TimescaleDB. Internal-only, never published.
 #   preflight   One-shot gate on the NEW image. See "THE UPDATE BUTTON" below.
-#   api         FastAPI. No published port — Traefik reaches it on the proxy network.
+#   api         FastAPI, published on the PRIVATE interface only (see below).
 #   scheduler   The nightly chain. Same image, different command.
+#
+# ── TRAEFIK IS ON A DIFFERENT MACHINE ────────────────────────────────
+#
+# ⛔ There are NO `traefik.*` labels in this file, and adding some would do nothing.
+# Traefik's Docker provider reads labels from ITS OWN daemon's socket. Ours runs on
+# another host, so it cannot see these containers at all — the stack would come up
+# green and simply never be routed, which is the worst way to learn this.
+#
+# The router, the service and all four middlewares therefore live in a FILE on the
+# Traefik host: `infra/traefik/healthee.yml.template`, rendered by
+# `infra/traefik/render-dynamic.sh`. Traefik dials this box over the private network
+# at the address published below. Both halves have to agree, so whenever you change
+# HEALTHEE_BIND_ADDR here, re-render there.
 #
 # ── THE UPDATE BUTTON, and what it can and cannot do ────────────────────────
 #
@@ -31,15 +44,16 @@
 # keys; 0007 drops a DEFAULT), so the new image on the old schema does not degrade,
 # it breaks — and it breaks while writing health data.
 #
-# ── What Traefik CANNOT do from labels ──────────────────────────────────────
+# ── The edge's protections are NOT here ─────────────────────────────────────
 #
-# Two protections the retired nginx vhost had are static Traefik config and are NOT
-# in this file, because no label can express them. Both are live-fire issues, not
-# tidiness: infra/traefik/CHECKLIST.md. In short — trust the Cloudflare IP ranges on
-# the entrypoint (or the rate limiter throttles the whole world as one client), and
-# keep request PATHS out of Traefik's access log (`/api/map/tiles/17/x/y` + a
-# timestamp is a location history, which is the exact thing the tile proxy exists to
-# prevent).
+# The body cap, rate limit, connection cap and security headers are all on the
+# Traefik host now (`infra/traefik/`), and two more — Cloudflare IP trust and
+# access-log suppression — are its static config. All of it is live-fire, none of it
+# is tidiness: infra/traefik/CHECKLIST.md.
+#
+# What that means for THIS file: the port published below has NO protection in front
+# of it. Anything that can reach it skips every middleware and talks straight to the
+# app. That is why the bind address is a required variable rather than a default.
 
 # Every container gets the SAME environment, from the one `.env` Dockge edits.
 #
@@ -144,9 +158,25 @@ services:
       API_PORT: 8765
     volumes:
       - healthee-geocache:/var/cache/healthee
-    # ⛔ NO `ports:`. Traefik reaches this container on the proxy network; nothing
-    # about the API should be reachable on the host. (The old stack published
-    # 127.0.0.1:8765 because nginx ran on the host and had no other route in.)
+    # ⛔ THE BIND ADDRESS IS THE SECURITY BOUNDARY OF THIS DEPLOYMENT.
+    #
+    # Traefik is on another machine, so the port must be reachable from there — which
+    # means it cannot be 127.0.0.1. It must be THIS BOX'S PRIVATE-NETWORK IP and
+    # nothing else. Required (`:?`), with no default, because every plausible default
+    # is wrong in a different way:
+    #
+    #   0.0.0.0    publishes the API to the internet with NO TLS, NO rate limit and
+    #              bearer-token auth as the only thing between a stranger and an
+    #              owner's health record. Docker writes its own iptables rules AHEAD
+    #              of ufw, so a ufw DENY does not save you here — the bind address is
+    #              the fix, not the firewall.
+    #   127.0.0.1  correct for the old same-host nginx, and unreachable for Traefik
+    #              now. The stack would be healthy and the site would 502.
+    #
+    # Verify from a THIRD machine after deploying: connecting to <public-ip>:8765 must
+    # fail, and from the Traefik host it must succeed. README has the one-liner.
+    ports:
+      - "${HEALTHEE_BIND_ADDR:?set HEALTHEE_BIND_ADDR to this box's PRIVATE ip — see infra/dockge/README.md}:8765:8765"
     healthcheck:
       test:
         [
@@ -161,58 +191,15 @@ services:
       start_period: 20s
     networks:
       - healthee-net
-      - proxy
     labels:
-      - "traefik.enable=true"
+      # Dockge shows these in its UI. Purely informational — nothing reads them.
+      - "healthee.edge=traefik on a separate host; see infra/traefik/"
       # Which network Traefik should dial — required when a container is on more
       # than one, or Traefik may pick healthee-net and never reach it.
-      - "traefik.docker.network=${TRAEFIK_NETWORK:-proxy}"
-      - "traefik.http.routers.healthee.rule=Host(`${PUBLIC_HOST}`)"
-      - "traefik.http.routers.healthee.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
-      - "traefik.http.routers.healthee.tls=true"
-      - "traefik.http.routers.healthee.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
-      - "traefik.http.services.healthee.loadbalancer.server.port=8765"
-      - "traefik.http.routers.healthee.middlewares=healthee-ratelimit@docker,healthee-inflight@docker,healthee-body@docker,healthee-headers@docker"
 
-      # ── Rate limit — was `limit_req zone=… rate=20r/s burst=100 nodelay` ──
-      # The number comes from what the CLIENT does: a full sync drain is at most
-      # maxPages 20 × maxDrainRounds 12 sequential POSTs, and a screen load is a
-      # handful of GETs. 20/s with a burst of 100 is far above either and still a
-      # bound. It exists because /healthz and /readyz are unauthenticated and both
-      # run a SELECT 1 on a pool of at most 10 — pool exhaustion by anybody at all.
-      #
-      # ⚠ `depth` MUST match your edge. 0 uses the TCP peer, which behind Cloudflare
-      # is a Cloudflare IP — so every visitor on earth shares one bucket and one
-      # user's sync throttles everybody. Behind CF set TRAEFIK_IP_DEPTH=1 AND trust
-      # the CF ranges on the entrypoint (infra/traefik/CHECKLIST.md §1).
-      - "traefik.http.middlewares.healthee-ratelimit.ratelimit.average=20"
-      - "traefik.http.middlewares.healthee-ratelimit.ratelimit.period=1s"
-      - "traefik.http.middlewares.healthee-ratelimit.ratelimit.burst=100"
-      - "traefik.http.middlewares.healthee-ratelimit.ratelimit.sourcecriterion.ipstrategy.depth=${TRAEFIK_IP_DEPTH:-0}"
 
-      # ── Concurrent requests per client — was `limit_conn healthee_conn 24` ──
-      - "traefik.http.middlewares.healthee-inflight.inflightreq.amount=24"
-      - "traefik.http.middlewares.healthee-inflight.inflightreq.sourcecriterion.ipstrategy.depth=${TRAEFIK_IP_DEPTH:-0}"
 
-      # ── Body cap 8 MB — was `client_max_body_size 8M` ──
-      # The largest body this API accepts is bounded by the models: 4,000 samples a
-      # page (~a few hundred KB) and GpsTrackIn's 28,800 points (~1 MB). There is no
-      # multipart route. 8 MB is an order of magnitude above either.
-      # ⚠ Unlike nginx, Traefik BUFFERS to enforce this; memrequestbodybytes is how
-      # much stays in RAM before it spills to disk.
-      - "traefik.http.middlewares.healthee-body.buffering.maxrequestbodybytes=8388608"
-      - "traefik.http.middlewares.healthee-body.buffering.memrequestbodybytes=2097152"
 
-      # ── Security headers — were `add_header … always` ──
-      # Traefik sets these on error responses too, which is where a missing nosniff
-      # actually bites.
-      - "traefik.http.middlewares.healthee-headers.headers.contenttypenosniff=true"
-      - "traefik.http.middlewares.healthee-headers.headers.framedeny=true"
-      - "traefik.http.middlewares.healthee-headers.headers.referrerpolicy=no-referrer"
-      # HSTS, which the nginx template deliberately did NOT set — it only owned the
-      # :80 vhost and could not keep that promise. Traefik owns TLS here, so it can.
-      - "traefik.http.middlewares.healthee-headers.headers.stsseconds=31536000"
-      - "traefik.http.middlewares.healthee-headers.headers.stsincludesubdomains=false"
 
   # ── scheduler ───────────────────────────────────────────────────────────
   # The supervised in-process job runner: the self-rescheduling loop that fires
@@ -252,9 +239,3 @@ volumes:
 networks:
   healthee-net:
     driver: bridge
-  # Traefik's network, created and owned OUTSIDE this stack. `external: true` means
-  # compose will refuse to start rather than quietly create a second, unrouted
-  # network of the same name.
-  proxy:
-    external: true
-    name: ${TRAEFIK_NETWORK:-proxy}

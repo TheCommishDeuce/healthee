@@ -73,9 +73,7 @@ _DOCKGE_ONLY_VARS = frozenset(
         "HEALTHEE_IMAGE",  # which repository the image is pulled from
         "HEALTHEE_IMAGE_TAG",  # which published image the stack runs
         "HEALTHEE_BUILD_LOCALLY",  # build on the box instead of pulling
-        "TRAEFIK_NETWORK",  # the external proxy network to join and be dialled on
-        "TRAEFIK_ENTRYPOINT",
-        "TRAEFIK_CERTRESOLVER",
+        "HEALTHEE_BIND_ADDR",  # the private ip Traefik dials from the other host
         "TRAEFIK_IP_DEPTH",  # which IP the rate limiter counts against
     }
 )
@@ -300,22 +298,47 @@ def test_the_preflight_only_checks_and_never_migrates() -> None:
     assert "--check" in command, f"the preflight command lost --check: {command}"
 
 
-def test_the_api_publishes_no_port_to_the_host() -> None:
-    """Traefik reaches the container on the proxy network. A published port is a
-    second, unprotected way in that bypasses every middleware on the router —
-    the rate limit, the body cap and the security headers all live there."""
-    assert "ports" not in _dockge_services()["api"], (
-        "the dockge api service publishes a port; Traefik does not need one and "
-        "anything bound on the host skips the middleware chain entirely"
+def test_the_api_binds_to_a_required_explicit_address() -> None:
+    """⛔ The bind address is this deployment's security boundary.
+
+    Traefik is on a DIFFERENT machine, so the port cannot be 127.0.0.1 any more — it
+    has to be reachable across the private network. That removes the safety the old
+    same-host setup got for free, and makes the address the only thing standing
+    between the internet and an API whose sole protection is a bearer token: no TLS,
+    no rate limit, nothing. Docker writes its iptables rules AHEAD of ufw, so a
+    firewall rule does not save a 0.0.0.0 bind either.
+
+    Required, with no default, because every plausible default is wrong: 0.0.0.0
+    publishes it to the world and 127.0.0.1 makes it unroutable.
+    """
+    ports = _dockge_services()["api"]["ports"]
+    assert len(ports) == 1, f"expected exactly one published port, got {ports}"
+    assert ports[0].startswith("${HEALTHEE_BIND_ADDR:?"), (
+        f"the api port is published as {ports[0]!r} — the bind address must be a "
+        f"REQUIRED variable, so a deployment that forgot it refuses to start rather "
+        f"than guessing 0.0.0.0"
     )
+    assert ports[0].endswith(":8765:8765"), f"the published port moved: {ports[0]}"
 
 
-@pytest.mark.parametrize("service", ["db", "scheduler"])
-def test_only_the_api_is_on_the_proxy_network(service: str) -> None:
-    """The database and the job runner serve nothing and must not be routable."""
-    assert "proxy" not in _dockge_services()[service].get("networks", []), (
-        f"{service} is on the Traefik network — it has no HTTP surface and nothing "
-        f"outside this stack should be able to reach it"
+def test_no_service_publishes_a_wildcard_or_loopback_port() -> None:
+    """The two wrong answers, pinned so neither can be pasted back in."""
+    for name, service in _dockge_services().items():
+        for published in service.get("ports", []):
+            assert not published.startswith(("0.0.0.0:", "127.0.0.1:", "8765:")), (
+                f"{name} publishes {published!r}: a bare or wildcard bind exposes the "
+                f"API to the internet with no TLS and no rate limit in front"
+            )
+
+
+@pytest.mark.parametrize("service", ["db", "scheduler", "preflight"])
+def test_only_the_api_is_reachable_from_outside_the_stack(service: str) -> None:
+    """The database, the job runner and the gate serve nothing and must not be
+    routable. Only the api publishes a port; everything else talks over the internal
+    compose network."""
+    assert "ports" not in _dockge_services()[service], (
+        f"{service} publishes a port — it has no HTTP surface, and on a box whose "
+        f"private network another machine can reach, that is a real exposure"
     )
 
 
