@@ -81,12 +81,17 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 | U17 | Proposed/deferred | Landing site is a separate Astro marketing/waitlist site, unrelated to the Android UI. Owner did not know it existed. No deletion needed to deliver the first mobile slice. |
 | U18 | Accepted with dependency check | Replace the crowded Today composition. Do not blindly delete every file under `features/today`: Sleep, Activity and pushed details share some of them. |
 | U19 | Accepted | No new gym exercise catalogue, sets/reps or progression tracker for now. Does not remove strap-recorded workouts (U16). |
+| U20 | Implementation choice for U11 | Today uses three full-width cards, without the age hero, dashboard chapters or floating coach button. Recovery keeps its factor bars; weighting/method detail remains reachable rather than duplicating the full detail page. |
+| U21 | Implementation choice for U5 | Weight entry opens the existing validated form directly. Its sheet observes credential loading/retries for its lifetime; unconfirmed saves retain the typed draft. No offline-queue claim. |
+| U22 | Implementation choice for U2/A3 | Sleep timestamps are displayed in phone-local time, explicitly labelled local and including the year. The server sends timestamp instants, not necessarily owner-local dates. Missing dates are explicit. Local sleep is a fallback only when no server answer exists, never a way around a server refusal. |
 
 ### Presentation constraints for the first slice
 
 - Sleep summary links to the full Sleep page; date older sleep explicitly.
 - Recovery means the **overnight recovery estimate**, not the live, exertion-decayed
   readiness figure. Preserve factor breakdown and medical/safety qualifications.
+- Activity receives the existing linked heart-rate/stress chart; its measurement guards
+  and non-causality warning stay intact. Sleep's implementation is unchanged.
 - Weight entry must distinguish saving, confirmed save, and failure; never clear an
   unconfirmed input or claim it was queued offline when it was not.
 - Keep sync status, retry, cached-data provenance and illness notices without recreating

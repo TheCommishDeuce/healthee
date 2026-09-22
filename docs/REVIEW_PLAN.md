@@ -14,7 +14,14 @@ Starting revision: `c071c15`. Working branch: `feat/mobile-simplification`.
   runtime code.
 - `b3c4e47`: removed mobile GPS/maps, their entry points and geolocation dependency;
   kept strap workouts, old stored data and BLE permissions intact.
-- **Next:** the Today screen slice below. It has not been implemented yet.
+- Today now shows sleep, overnight recovery and direct weight entry. The linked HR/stress
+  chart moved to Activity; Sleep and recorded-workout behavior are retained. Old Today
+  chapters and the floating coach button are removed. Widget screenshots are in
+  `docs/screenshots/personal-today-{light,dark}.png` (fixtures, not personal data).
+- Latest mobile gate: **2,059 passed, 6 skipped**, analyzer clean, debug APK built;
+  **12 targeted mutations caught**, none survived. Not a full mutation sweep.
+- **Next:** review remaining journal/Actions navigation without deleting shared weight
+  plumbing or nightly analytics. Insights remains available for first-build review.
 - QR enrollment, full-history mirroring and local-LLM integration remain later work.
 
 ## Outcome

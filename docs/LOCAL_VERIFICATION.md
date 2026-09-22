@@ -1,13 +1,47 @@
 # Local build and verification — 2026-09-22
 
 Branch: `feat/mobile-simplification`, starting at `c071c15`.
-This first slice establishes the baseline and removes **mobile GPS/maps only**.
-Today/Sleep/Activity restructuring, QR auth, historical mirroring and nightly local LLM
-integration are still pending. No production credentials, services or database changed.
+The baseline and GPS removal are recorded below, followed by the simplified Today
+slice. QR auth, historical mirroring and nightly local LLM integration remain pending.
+No production credentials, services or database changed.
 
 Changes: `0ea9902` (portable lease test), `b3c4e47` (GPS removal). The latter deletes
 27 mobile GPS/map source files and removes nine resolved dependencies; it is not the
 full UI redesign.
+
+## Simplified Today — `519022b` and local-date follow-up
+
+Today now has sleep, overnight recovery (with factor bars), and direct weight entry.
+The linked HR/stress chart moved to Activity. Sleep, workout details, the Body/fitness
+pages and their shared guards remain; the old home chapters, surplus dashboard widgets
+and floating coach button were removed. The shared weight form was moved, not rewritten.
+
+- Baseline at `2a4d2d9`: **2,161 passed, 6 skipped**.
+- After this slice: **2,059 passed, 6 skipped**, analyzer clean, 400-line gate passed.
+- **12 targeted mutations caught, none survived.** Seven target the new overview/write
+  flow; five protect shared confidence, missing-factor and date-selection behavior.
+  The full 309-mutation sweep was **not** run.
+- Debug APK rebuilt; its Dart payload contains the new weight/date UI and no
+  `TodayChapters`. This is not the earlier APK merely copied under a new name.
+- Server/infra/contracts, BLE code, local store and upload logic are unchanged. The
+  server suite was not rerun for this mobile-only slice; prior isolated results below
+  remain the server baseline.
+
+Retired-layout tests were removed with their widgets. Tests for surviving Body, Sleep,
+Activity, navigation and confidence behavior were rehosted or updated, not disabled.
+New tests exercise local sleep during outages, explicit refusal vs fallback, dated and
+undated sleep, different timezone offsets, narrow layout, weight validation, delayed
+credentials/retries, and unconfirmed saves retaining their draft.
+
+Weight entry still needs the server; it is **not** a durable offline manual-log queue.
+Sleep instants are explicitly labelled phone-local (including year). The server's wire
+zone can be UTC rather than the owner's timezone, so truncating the wire timestamp to
+its date would give the wrong local day near midnight.
+
+Fixture-only widget renders at 390×844, with bundled fonts, inspected in both themes:
+[dark](screenshots/personal-today-dark.png) · [light](screenshots/personal-today-light.png).
+These show Today content without the app's tab bar, not a physical phone or personal data.
+Logs: `/tmp/healthee-today/`. Physical BLE/background/offline replay remains unverified.
 
 ## Toolchain on this Mac
 
@@ -53,8 +87,8 @@ usage (`flutter_timezone`, `refresh_rate`, `workmanager_android`); the pinned bu
 | Targeted mutation tests | — | GPS removal: 2 caught; Activity: 4 caught; none survived |
 
 The full mutation sweep was **not** run; these were explicitly filtered runs. No real
-Android device is connected, so BLE hardware, background collection, visual review and
-physical outage replay are **not verified** by this session.
+Android device is connected, so BLE hardware, background collection and physical
+outage replay are **not verified**. Visual checks above are widget renders only.
 
 ### The one mobile baseline failure
 
