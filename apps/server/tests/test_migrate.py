@@ -5,6 +5,7 @@ TimescaleDB is covered by the integration test.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -108,3 +109,89 @@ def test_apply_records_each_migration_version(monkeypatch: pytest.MonkeyPatch) -
     # The DDL ran, then the version was recorded in the same transaction.
     assert any("INSERT INTO schema_migrations" in sql for sql, _ in calls)
     assert ("INSERT INTO schema_migrations (version) VALUES (%s)", ("0001_initial",)) in calls
+
+
+# ── `--check`: the deploy preflight ─────────────────────────────────────────
+#
+# This is what stands between Dockge's "update" button (`compose pull` + `up -d`,
+# and nothing else) and a new image serving a schema it does not match. Its exit
+# status IS the mechanism: compose gates the app containers on it completing
+# successfully, so these tests assert the status, not just the log line.
+
+
+def test_check_exits_non_zero_when_migrations_are_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pending migration must REFUSE the swap — a clean exit here deploys it."""
+    baseline = next(p for p in migrate._migration_files() if p.stem == "0001_initial")
+    monkeypatch.setattr(migrate, "pending_migrations", lambda: [baseline])
+
+    with pytest.raises(SystemExit) as exit_info:
+        migrate._check()
+
+    assert exit_info.value.code != 0, "a pending migration exited 0 — compose would deploy it"
+
+
+def test_check_names_the_pending_migrations(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A refusal that does not say what it is refusing over is just an outage."""
+    baseline = next(p for p in migrate._migration_files() if p.stem == "0001_initial")
+    monkeypatch.setattr(migrate, "pending_migrations", lambda: [baseline])
+
+    with caplog.at_level("ERROR"), pytest.raises(SystemExit):
+        migrate._check()
+
+    assert "0001_initial" in caplog.text
+    assert "infra/deploy.sh" in caplog.text, "the refusal must point at the path that fixes it"
+
+
+def test_check_returns_cleanly_when_the_schema_is_current(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The common case — a code-only release must sail through the button."""
+    monkeypatch.setattr(migrate, "pending_migrations", list)
+    migrate._check()  # no SystemExit
+
+
+def test_check_never_applies_anything(monkeypatch: pytest.MonkeyPatch) -> None:
+    """⛔ The preflight INSPECTS. It runs before the backup and before the stop.
+
+    A `--check` that quietly applied what it found would move the schema under the
+    still-running old containers with no dump taken — strictly worse than the button
+    it exists to make safe.
+    """
+    baseline = next(p for p in migrate._migration_files() if p.stem == "0001_initial")
+    monkeypatch.setattr(migrate, "pending_migrations", lambda: [baseline])
+
+    def _explode(path: object) -> None:
+        raise AssertionError(f"the preflight applied {path}")
+
+    monkeypatch.setattr(migrate, "_apply_one", _explode)
+
+    with pytest.raises(SystemExit):
+        migrate._check()
+
+
+def test_main_dispatches_check_instead_of_applying(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`--check` must reach `_check` — a flag parsed wrong runs the real migration."""
+    monkeypatch.setattr(sys, "argv", ["healthee.db.migrate", "--check"])
+
+    def _explode() -> list[str]:
+        raise AssertionError("main() applied migrations despite --check")
+
+    monkeypatch.setattr(migrate, "apply_migrations", _explode)
+    monkeypatch.setattr(migrate, "pending_migrations", list)
+
+    migrate.main()
+
+
+def test_main_without_the_flag_still_applies(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reverse direction: the preflight must not have disarmed the real deploy."""
+    monkeypatch.setattr(sys, "argv", ["healthee.db.migrate"])
+    called: list[bool] = []
+    monkeypatch.setattr(migrate, "apply_migrations", lambda: called.append(True) or [])
+
+    migrate.main()
+
+    assert called, "main() no longer applies migrations when --check is absent"
