@@ -85,6 +85,18 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 | U21 | Implementation choice for U5 | Weight entry opens the existing validated form directly. Its sheet observes credential loading/retries for its lifetime; unconfirmed saves retain the typed draft. No offline-queue claim. |
 | U22 | Implementation choice for U2/A3 | Sleep timestamps are displayed in phone-local time, explicitly labelled local and including the year. The server sends timestamp instants, not necessarily owner-local dates. Missing dates are explicit. Local sleep is a fallback only when no server answer exists, never a way around a server refusal. |
 
+### General journal removal and weight-only entry
+
+- **U23 — implementation of U14:** remove the general journal page, route, grid and
+  links from Settings, Sleep, Actions, Insights and metric history. Retain existing
+  observations, history markers and the server logging API; this is not a data deletion.
+- **U24 — weight form integrity:** show only kilograms and observation time. The
+  weight branch of `read/logs.py::record_log` stores no notes, so a notes field would
+  promise storage it does not provide. Retrying an unconfirmed save keeps its original
+  timestamp, matching the existing server upsert key `(user_id, ts)`. Concurrent Save
+  taps are refused. These protections last while the form is open; closing/killing the
+  app still does not create a durable offline draft or outbox.
+
 ### Presentation constraints for the first slice
 
 - Sleep summary links to the full Sleep page; date older sleep explicitly.

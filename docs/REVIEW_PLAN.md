@@ -18,10 +18,14 @@ Starting revision: `c071c15`. Working branch: `feat/mobile-simplification`.
   chart moved to Activity; Sleep and recorded-workout behavior are retained. Old Today
   chapters and the floating coach button are removed. Widget screenshots are in
   `docs/screenshots/personal-today-{light,dark}.png` (fixtures, not personal data).
-- Latest mobile gate: **2,059 passed, 6 skipped**, analyzer clean, debug APK built;
-  **12 targeted mutations caught**, none survived. Not a full mutation sweep.
-- **Next:** review remaining journal/Actions navigation without deleting shared weight
-  plumbing or nightly analytics. Insights remains available for first-build review.
+- `2fc4c41`: removed the general journal route/page and links. Weight entry now exposes
+  only stored fields (kg/time), preserves observation identity on retry and prevents
+  double submissions. Existing observations and server logging APIs remain intact.
+- Latest mobile gate: **2,054 passed, 6 skipped**, analyzer clean, debug APK built;
+  **6 targeted weight/journal mutations caught**, none survived. The preceding Today
+  slice also passed 12 targeted checks. Neither was a full mutation sweep.
+- **Next:** review remaining Actions/interactive-coach navigation and plan the QR auth
+  migration without deleting nightly analytics. Insights remains available for review.
 - QR enrollment, full-history mirroring and local-LLM integration remain later work.
 
 ## Outcome

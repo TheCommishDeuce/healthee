@@ -43,6 +43,30 @@ Fixture-only widget renders at 390×844, with bundled fonts, inspected in both t
 These show Today content without the app's tab bar, not a physical phone or personal data.
 Logs: `/tmp/healthee-today/`. Physical BLE/background/offline replay remains unverified.
 
+## Journal removal and weight-only form — `2fc4c41`
+
+Removed the general journal screen/grid and all navigation to it, including the links
+on Sleep, Settings, Actions, Insights and metric history. Historical observations,
+history markers, data models and server APIs are retained. Sleep's readings and charts
+are unchanged; only its journal links were removed.
+
+The old weight notes field was misleading: the server's weight branch stores only kg
+and timestamp, not notes. `WeightLogSheet` now offers exactly those fields and reuses the
+existing `LogDraft`/repository validation. A retry retains the original timestamp, so the
+existing `(user_id, ts)` upsert addresses the same observation. A re-entrancy test first
+reproduced two POSTs from two taps before a repaint; the submit guard now permits one.
+A failed save keeps the input. No claim of durable offline manual logging is made.
+
+Verification: **2,054 passed, 6 skipped**, analyzer clean, file-length gate passed, APK
+rebuilt. **Six targeted mutations caught, none survived**: wrong log kind, lost retry
+timestamp, concurrent submissions, clearing failed input, bypassing input validation and
+clearing before acknowledgement. Three retired grid/fasting mutations were removed;
+the shared save guard was retargeted to weight tests. The full sweep was not run.
+
+The packaged Dart payload contains `WeightLogSheet` and the fixed timestamp assignment,
+and no `JournalScreen`, `JournalGrid` or discarded notes field. Server, infra, contracts,
+BLE, local stores and upload code were not changed. Logs: `/tmp/healthee-journal/`.
+
 ## Toolchain on this Mac
 
 - Flutter **3.44.7**, revision `84fc5cbb22`, Dart **3.12.2** (same Flutter pin as CI).
