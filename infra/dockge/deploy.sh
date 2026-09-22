@@ -209,9 +209,20 @@ fi
 # ── 5. Backup — the point of no return is next ──────────────────────────
 # `up -d db` (no force-recreate) is a no-op when db is already running and makes the
 # dump possible on a cold box.
+# `--wait` blocks until the db healthcheck passes. Without it, a COLD box loses the
+# race against Postgres's first-time initdb and the very first deploy dies on
+# "pg_dump/gzip failed" — which reads like a backup problem and is really a timing
+# one. It is a no-op when db is already up.
+#
+# The backup script defaults to the nginx-topology stack, so it is told which one to
+# dump. Pointed at the wrong compose file it would address a different project's
+# database, or none.
 step "Backing up the database"
-run docker compose up -d db
-run "$backup_script" || die "backup FAILED — refusing to migrate without a fresh dump."
+run docker compose up -d --wait db
+run env \
+	HEALTHEE_COMPOSE_FILE="$stack_dir/compose.yaml" \
+	HEALTHEE_ENV_FILE="$env_file" \
+	"$backup_script" || die "backup FAILED — refusing to migrate without a fresh dump."
 ok "backup written (see BACKUP_DIR in $env_file)"
 
 # ── 6. Stop the app — the planned outage starts here ────────────────────

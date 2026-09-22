@@ -12,8 +12,15 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 infra_dir="$(cd "$script_dir/.." && pwd)"
-compose_file="$infra_dir/docker/docker-compose.prod.yml"
-env_file="$infra_dir/.env"
+# Which stack to dump. The defaults are the nginx-topology stack this script was
+# written for; the Dockge stack lives in a directory outside the repo and passes
+# both by environment (infra/dockge/deploy.sh exports them).
+#
+# This is not a nicety: pointed at the wrong compose file, `compose exec db` either
+# fails outright or — worse — addresses a DIFFERENT project's database and writes a
+# dump of the wrong data under a name that says it is the right one.
+compose_file="${HEALTHEE_COMPOSE_FILE:-$infra_dir/docker/docker-compose.prod.yml}"
+env_file="${HEALTHEE_ENV_FILE:-$infra_dir/.env}"
 
 die() { printf 'pg_dump_backup: ERROR — %s\n' "$1" >&2; exit 1; }
 
