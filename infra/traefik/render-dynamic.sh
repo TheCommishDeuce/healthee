@@ -32,7 +32,13 @@ template="$script_dir/healthee.yml.template"
 # The Dockge stack's env is the source of truth for both values. Overridable for
 # the case where this runs on a box that has no copy of it.
 env_file="${HEALTHEE_ENV_FILE:-${HEALTHEE_STACK_DIR:-/opt/stacks/healthee}/.env}"
+# WHERE to install. Two shapes, because Traefik's file provider takes either.
+#   TRAEFIK_DYNAMIC_FILE  an exact path      -> use with `directory:` providers
+#   TRAEFIK_DYNAMIC_DIR   a directory        -> healthee.yml is written inside it
+# A `filename:` provider pointing at one shared config.yml CANNOT take a second
+# file; --install refuses that case rather than writing something never read.
 target_dir="${TRAEFIK_DYNAMIC_DIR:-/etc/traefik/dynamic}"
+target_file="${TRAEFIK_DYNAMIC_FILE:-}"
 
 install=0
 for arg in "$@"; do
@@ -121,13 +127,42 @@ if [ "$install" -eq 0 ]; then
 	exit 0
 fi
 
+if [ -n "$target_file" ]; then
+	target="$target_file"
+	target_dir="$(dirname "$target")"
+else
+	target="$target_dir/healthee.yml"
+fi
+
 [ -d "$target_dir" ] || {
 	echo "Traefik's dynamic directory does not exist: $target_dir" >&2
-	echo "Create it and point the file provider at it, or set TRAEFIK_DYNAMIC_DIR." >&2
+	echo "Create it and point the file provider at it, or set TRAEFIK_DYNAMIC_DIR /" >&2
+	echo "TRAEFIK_DYNAMIC_FILE. See infra/traefik/CHECKLIST.md §0." >&2
 	exit 1
 }
 
-target="$target_dir/healthee.yml"
+# ⛔ Refuse to clobber somebody else's dynamic config.
+#
+# A single shared `config.yml` holding several apps' routers is a common Traefik
+# setup, and it is the one shape this script must not write to: it would replace
+# every other app's routing with ours. Detected by looking for routers we did not
+# put there. The fix is the directory provider (CHECKLIST §0) — not a bigger script.
+if [ -f "$target" ] && grep -qE '^\s{0,6}[a-zA-Z0-9_-]+:' "$target" &&
+	grep -q 'routers:' "$target" && ! grep -q 'healthee:' "$target"; then
+	echo "REFUSING to overwrite $target — it already contains routers that are not ours." >&2
+	echo >&2
+	echo "That looks like a shared dynamic config. Overwriting it would delete every" >&2
+	echo "other app's routing on this host. Switch the file provider to a directory:" >&2
+	echo >&2
+	echo "  providers:" >&2
+	echo "    file:" >&2
+	echo "      directory: /etc/traefik/dynamic   # was: filename: $target" >&2
+	echo "      watch: true" >&2
+	echo >&2
+	echo "then move your existing file into it and re-run. Traefik merges every file" >&2
+	echo "in the directory, so nothing is lost and each app owns its own." >&2
+	exit 1
+fi
 printf '%s\n' "$rendered" | sudo tee "$target" >/dev/null
 echo "Wrote $target"
 echo
