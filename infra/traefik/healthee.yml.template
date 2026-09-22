@@ -49,6 +49,30 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # ── Sign-in, to the self-hosted GoTrue ────────────────────────────────
+    # A SECOND router on the same hostname. The app asks for
+    # `https://<host>/auth/v1/token`; GoTrue serves `/token` at its root, so the
+    # prefix is stripped before forwarding.
+    #
+    # `priority` is explicit. Traefik orders by rule LENGTH by default, which would
+    # happen to work here — and would silently stop working the day someone edits
+    # either rule. The catch-all `healthee` router must never win for /auth/v1.
+    healthee-auth:
+      rule: "Host(`${PUBLIC_HOST}`) && PathPrefix(`/auth/v1`)"
+      priority: 100
+      entryPoints:
+        - websecure
+      service: healthee-auth
+      middlewares:
+        # A TIGHTER rate limit than the API's, because this is the one endpoint
+        # where guessing is the attack. Everything else needs a valid token first.
+        - healthee-authlimit
+        - healthee-inflight
+        - healthee-authstrip
+        - healthee-headers
+      tls:
+        certResolver: letsencrypt
+
   services:
     healthee:
       loadBalancer:
@@ -68,7 +92,42 @@ http:
           interval: "30s"
           timeout: "5s"
 
+    healthee-auth:
+      loadBalancer:
+        servers:
+          - url: "http://${HEALTHEE_BIND_ADDR}:9999"
+        passHostHeader: true
+        # GoTrue's own liveness route, checked on the UNSTRIPPED backend path.
+        healthCheck:
+          path: /health
+          interval: "30s"
+          timeout: "5s"
+
   middlewares:
+    # ── Strip /auth/v1 ────────────────────────────────────────────────────
+    # GoTrue standalone serves /token, /signup, /user at its ROOT. The /auth/v1
+    # prefix is hosted Supabase's gateway convention, which the app follows
+    # (`auth_config.dart`: gotrueUrl = "$supabaseUrl/auth/v1"). Without this every
+    # sign-in is a 404 from GoTrue that looks like a wrong password.
+    healthee-authstrip:
+      stripPrefix:
+        prefixes:
+          - "/auth/v1"
+
+    # ── Sign-in rate limit ────────────────────────────────────────────────
+    # 5/s with a burst of 10, against 20/100 for the API. A person signing in
+    # makes one request; a credential-stuffing run makes thousands. GoTrue has
+    # internal limits too — this is the one that costs the attacker at the edge,
+    # before a password hash is ever computed on your box.
+    healthee-authlimit:
+      rateLimit:
+        average: 5
+        period: 1s
+        burst: 10
+        sourceCriterion:
+          ipStrategy:
+            depth: ${TRAEFIK_IP_DEPTH}
+
     # ── Rate limit — was `limit_req zone=… rate=20r/s burst=100 nodelay` ────
     # The number comes from what the CLIENT does: a full sync drain is at most
     # maxPages 20 × maxDrainRounds 12 sequential POSTs, and a screen load is a

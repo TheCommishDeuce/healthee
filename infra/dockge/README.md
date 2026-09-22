@@ -143,6 +143,112 @@ unencrypted).
 
 ---
 
+## Sign-in — the self-hosted GoTrue
+
+This deployment runs its **own** identity provider (the `auth` service) instead of
+hosted Supabase. The API is a resource server: it only ever *verifies* what GoTrue
+signs, never mints a token (`core/supabase_auth.py`).
+
+Worth knowing before you start:
+
+- **Supabase is not on the data path either way.** `/ingest/*` — the BLE firehose —
+  uses a **device token your own server mints**: no expiry, only its SHA-256 stored,
+  revocable. Only `/api/*` needs a live GoTrue JWT.
+- **HS256 only.** `_jwks_url()` hardcodes `https://<ref>.supabase.co/…`, so the
+  asymmetric path cannot reach a self-hosted instance. GoTrue and the API therefore
+  **share one secret**, interpolated from a single `.env` key so they cannot drift.
+- **`SUPABASE_SERVICE_ROLE_KEY` is read by nothing.** Declared in `core/config.py`,
+  referenced by no code path in `apps/server/src` — verified by grep. Leave it blank.
+
+### 1. Create the `gotrue` database role
+
+GoTrue owns the **`auth` schema in the same database as your health data**. That is
+deliberate: `pg_dump` then covers both. A separate database would give you a restore
+with every measurement and no way to log in, because each `app_user` row keys off a
+uuid GoTrue owns.
+
+```bash
+cd /opt/stacks/healthee
+GOTRUE_PW=$(openssl rand -base64 48 | tr -d '/+=' | head -c 32); echo "$GOTRUE_PW"
+
+docker compose exec -T db psql -U healthee -d healthee <<SQL
+CREATE ROLE gotrue LOGIN PASSWORD '$GOTRUE_PW';
+GRANT CONNECT ON DATABASE healthee TO gotrue;
+CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION gotrue;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+SQL
+```
+
+The extension is created **as the admin** because GoTrue's migrations may need
+`uuid_generate_v4()` and the `gotrue` role is deliberately not a superuser.
+
+### 2. Secrets
+
+```bash
+# the shared signing secret — GoTrue signs with it, the API verifies with it
+openssl rand -base64 48 | tr -d '/+=' | head -c 64
+```
+
+Put that in `SUPABASE_JWT_SECRET` and the password from step 1 in
+`GOTRUE_DB_PASSWORD`, then mint the anon key:
+
+```bash
+/opt/healthee/infra/dockge/mint-anon-key.sh     # reads SUPABASE_JWT_SECRET from .env
+```
+
+> The anon key is public by construction — it ships in the app and authorises
+> nothing alone. But it must be **non-empty**: the app reads an empty key as "this
+> server has no sign-in configured" and never shows the form.
+
+### 3. The rest of `.env`
+
+```ini
+SUPABASE_URL=https://<your PUBLIC_HOST>    # same host as the API
+SUPABASE_PROJECT_REF=                      # ⚠ MUST stay blank
+SUPABASE_ANON_KEY=<from step 2>
+SUPABASE_JWT_SECRET=<from step 2>
+SIGNUP_ALLOWLIST=you@example.com
+GOTRUE_DISABLE_SIGNUP=false                # ⚠ flip to true after step 5
+```
+
+⚠ `SUPABASE_PROJECT_REF` blank is required, and it is a real trade: it makes the API
+**skip the `iss` check** (`_expected_issuer` returns `None`). A ref would make the
+API demand a `supabase.co` issuer and a JWKS url that does not exist here, so every
+token would be refused.
+
+### 4. Deploy and re-render Traefik
+
+```bash
+/opt/healthee/infra/dockge/deploy.sh
+# on the Traefik host — the auth route is NEW, so this is not optional:
+infra/traefik/render-dynamic.sh --install
+```
+
+The app asks for `https://<host>/auth/v1/…`; GoTrue serves those at its root, so
+Traefik strips the prefix. Check it end to end:
+
+```bash
+curl -fsS https://<your-host>/auth/v1/health      # {"name":"GoTrue",...}
+```
+
+### 5. Create your account, then close the door
+
+Sign in from the app (it will register you, autoconfirmed — there is no SMTP on this
+box). Then:
+
+```ini
+GOTRUE_DISABLE_SIGNUP=true
+```
+
+and redeploy. Signup is gated twice on purpose — GoTrue's own flag and the API's
+`SIGNUP_ALLOWLIST` — because creating an account is the one action a stranger could
+take that you cannot undo from the app.
+
+Finally, run the claim procedure (`DEPLOY.md` §B4) so your new uuid takes ownership
+of the existing sentinel rows instead of starting an empty second tenant.
+
+---
+
 ## Where the image comes from
 
 Nothing is built by Dockge. The stack runs whatever `HEALTHEE_IMAGE` +

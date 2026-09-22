@@ -235,3 +235,54 @@ def test_hsts_is_asserted_here_because_traefik_owns_tls(middlewares: dict[str, A
     Traefik terminates TLS, so here it is ours to make."""
     seconds = int(middlewares["healthee-headers"]["headers"]["stsSeconds"])
     assert seconds >= 31536000, "HSTS is under a year, which browsers treat as weak"
+
+
+# ── The self-hosted GoTrue route ────────────────────────────────────────────
+
+
+def test_the_auth_router_wins_over_the_catch_all(dynamic: dict[str, Any]) -> None:
+    """⛔ Explicit priority, because the default is a coincidence.
+
+    Traefik orders routers by rule LENGTH when no priority is set. The auth rule
+    happens to be longer than the catch-all today, so it would win — and would stop
+    winning the day either rule is edited. If the catch-all takes /auth/v1, every
+    sign-in is proxied to the API, which 404s, and the app reports bad credentials.
+    """
+    auth = dynamic["routers"]["healthee-auth"]
+    assert "PathPrefix(`/auth/v1`)" in auth["rule"]
+    assert auth.get("priority", 0) > 0, "the auth router relies on rule-length ordering"
+
+
+def test_the_auth_prefix_is_stripped_before_gotrue(dynamic: dict[str, Any]) -> None:
+    """GoTrue standalone serves /token and /signup at its ROOT; /auth/v1 is hosted
+    Supabase's gateway convention, which the app follows. Without the strip every
+    sign-in is a 404 that looks like a wrong password."""
+    assert "healthee-authstrip" in dynamic["routers"]["healthee-auth"]["middlewares"]
+    strip = dynamic["middlewares"]["healthee-authstrip"]["stripPrefix"]
+    assert strip["prefixes"] == ["/auth/v1"]
+
+
+def test_sign_in_is_rate_limited_harder_than_the_api(dynamic: dict[str, Any]) -> None:
+    """This is the one endpoint where guessing is the attack — everything else needs
+    a valid token first. The limit costs an attacker at the edge, before a password
+    hash is computed on the box."""
+    auth_limit = dynamic["middlewares"]["healthee-authlimit"]["rateLimit"]
+    api_limit = dynamic["middlewares"]["healthee-ratelimit"]["rateLimit"]
+    assert int(auth_limit["average"]) < int(api_limit["average"])
+    assert int(auth_limit["burst"]) < int(api_limit["burst"])
+    assert "healthee-authlimit" in dynamic["routers"]["healthee-auth"]["middlewares"]
+
+
+def test_the_auth_route_is_not_missing_the_security_headers(dynamic: dict[str, Any]) -> None:
+    """It serves a login form's backend; losing nosniff/frameDeny here would be the
+    worst place to lose them."""
+    assert "healthee-headers" in dynamic["routers"]["healthee-auth"]["middlewares"]
+
+
+def test_gotrue_is_reached_on_its_own_port_not_the_api_s(dynamic: dict[str, Any]) -> None:
+    """Two different backends on the same private host. Pointing the auth service at
+    8765 would send sign-ins to FastAPI, which has no /token route."""
+    api_url = dynamic["services"]["healthee"]["loadBalancer"]["servers"][0]["url"]
+    auth_url = dynamic["services"]["healthee-auth"]["loadBalancer"]["servers"][0]["url"]
+    assert api_url.endswith(":8765")
+    assert auth_url.endswith(":9999")
