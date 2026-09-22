@@ -1,39 +1,50 @@
-# Healthee on Dockge, behind Traefik
+# Healthee on Dockge, behind Traefik on another machine
+
+**Two machines.** Traefik terminates TLS on one; the Dockge stack runs on the other;
+they talk over your private network. Nothing about the app is on the public internet.
+
+```
+ [ internet ] ──TLS──> [ TRAEFIK HOST ] ──http, private net──> [ HEALTHEE BOX ]
+                        DNS points here                         10.0.0.5:8765
+                        /etc/traefik/dynamic/healthee.yml        Dockge stack
+                                                                 no public DNS
+```
+
+⛔ **There are no `traefik.*` labels in this stack, and adding some would do
+nothing.** Traefik's Docker provider reads labels from its own daemon's socket, so
+it cannot see containers on another machine. The router, the service and all four
+middlewares live in a file on the Traefik host instead —
+`infra/traefik/healthee.yml.template`, rendered by `render-dynamic.sh`.
 
 The stack: `db` (TimescaleDB) · `preflight` (one-shot gate) · `api` · `scheduler`.
-Images come from GHCR, published by CI on every push to `main` — nothing is built
-on the VPS.
+Images come from GHCR, published by CI — nothing is built on either machine.
 
-| File | Goes where | Notes |
-|---|---|---|
-| `compose.yaml` | `/opt/stacks/healthee/compose.yaml` | synced from the repo by `deploy.sh` |
-| `.env.example` | `/opt/stacks/healthee/.env` | fill in; never committed |
-| `deploy.sh` | stays in the repo checkout | run for schema releases |
-
-Traefik's own static config has two settings this repo cannot ship or test.
-**Read `infra/traefik/CHECKLIST.md` before going live** — one of them is a privacy
-property of the product, not a preference.
+| What | Where it goes |
+|---|---|
+| `infra/dockge/compose.yaml` | Healthee box → `/opt/stacks/healthee/compose.yaml` |
+| `infra/dockge/.env.example` | Healthee box → `/opt/stacks/healthee/.env` |
+| `infra/dockge/deploy.sh` | Healthee box, run from the repo checkout |
+| `infra/traefik/healthee.yml.template` | **Traefik host** → `/etc/traefik/dynamic/healthee.yml` |
 
 ---
 
-## First-time setup
+## Setup, machine by machine
 
-**1. The proxy network** (skip if Traefik already has one):
+### On the HEALTHEE box
+
+**1. Find its private IP.** This is the single most important value in the setup:
 
 ```bash
-docker network create proxy
+ip -4 addr | grep -v 127.0.0.1
 ```
 
-**1b. Decide where the image comes from** — see the section below. The default in
-`.env.example` points at the upstream project's namespace, which you can only pull
-from if its owner has published it publicly. **If you are not the owner of the
-repository, you almost certainly need to change `HEALTHEE_IMAGE`.**
+Take the address on the **private** interface — Hetzner `ens10`, DO `eth1`, or a
+`100.x` address on `tailscale0`. **Not** `eth0`'s public address.
 
-**2. A repo checkout on the box** — `deploy.sh` and the backup script live here.
-It is *not* the stack directory:
+**2. Clone the repo** (for `deploy.sh` and the backup script; not the stack dir):
 
 ```bash
-git clone https://github.com/afkcodes/healthee.git /opt/healthee
+git clone https://github.com/TheCommishDeuce/healthee.git /opt/healthee
 ```
 
 **3. Create the stack in Dockge.** New Stack → name it `healthee` → paste
@@ -43,20 +54,92 @@ git clone https://github.com/afkcodes/healthee.git /opt/healthee
 
 ```bash
 cp /opt/healthee/infra/dockge/.env.example /opt/stacks/healthee/.env
-$EDITOR /opt/stacks/healthee/.env          # or edit it in Dockge's UI
+$EDITOR /opt/stacks/healthee/.env
 ```
 
-At minimum set `PUBLIC_HOST`, `POSTGRES_PASSWORD`, and the Supabase values.
-The `POSTGRES_APP_*` pair needs the two-deploy bootstrap in `infra/DEPLOY.md` §B2 —
-read it; the wrong order leaves the app unable to reach Postgres at all.
+Must set: `HEALTHEE_BIND_ADDR` (step 1), `PUBLIC_HOST`, `POSTGRES_PASSWORD`, and the
+Supabase values. `HEALTHEE_IMAGE` already points at the fork's GHCR package.
 
-**5. First deploy** — from the repo, not the button (the database is empty and every
-migration is pending):
+> ⛔ `HEALTHEE_BIND_ADDR` is the security boundary. `0.0.0.0` puts the API on the
+> public internet with no TLS, no rate limit and a bearer token as the only check;
+> `127.0.0.1` makes it unreachable from Traefik. Compose **refuses to start** if it
+> is unset rather than guessing. `ufw deny 8765` does not substitute for it —
+> Docker's iptables rules run ahead of ufw.
+
+**5. First deploy** — from the repo, not Dockge's button, since every migration is
+pending on an empty database:
 
 ```bash
 /opt/healthee/infra/dockge/deploy.sh --dry-run    # read the plan first
 /opt/healthee/infra/dockge/deploy.sh
 ```
+
+It reports where the port ended up bound. Confirm it says *"private interface only"*.
+
+**6. Prove the app is up, locally:**
+
+```bash
+curl -fsS http://<private-ip>:8765/healthz
+```
+
+### On the TRAEFIK host
+
+**7. Confirm it can reach the other machine** — do this before anything else, it is
+the thing most likely to be wrong:
+
+```bash
+curl -fsS http://<healthee-private-ip>:8765/healthz
+```
+
+If that fails, nothing downstream will work: check the private network, the bind
+address, and any firewall between them. Do not proceed until it answers.
+
+**8. Enable the file provider** in Traefik's static config, if it is not already:
+
+```yaml
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+```
+
+**9. Install the router config:**
+
+```bash
+PUBLIC_HOST=api.example.com HEALTHEE_BIND_ADDR=10.0.0.5 \
+  /path/to/healthee/infra/traefik/render-dynamic.sh --install
+```
+
+Or render it on the Healthee box, where `.env` already holds both values, and pipe
+it across:
+
+```bash
+/opt/healthee/infra/traefik/render-dynamic.sh | \
+  ssh traefik-host 'sudo tee /etc/traefik/dynamic/healthee.yml >/dev/null'
+```
+
+With `watch: true` Traefik reloads on save.
+
+**10. Point DNS for `PUBLIC_HOST` at the TRAEFIK host** — not at the Healthee box.
+ACME validates by being reached, so a record on the wrong machine fails issuance and
+leaves a self-signed cert, which looks like a TLS error rather than a routing bug.
+
+### Then, from anywhere
+
+```bash
+curl -fsS https://api.example.com/healthz
+```
+
+**11. Finally, from a machine OUTSIDE the private network**, confirm the app is not
+directly exposed. This must **fail**:
+
+```bash
+curl --max-time 5 http://<healthee-box-public-ip>:8765/healthz
+```
+
+Then work through `infra/traefik/CHECKLIST.md` — in particular §1 (rate-limiter IP
+trust), §2 (tile paths in the access log) and §7 (the hop between the machines is
+unencrypted).
 
 ---
 
@@ -245,9 +328,18 @@ key. Put Dockge behind auth and do not expose it publicly.
 - **`POSTGRES_HOST`, `API_HOST` and `API_PORT` are pinned in `compose.yaml`** and
   override the `.env`. They are topology, not choice; changing them in the UI does
   nothing, deliberately.
-- **No host port is published.** `curl localhost:8765` on the box will fail and that
-  is correct — Traefik reaches the api on the proxy network. To probe it directly:
+- **`curl localhost:8765` on the Healthee box fails, and that is correct.** The port
+  is published on the private IP only, not on loopback. Use
+  `curl http://<private-ip>:8765/healthz`, or from inside the container:
   `docker compose exec api python -c "import urllib.request;
   print(urllib.request.urlopen('http://localhost:8765/healthz').read())"`
-- **`db` and `scheduler` are deliberately off the proxy network.** Neither has an
-  HTTP surface. A test enforces this.
+- **Only `api` publishes a port.** `db`, `scheduler` and `preflight` have no HTTP
+  surface and stay on the internal compose network. A test enforces this — on a box
+  another machine can reach, publishing Postgres would be a real exposure.
+- **The two machines each hold half the routing and nothing reconciles them.**
+  Change `HEALTHEE_BIND_ADDR` or `PUBLIC_HOST` and you must re-run
+  `infra/traefik/render-dynamic.sh` on the Traefik host. A stale backend address is
+  a 502 with a perfectly healthy stack behind it.
+- **A 502 is almost always the private network, not the app.** First command, on the
+  Traefik host: `curl http://<healthee-private-ip>:8765/healthz`. That one result
+  splits the problem in half.

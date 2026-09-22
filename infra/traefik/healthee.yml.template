@@ -1,0 +1,119 @@
+# A TEMPLATE, not a usable config. Rendered by `infra/traefik/render-dynamic.sh`,
+# which substitutes ${PUBLIC_HOST} and ${HEALTHEE_BIND_ADDR} from the stack's .env.
+#
+#   infra/traefik/render-dynamic.sh              # print it
+#   infra/traefik/render-dynamic.sh --install    # write it to the watched dir
+#
+# ── Why a file and not container labels ─────────────────────────────────────
+#
+# Traefik's Docker provider reads labels from its OWN daemon's socket. Traefik runs
+# on a different machine from the Healthee stack, so it cannot see those containers
+# and cannot read any label on them. Everything the labels would have said therefore
+# lives here, on the Traefik host, and is delivered by the FILE provider.
+#
+# This file belongs in Traefik's watched dynamic-config directory, e.g.
+# /etc/traefik/dynamic/healthee.yml, with the static config carrying:
+#
+#   providers:
+#     file:
+#       directory: /etc/traefik/dynamic
+#       watch: true
+#
+# `watch: true` means Traefik reloads on save — no restart, no dropped connections.
+#
+# ⚠ Nothing is interpolated at runtime. Traefik does NOT expand environment
+# variables in dynamic config, which is exactly why this is a template with a render
+# step rather than a file you are asked to hand-edit on the box.
+#
+# ── What it must stay in step with ──────────────────────────────────────────
+#
+# The numbers below are asserted against the nginx vhost they replace
+# (apps/server/tests/test_edge_traefik.py) so the two edges cannot silently
+# disagree while both exist. Change one, change both, or the test fails.
+
+http:
+  routers:
+    healthee:
+      rule: "Host(`${PUBLIC_HOST}`)"
+      entryPoints:
+        - websecure
+      service: healthee
+      middlewares:
+        # ⚠ ORDER MATTERS and this order is deliberate: reject cheaply first.
+        # ratelimit before buffering means a flood is refused before Traefik has
+        # spooled 8 MB of body per request to disk on its own host.
+        - healthee-ratelimit
+        - healthee-inflight
+        - healthee-body
+        - healthee-headers
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    healthee:
+      loadBalancer:
+        servers:
+          # The Healthee box, over the PRIVATE network. Plain http on purpose:
+          # see "the hop is unencrypted" in infra/traefik/CHECKLIST.md §7 — it is a
+          # real trade-off, not an oversight, and it is the one thing about this
+          # topology that differs in kind from running Traefik on the same host.
+          - url: "http://${HEALTHEE_BIND_ADDR}:8765"
+        passHostHeader: true
+        # Liveness, from Traefik's side of the private network. Without it Traefik
+        # keeps routing to a box that is down or unreachable and every request waits
+        # for a dial timeout; with it the router fails fast and Traefik's dashboard
+        # says which server is down. /healthz is unauthenticated for exactly this.
+        healthCheck:
+          path: /healthz
+          interval: "30s"
+          timeout: "5s"
+
+  middlewares:
+    # ── Rate limit — was `limit_req zone=… rate=20r/s burst=100 nodelay` ────
+    # The number comes from what the CLIENT does: a full sync drain is at most
+    # maxPages 20 × maxDrainRounds 12 sequential POSTs, and a screen load is a
+    # handful of GETs. It exists because /healthz and /readyz are unauthenticated
+    # and both run a SELECT 1 on a pool of at most 10 — pool exhaustion by anybody.
+    #
+    # ⚠ `depth` MUST match your edge. 0 uses the TCP peer; behind Cloudflare that is
+    # a Cloudflare IP, so every visitor on earth shares one bucket and one owner's
+    # sync throttles everybody. See CHECKLIST.md §1.
+    healthee-ratelimit:
+      rateLimit:
+        average: 20
+        period: 1s
+        burst: 100
+        sourceCriterion:
+          ipStrategy:
+            depth: ${TRAEFIK_IP_DEPTH}
+
+    # ── Concurrent requests per client — was `limit_conn healthee_conn 24` ──
+    healthee-inflight:
+      inFlightReq:
+        amount: 24
+        sourceCriterion:
+          ipStrategy:
+            depth: ${TRAEFIK_IP_DEPTH}
+
+    # ── Body cap 8 MB — was `client_max_body_size 8M` ──────────────────────
+    # The largest body this API accepts is bounded by the models: 4,000 samples a
+    # page (~a few hundred KB) and GpsTrackIn's 28,800 points (~1 MB). There is no
+    # multipart route. 8 MB is an order of magnitude above either.
+    # ⚠ Unlike nginx, Traefik BUFFERS to enforce this — on the TRAEFIK host's disk,
+    # not this one. memRequestBodyBytes is how much stays in RAM before it spills.
+    healthee-body:
+      buffering:
+        maxRequestBodyBytes: 8388608
+        memRequestBodyBytes: 2097152
+
+    # ── Security headers — were `add_header … always` ──────────────────────
+    healthee-headers:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: no-referrer
+        # HSTS, which the nginx template deliberately did NOT set: it owned only the
+        # :80 vhost and could not keep that promise. Traefik terminates TLS, so here
+        # it is ours to make.
+        stsSeconds: 31536000
+        stsIncludeSubdomains: false

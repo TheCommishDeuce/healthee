@@ -108,7 +108,7 @@ branch="${branch:-main}"
 PUBLIC_HOST="$(env_get PUBLIC_HOST)"
 POSTGRES_APP_USER="$(env_get POSTGRES_APP_USER)"
 POSTGRES_APP_PASSWORD="$(env_get POSTGRES_APP_PASSWORD)"
-TRAEFIK_NETWORK="$(env_get TRAEFIK_NETWORK)"
+HEALTHEE_BIND_ADDR="$(env_get HEALTHEE_BIND_ADDR)"
 HEALTHEE_IMAGE="$(env_get HEALTHEE_IMAGE)"
 HEALTHEE_IMAGE_TAG="$(env_get HEALTHEE_IMAGE_TAG)"
 HEALTHEE_BUILD_LOCALLY="$(env_get HEALTHEE_BUILD_LOCALLY)"
@@ -307,7 +307,41 @@ else
 	fi
 fi
 
-# ── 10b. The edge, from outside ─────────────────────────────────────────
+# ── 10b. Where is the port actually bound? ────────────────────────────
+# Asked of Docker rather than of .env, because only Docker knows what it actually
+# did. A 0.0.0.0 bind puts an API whose only check is a bearer token on the public
+# internet with no TLS and no rate limit — and `ufw deny` does NOT close it, because
+# Docker's iptables rules run first. This is the one misconfiguration in this
+# topology that is silent, remote, and about health records.
+step "Checking where the api port is bound"
+if [ "$dry_run" -eq 1 ]; then
+	printf '  \033[2m$ docker compose port api 8765\033[0m\n'
+else
+	bound="$(docker compose port api 8765 2>/dev/null || true)"
+	case "$bound" in
+	0.0.0.0:* | "[::]:"*)
+		warn "⛔ THE API IS PUBLISHED ON ALL INTERFACES ($bound).
+    It is reachable from the public internet with no TLS, no rate limit and a bearer
+    token as the only protection. A ufw rule will NOT fix this — Docker's iptables
+    rules are evaluated first. Set HEALTHEE_BIND_ADDR to this box's PRIVATE ip in
+    $env_file and redeploy. Verify from OFF this network:
+      curl --max-time 5 http://<this-box-public-ip>:8765/healthz    # must FAIL"
+		;;
+	127.*)
+		warn "the api is bound to loopback ($bound), so the Traefik host cannot reach it.
+    The stack is healthy and the site will 502. Set HEALTHEE_BIND_ADDR to this box's
+    private ip in $env_file and redeploy."
+		;;
+	"")
+		warn "could not determine the api's published port (is it running?)."
+		;;
+	*)
+		ok "bound to $bound — private interface only"
+		;;
+	esac
+fi
+
+# ── 10c. The edge, from outside ─────────────────────────────────────────
 # The container answering proves nothing about Traefik, DNS or the certificate, and
 # those are what an owner's phone actually talks to.
 #
@@ -325,9 +359,11 @@ else
 	warn "https://$PUBLIC_HOST/healthz did NOT answer, but the container is healthy. So
     the api is fine and something between it and the world is not. In order of how
     often it is the cause:
-      1. the api is not on Traefik's network   — docker network inspect ${TRAEFIK_NETWORK:-proxy}
-      2. Traefik has not picked up the router  — check Traefik's own logs / dashboard
-      3. the certificate was never issued      — DNS must resolve here BEFORE ACME works
+      1. Traefik cannot reach this box  — from the TRAEFIK host:
+                                          curl -sS http://${HEALTHEE_BIND_ADDR:-<private-ip>}:8765/healthz
+      2. the dynamic config is stale    — re-run infra/traefik/render-dynamic.sh there
+      3. the certificate was never issued — DNS must resolve to the TRAEFIK host
+                                          BEFORE ACME can work
       4. DNS moved."
 fi
 

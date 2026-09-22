@@ -1,32 +1,69 @@
-# Traefik — the parts that are NOT in our compose file
+# Traefik — the host that is NOT the app host
 
-`infra/dockge/compose.yaml` carries everything Traefik can be told with container
-labels: the router, the rate limit, the connection cap, the body cap, the security
-headers. `apps/server/tests/test_edge_traefik.py` asserts all of it, and asserts that
-it still agrees with the nginx vhost it replaces.
+**Traefik and the Healthee stack run on two different machines, on a shared private
+network.** That single fact decides most of what follows, so it is first.
 
-**This file is the remainder** — the settings that live in *your* Traefik's static
-configuration, which this repository does not own and cannot test. Two of them are
-live-fire issues rather than tidiness. Work through it once when you stand the stack
-up, and again if you ever put a CDN in front.
+Traefik's Docker provider reads labels from **its own** daemon's socket. It cannot
+see the Healthee containers, so there are no `traefik.*` labels anywhere in
+`infra/dockge/compose.yaml`, and adding some would do nothing at all — the stack
+would come up green and never be routed.
 
-> Why a checklist and not a test: Traefik's static config is a file on your box (or
-> your Traefik stack's own compose). Nothing here can read it. Saying so is better
-> than a test that checks a file we ship and implies coverage we do not have.
+```
+ [ internet ] ──TLS──> [ TRAEFIK HOST ] ──plain http, private net──> [ HEALTHEE BOX ]
+                        /etc/traefik/dynamic/healthee.yml             10.0.0.5:8765
+                                                                      (Dockge stack)
+```
+
+| On the Traefik host | On the Healthee box |
+|---|---|
+| router, service, all four middlewares (`healthee.yml.template`) | the stack (`infra/dockge/compose.yaml`) |
+| entrypoints, cert resolver, forwarded-header trust, access log | `HEALTHEE_BIND_ADDR` — the private ip it publishes on |
+| TLS termination | nothing TLS-related at all |
+
+`apps/server/tests/test_edge_traefik.py` asserts the template and asserts its
+numbers still agree with the nginx vhost it replaces. **This file is the
+remainder** — what lives in *static* config, which this repository cannot ship or
+test. Work through it once when you stand the stack up, and again if you put a CDN
+in front.
+
+> Why a checklist and not a test: Traefik's static config is a file on a machine
+> this repo has never seen. Saying so is better than a test that checks a file we
+> ship and implies coverage we do not have.
 
 ---
 
-## 0. The network must exist before the stack starts
+## 0. Install the dynamic config
 
-```bash
-docker network create proxy       # must match TRAEFIK_NETWORK in .env
+On the Traefik host, the static config needs a file provider:
+
+```yaml
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true          # reloads on save; no restart, no dropped connections
 ```
 
-The stack declares it `external: true`, so compose **refuses to start** rather than
-quietly creating a second, unrouted network with the same name. That refusal is the
-feature; if you see it, the network is missing, not misnamed.
+Then render ours into it, from a checkout on either machine:
 
-Traefik itself must also be attached to this network.
+```bash
+# on the Traefik host, values passed inline:
+PUBLIC_HOST=api.example.com HEALTHEE_BIND_ADDR=10.0.0.5 \
+  infra/traefik/render-dynamic.sh --install
+
+# or render on the Healthee box, where .env already has both, and pipe it across:
+infra/traefik/render-dynamic.sh | ssh traefik-host \
+  'sudo tee /etc/traefik/dynamic/healthee.yml >/dev/null'
+```
+
+Confirm Traefik picked it up:
+
+```bash
+curl -s http://127.0.0.1:8080/api/http/routers/healthee@file | head
+```
+
+⚠ **Re-render whenever `HEALTHEE_BIND_ADDR` or `PUBLIC_HOST` changes.** The two
+machines each hold half of this and nothing reconciles them; a stale backend address
+is a 502 with a perfectly healthy stack behind it.
 
 ---
 
@@ -167,11 +204,16 @@ entryPoints:
 
 ## 5. Certificates
 
-`TRAEFIK_CERTRESOLVER` in the stack's `.env` must name a resolver that exists in your
-static config. **DNS for `PUBLIC_HOST` must already resolve to this box before the
-first request** — ACME HTTP-01 validates by being reached, and a resolver that fails
-leaves a router serving Traefik's default self-signed certificate. The symptom on the
-phone is a TLS error, not a 404.
+The `certResolver` named in `healthee.yml.template` (`letsencrypt`) must exist in
+your static config. Edit the template if yours is called something else.
+
+**DNS for `PUBLIC_HOST` must resolve to the TRAEFIK host — not to the Healthee
+box** — and must do so *before* the first request. ACME HTTP-01 validates by being
+reached, so a record pointing at the wrong machine of the two fails validation and
+leaves the router serving Traefik's default self-signed certificate. The symptom on
+the phone is a TLS error, not a 404, which sends you looking at the wrong box.
+
+The Healthee box needs no DNS record at all, and should not have a public one.
 
 ---
 
@@ -179,12 +221,55 @@ phone is a TLS error, not a 404.
 
 The api's uvicorn runs with `--proxy-headers --forwarded-allow-ips "*"`
 (`infra/docker/Dockerfile.server`). That was unambiguous when nginx on loopback was
-the only possible caller; on a shared Traefik network, any other container on
-`proxy` can reach `healthee-api:8765` directly and forge `X-Forwarded-For`.
+the only possible caller. Now **any machine on the private network** can reach
+`10.0.0.5:8765` directly and forge `X-Forwarded-For`.
 
 **Left as is, because the server reads no client IP** — there is no
 `request.client`, no `X-Forwarded-For` consumer and no IP-based logic anywhere in
-`apps/server/src/`. So the forged value has nothing to influence: rate limiting is
-the edge's job, and auth is Bearer-JWT only.
+`apps/server/src/` (grepped, not assumed). So a forged value has nothing to
+influence: rate limiting is the edge's job and auth is bearer-JWT only.
 
-Revisit this the moment any per-IP behaviour moves into the app.
+Revisit this the moment any per-IP behaviour moves into the app — and note that in
+this topology the rate limiter's `depth` (§1) is the thing that would inherit the
+problem, because it is the one component that does decide based on an IP.
+
+---
+
+## 7. ⛔ The hop between the two machines is UNENCRYPTED
+
+Traefik terminates TLS and then talks plain HTTP to `10.0.0.5:8765`. Everything that
+crosses that link is in the clear on your private network, and for this application
+that includes:
+
+- **Supabase access JWTs** on every single request — a bearer token is all the API
+  checks, so anyone who can read one can impersonate that owner until it expires;
+- **the health data itself**, in both directions;
+- **basemap tile paths**, which are street corners (see §2).
+
+This did not exist as a risk when nginx and the app shared a kernel and talked over
+loopback. It is the one thing about this topology that differs *in kind*, not just
+in configuration. Decide deliberately which of these applies to you:
+
+**a. The private network is genuinely isolated** — a cloud provider VPC scoped to
+your project (Hetzner private networks, DO VPC, AWS security-grouped subnet) with no
+other tenants and no other machines you do not control. Plain HTTP is a reasonable
+call. **Confirm it is actually isolated**, rather than a flat LAN that merely feels
+private.
+
+**b. It is a shared or untrusted LAN, or it crosses a datacentre boundary** — then
+plain HTTP is not acceptable for bearer tokens and health records. Put an encrypted
+overlay under it (WireGuard or Tailscale) and point `HEALTHEE_BIND_ADDR` at the
+overlay address — a `100.x.y.z` tailscale0 address rather than the LAN one. Nothing
+else in the setup changes; the render script and the stack both just take the new
+address.
+
+Whichever you pick, the port must never be reachable from outside that network:
+
+```bash
+# from a THIRD machine, off the private network — this MUST fail:
+curl --max-time 5 http://<healthee-box-public-ip>:8765/healthz
+```
+
+⚠ `ufw deny 8765` does **not** achieve this. Docker inserts its own iptables rules
+ahead of ufw's chain, so a published port stays reachable through a ufw DENY. The
+bind address in `HEALTHEE_BIND_ADDR` is the control that actually works.
