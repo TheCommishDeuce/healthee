@@ -87,8 +87,14 @@ jobs:
   # itself is sound: the corpus resolves INSIDE it (DB-free), and it boots
   # and serves /healthz against a real DB.
   image:
-    name: Image (build · smoke)
+    name: Image (build · smoke · publish)
     runs-on: ubuntu-latest
+    # `packages: write` is what lets the publish step below push to GHCR. Scoped to
+    # this job rather than the workflow: no other job has any business writing a
+    # package, and the top-level grant stays read-only.
+    permissions:
+      contents: read
+      packages: write
     # TimescaleDB for the boot smoke test — /healthz hard-requires the DB
     # (returns 503 without it), same image + creds as the `server` job.
     services:
@@ -161,6 +167,54 @@ jobs:
       - name: Stop smoke container
         if: always()
         run: docker rm -f healthee-smoke || true
+
+      # ── Publish to GHCR ───────────────────────────────────────────────
+      #
+      # AFTER the smokes, and that ordering is the point: `:main` is the tag the
+      # deployed stack pulls, so an image that failed to boot here must never be
+      # reachable by an operator pressing update. A red smoke means nothing is
+      # published and the box keeps running what it has.
+      #
+      # main only. A PR build is not something anyone should be able to deploy.
+      - name: Image reference
+        id: ref
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          # GHCR rejects uppercase in a repository path, and an org or fork owner
+          # may well have some. Lowercasing here costs nothing and turns a confusing
+          # 403 on push into a non-event.
+          owner="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          echo "repo=ghcr.io/${owner}/healthee-api" >> "$GITHUB_OUTPUT"
+          echo "sha=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Rebuilt rather than re-tagged, because the smoke ran on a `load`ed local
+      # image and pushing needs a manifest. Every layer is already in the gha cache,
+      # so this is a cache replay and a push, not a second build.
+      #
+      # TWO tags, deliberately. `:main` MOVES — that is what gives Dockge's update
+      # button something to pull. `:sha-xxxxxxx` is immutable and is what an
+      # operator pins in .env to freeze a known-good build or to roll back to one.
+      - name: Publish server image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/Dockerfile.server
+          push: true
+          tags: |
+            ${{ steps.ref.outputs.repo }}:main
+            ${{ steps.ref.outputs.repo }}:${{ steps.ref.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ── Knowledge: manifest is regenerable and not hand-edited ─────────────
   knowledge:
