@@ -25,7 +25,6 @@ import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/states/reading_view.dart';
 import 'package:healthee/shared/v02/context_bridge.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
-import 'package:healthee/shared/v02/full_button.dart';
 import 'package:healthee/shared/v02/list_rows.dart';
 import 'package:healthee/shared/v02/page_header.dart';
 import 'package:healthee/shared/v02/section_head.dart';
@@ -230,7 +229,6 @@ void main() {
         extras: ActivityExtras(onOpenWorkouts: () => opened = true),
       );
       expect(_indexOf<FlushCard>(list), -1);
-      expect(_indexOf<V02FullButton>(list), -1);
       final heading = list[_indexOf<SectionHead>(list)].child as SectionHead;
       expect(heading.actionLabel, 'See all');
       heading.onAction!();

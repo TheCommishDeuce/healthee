@@ -92,7 +92,6 @@ class InsightsExtras {
     this.onOpenProfile,
     this.onOpenMetric,
     this.onOpenHistory,
-    this.onOpenOutcomes,
     this.onOpenSleepHistory,
     this.onOpenFitness,
   });
@@ -105,9 +104,6 @@ class InsightsExtras {
 
   /// Opens the metric explorer. The section head's `All metrics`.
   final VoidCallback? onOpenHistory;
-
-  /// Opens the challenge outcomes.
-  final VoidCallback? onOpenOutcomes;
 
   /// Opens the sleep history — every night in the window.
   final VoidCallback? onOpenSleepHistory;
@@ -259,7 +255,7 @@ void _entries(SectionList sections, double? age, List<Finding> findings) {
   sections.gap(PageSpacing.panel);
 }
 
-/// Findings, notable days and links to outcomes, sleep history and fitness.
+/// Findings, notable days and links to sleep history and fitness.
 /// The framing stays observational: what moved together, not what caused what.
 void _changedTogether(
   SectionList sections,
@@ -277,13 +273,6 @@ void _changedTogether(
   sections.add(
     FlushCard(
       rows: <Widget>[
-        V02ListRow(
-          icon: SolarIconsOutline.flag,
-          title: 'Challenge outcomes',
-          detail: 'Progress, data coverage and what changed together',
-          tone: Tone.movement,
-          onOpen: extras.onOpenOutcomes,
-        ),
         V02ListRow(
           icon: SolarIconsOutline.moonSleep,
           title: 'Sleep history',

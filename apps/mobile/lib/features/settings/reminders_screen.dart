@@ -19,8 +19,8 @@
 /// plainly when the server refused. That is the same contract every other write
 /// in this app has (`shared/server_action_button.dart`).
 ///
-/// The three names map onto the record exactly: focus → `daily`,
-/// wind-down → `bedtime`, reflections → `completions`.
+/// The prototype's daily-focus and challenge-reflection toggles are gone with
+/// the Actions tab (DESIGN_DECISIONS P5); wind-down maps onto `bedtime`.
 ///
 /// The preferences are **scoped to the signed-in account**. A record whose scope
 /// is not this session's is not this owner's, and is replaced by the empty
@@ -42,7 +42,7 @@ import 'package:healthee/shared/v02/settings_page.dart';
 import 'package:healthee/shared/v02/surfaces.dart';
 import 'package:healthee/shared/v02/toggle_row.dart';
 
-/// The three optional nudges and the times they arrive at.
+/// The optional wind-down nudge and the time it arrives at.
 class RemindersScreen extends ConsumerWidget {
   /// The reminders screen.
   const RemindersScreen({super.key});
@@ -88,10 +88,7 @@ class RemindersScreen extends ConsumerWidget {
                     .save(
                       ReminderPreferences(
                         scope: api.sessionScope,
-                        daily: next.daily,
                         bedtime: next.bedtime,
-                        completions: next.completions,
-                        dailyMinute: next.dailyMinute,
                         bedtimeMinute: next.bedtimeMinute,
                       ),
                       api,
@@ -118,10 +115,7 @@ class _Editor extends StatefulWidget {
 }
 
 class _EditorState extends State<_Editor> {
-  late bool _daily = widget.value.daily;
   late bool _bedtime = widget.value.bedtime;
-  late bool _completions = widget.value.completions;
-  late int _dailyMinute = widget.value.dailyMinute;
   late int _bedtimeMinute = widget.value.bedtimeMinute;
 
   @override
@@ -133,22 +127,10 @@ class _EditorState extends State<_Editor> {
         FlushCard(
           children: <Widget>[
             ToggleRow(
-              title: 'Your daily focus',
-              body: 'A moment to see what matters today.',
-              value: _daily,
-              onChanged: (value) => setState(() => _daily = value),
-            ),
-            ToggleRow(
               title: 'Time to wind down',
               body: 'A little space between the day and sleep.',
               value: _bedtime,
               onChanged: (value) => setState(() => _bedtime = value),
-            ),
-            ToggleRow(
-              title: 'Challenge reflections',
-              body: 'Know when an outcome is ready.',
-              value: _completions,
-              onChanged: (value) => setState(() => _completions = value),
             ),
           ],
         ),
@@ -158,11 +140,6 @@ class _EditorState extends State<_Editor> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              TimeField(
-                label: 'Daily focus time',
-                minuteOfDay: _dailyMinute,
-                onChanged: (value) => setState(() => _dailyMinute = value),
-              ),
               TimeField(
                 label: 'Wind-down time',
                 minuteOfDay: _bedtimeMinute,
@@ -182,10 +159,7 @@ class _EditorState extends State<_Editor> {
           action: () async {
             await widget.save(
               ReminderPreferences(
-                daily: _daily,
                 bedtime: _bedtime,
-                completions: _completions,
-                dailyMinute: _dailyMinute,
                 bedtimeMinute: _bedtimeMinute,
               ),
             );

@@ -1,19 +1,17 @@
-/// The router. Five tabs, the setup surfaces, and settings outside the shell.
+/// The router. Four tabs, the setup surfaces, and settings outside the shell.
 ///
 /// The paths themselves are `core/routes.dart` — split out at the 400-line gate
 /// and re-exported below, so `import 'core/router.dart'` still names them.
 ///
-/// `docs/APP_DESIGN.md` §2 fixes the information architecture — five tabs (Today ·
-/// Sleep · Activity · Insights · Actions), a Coach FAB on Today, and the owner's
-/// own surfaces off the Today avatar rather than as a sixth tab. All five tabs and
-/// the avatar's destination now exist; `core/tabs.dart` records what changed and
-/// why.
+/// `docs/APP_DESIGN.md` §2 drew five tabs and a Coach FAB. The personal-use
+/// rebuild keeps four (Today · Sleep · Activity · Insights), with the owner's own
+/// surfaces off the Today avatar; `core/tabs.dart` records what changed and why.
 ///
 /// go_router rather than `Navigator` calls: deep links (a notification opening one
 /// night's sleep detail) and typed paths are both things the app will need, and
 /// retrofitting a router after screens exist means touching every screen.
 ///
-/// ## The five tabs are BRANCHES, not sibling pages
+/// ## The tabs are BRANCHES, not sibling pages
 ///
 /// They were plain sibling `GoRoute`s, which meant every tab switch built a new
 /// page and threw the old one away — scroll offset, chart reveals and provider
@@ -60,10 +58,6 @@ import 'package:healthee/core/view_date_route.dart';
 import 'package:healthee/data/models/finding.dart';
 import 'package:healthee/data/pairing/pairing_repository.dart';
 import 'package:healthee/data/store/view_date.dart';
-import 'package:healthee/features/actions/challenge_detail_screen.dart';
-import 'package:healthee/features/actions/outcomes_screen.dart';
-import 'package:healthee/features/actions/program_detail_screen.dart';
-import 'package:healthee/features/actions/recommendation_history_screen.dart';
 import 'package:healthee/features/activity/fitness_screen.dart';
 import 'package:healthee/features/history/history_screen.dart';
 import 'package:healthee/features/history/metric_explorer_screen.dart';
@@ -128,10 +122,6 @@ GoRouter buildRouter(WidgetRef ref) {
       return viewDateRedirect(ref, state, dateLinks);
     },
     routes: <RouteBase>[
-      GoRoute(
-        path: Routes.recommendations,
-        builder: (context, state) => const RecommendationHistoryScreen(),
-      ),
       // The tabs. Branch order IS `kAppTabs` order, by construction rather than
       // by agreement — the bar moves by index, so two lists would be a defect
       // that compiles.
@@ -155,22 +145,6 @@ GoRouter buildRouter(WidgetRef ref) {
         path: Routes.devFoundation,
         builder: (BuildContext context, GoRouterState state) =>
             const FoundationScreen(),
-      ),
-      GoRoute(
-        path: '${Routes.challenge}/:id',
-        builder: (context, state) => ChallengeDetailScreen(
-          id: int.tryParse(state.pathParameters['id'] ?? '') ?? -1,
-        ),
-      ),
-      GoRoute(
-        path: '${Routes.program}/:id',
-        builder: (context, state) => ProgramDetailScreen(
-          id: int.tryParse(state.pathParameters['id'] ?? '') ?? -1,
-        ),
-      ),
-      GoRoute(
-        path: Routes.outcomes,
-        builder: (context, state) => const OutcomesScreen(),
       ),
       GoRoute(
         path: Routes.body,

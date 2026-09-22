@@ -158,7 +158,6 @@ void main() {
       Routes.sleep,
       Routes.activity,
       Routes.insights,
-      Routes.actions,
       Routes.settings,
       Routes.diagnostics,
       Routes.pairing,

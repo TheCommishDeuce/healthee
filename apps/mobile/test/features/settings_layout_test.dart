@@ -149,19 +149,20 @@ void main() {
       ]);
     });
 
-    testWidgets('Reminders: prose, the three toggles, then the times', (
+    testWidgets('Reminders: prose, the wind-down toggle, then its time', (
       tester,
     ) async {
       await _pumpAt(tester, 390, Routes.reminders);
       expectPaintedOrder(tester, <Finder>[
         find.textContaining('Your day doesn’t need more noise.'),
-        find.text('Your daily focus'),
         find.text('Time to wind down'),
-        find.text('Challenge reflections'),
-        find.text('Daily focus time'),
         find.text('Wind-down time'),
         find.text('Save reminders'),
       ]);
+      // The daily-focus and challenge notices went with the Actions tab.
+      expect(find.text('Your daily focus'), findsNothing);
+      expect(find.text('Challenge reflections'), findsNothing);
+      expect(find.text('Daily focus time'), findsNothing);
     });
 
     testWidgets('Background: prose, switches, intervals, then sync status', (

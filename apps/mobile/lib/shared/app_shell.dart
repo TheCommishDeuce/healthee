@@ -2,9 +2,9 @@
 ///
 /// This is the widget half of `StatefulShellRoute.indexedStack` (wired in
 /// `core/router.dart`). The shell owns the only [AppTabBar] in the app and the
-/// only `Scaffold` that has one; `navigationShell` is an `IndexedStack` of five
-/// `Navigator`s, each keeping its own widget tree, scroll offsets and route stack
-/// alive while the others are shown.
+/// only `Scaffold` that has one; `navigationShell` is an `IndexedStack` of one
+/// `Navigator` per tab, each keeping its own widget tree, scroll offsets and
+/// route stack alive while the others are shown.
 ///
 /// ## What the indexed stack buys, measured
 ///
@@ -72,8 +72,8 @@
 ///
 /// Pairing, server sign-in, `/settings` and `/diagnostics` are full-screen routes
 /// with no tab bar. Pairing and sign-in are setup flows the app redirects into — a
-/// bar offering five destinations to somebody who has not paired a strap offers
-/// five empty screens. Settings and diagnostics are about the app rather than
+/// bar offering four destinations to somebody who has not paired a strap offers
+/// four empty screens. Settings and diagnostics are about the app rather than
 /// about a day, and lighting a tab on either (diagnostics used to light Today)
 /// says the owner is somewhere they are not.
 library;

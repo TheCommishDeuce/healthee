@@ -44,7 +44,7 @@ void main() {
     await tester.pumpWidget(routedApp(store));
     await tester.pumpAndSettle();
     final router = GoRouter.of(tester.element(find.byType(TodayScreen)));
-    for (final tab in ['Actions', 'Insights', 'Sleep']) {
+    for (final tab in ['Insights', 'Sleep']) {
       await tapTab(tester, tab);
       for (final label in [
         'Add to your journal',

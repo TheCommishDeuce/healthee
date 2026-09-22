@@ -287,21 +287,15 @@ void main() {
     });
 
     test('THE BAR CONTAINS NO DEAD CONTROL', () {
-      // It used to draw Actions dimmed and inert. `core/tabs.dart` argues why a
-      // navigation control that never responds is worse than four tabs; this is
-      // the check that the argument stayed applied. There is no way to express a
-      // routeless tab any more, so the assertion is on the list's contents.
+      // There is no way to express a routeless tab, so the assertion is on the
+      // list's contents. Actions and the coach were removed
+      // (DESIGN_DECISIONS P3, P5); neither may come back as a tab.
       expect(kAppTabs.map((tab) => tab.label), <String>[
         'Today',
         'Sleep',
         'Activity',
         'Insights',
-        'Actions',
       ]);
-      // Coach is not among them. It is a FAB on Today and a sheet behind it,
-      // which is what legacy does (`app/lib/main.dart:399`) and what
-      // `docs/APP_DESIGN.md` §2 describes.
-      expect(kAppTabs.map((tab) => tab.label), isNot(contains('Coach')));
     });
 
     test('EVERY TAB NAMES A ROUTE THE ROUTER WIRES', () {
@@ -313,7 +307,6 @@ void main() {
         Routes.sleep,
         Routes.activity,
         Routes.insights,
-        Routes.actions,
       };
       for (final tab in kAppTabs) {
         expect(

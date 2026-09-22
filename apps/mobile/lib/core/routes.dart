@@ -16,10 +16,6 @@ library;
 /// constants and the reasoning is the same here: a typo'd path fails at
 /// runtime, a typo'd constant fails at compile time.
 abstract final class Routes {
-  static const recommendations = '/recommendations';
-  static const String challenge = '/challenge';
-  static const String program = '/program';
-  static const String outcomes = '/outcomes';
   static const String workouts = '/workouts';
   static const String workout = '/workout';
   static const String profile = '/profile';
@@ -65,9 +61,6 @@ abstract final class Routes {
   /// id — see `features/insights/v02/finding_detail_screen.dart`.
   static const String insight = '/insight';
 
-  /// Every cited action the server raised for today.
-  static const String actions = '/actions';
-
   /// Appearance, the server session, the strap, diagnostics and the licences.
   ///
   /// **Outside the tab shell**, and reached from the Today header's avatar —
@@ -91,7 +84,7 @@ abstract final class Routes {
   /// same rule `leaveSetup` keeps for the two setup flows.
   static const String appearance = '/settings/appearance';
 
-  /// The three optional nudges, and the times they arrive at.
+  /// The optional wind-down reminder, and the time it arrives at.
   static const String reminders = '/settings/reminders';
 
   /// Whether the phone collects and uploads on its own, and under what limits.
@@ -153,23 +146,21 @@ const String kDateParameter = 'date';
 ///
 /// `design/mobile-preview/history-data.js:10` lists **fourteen** date-aware
 /// routes: `today, sleep, activity, insights, actions, recovery, body, fitness,
-/// metrics, metric, sleep-history, workouts, journal, action-history`. Thirteen
-/// paths carry them here because `metrics` and `metric` are one route in this
-/// app — [Routes.history] with and without a `metric=` — which the router
-/// records as a deliberate collapse rather than a gap.
+/// metrics, metric, sleep-history, workouts, journal, action-history`. Ten
+/// paths carry them here: `metrics` and `metric` are one route in this app —
+/// [Routes.history] with and without a `metric=` — and `actions`, `journal`
+/// and `action-history` were removed with their screens.
 const Set<String> kDateAwareRoutes = <String>{
   Routes.today,
   Routes.sleep,
   Routes.activity,
   Routes.insights,
-  Routes.actions,
   Routes.recovery,
   Routes.body,
   Routes.fitness,
   Routes.history,
   Routes.sleepHistory,
   Routes.workouts,
-  Routes.recommendations,
 };
 
 /// Whether [path] is one of the screens the day follows the reader onto.

@@ -39,17 +39,6 @@ void main() {
         expect(parentTabFor(location), Routes.activity, reason: location);
       }
     });
-
-    test('the challenge, program and journal screens are filed under Actions', () {
-      for (final String location in <String>[
-        Routes.outcomes,
-        Routes.recommendations,
-        '${Routes.challenge}/7',
-        '${Routes.program}/3',
-      ]) {
-        expect(parentTabFor(location), Routes.actions, reason: location);
-      }
-    });
   });
 
   group('what the lookup does with the paths it was not given', () {
@@ -61,9 +50,9 @@ void main() {
     });
 
     test('AN UNMAPPED SCREEN GOES TO TODAY, as the prototype does', () {
-      // `H.back()` ends `|| 'today'`. Coach is deliberately unmapped in both:
-      // five tabs open it, so no one tab owns it.
-      expect(parentTabFor('/coach'), Routes.today);
+      // `H.back()` ends `|| 'today'`. The removed Actions screens now fall
+      // through here too, rather than to a tab that no longer exists.
+      expect(parentTabFor('/challenge/7'), Routes.today);
       expect(parentTabFor(Routes.settings), Routes.today);
       expect(parentTabFor('/nothing-like-this'), Routes.today);
     });

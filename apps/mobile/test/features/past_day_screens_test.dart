@@ -30,9 +30,6 @@ import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/models/trend_point.dart';
 import 'package:healthee/data/models/vo2max.dart';
 import 'package:healthee/data/store/local_store.dart';
-import 'package:healthee/features/actions/actions_screen.dart';
-import 'package:healthee/features/actions/v02/suggestion_list.dart';
-import 'package:healthee/features/actions/v02/working_on.dart';
 import 'package:healthee/features/activity/activity_extras.dart';
 import 'package:healthee/features/activity/activity_sections.dart';
 import 'package:healthee/features/activity/fitness_screen.dart';
@@ -210,36 +207,6 @@ void main() {
       );
       expect(_has<PastDayNotice>(today), isFalse);
       expect(_has<TrendsGrid>(today), isTrue);
-    });
-  });
-
-  group('Actions', () {
-    test('YESTERDAY GETS NO SUGGESTION AND NO CURRENT COMMITMENTS', () {
-      final past = actionsSections(
-        screenData(day: DeviceDay.empty(_past), server: todayView()),
-        const ActionsLinks(),
-      );
-      expect(_has<PastDayNotice>(past), isTrue);
-      expect(
-        _has<SuggestionList>(past),
-        isFalse,
-        reason: "today's suggestion is not what that day was told",
-      );
-      expect(
-        _has<WorkingOn>(past),
-        isFalse,
-        reason: 'a challenge’s progress is as of now',
-      );
-    });
-
-    test('and the current day still draws them', () {
-      final today = actionsSections(
-        screenData(server: todayView()),
-        const ActionsLinks(),
-      );
-      expect(_has<PastDayNotice>(today), isFalse);
-      expect(_has<SuggestionList>(today), isTrue);
-      expect(_has<WorkingOn>(today), isTrue);
     });
   });
 

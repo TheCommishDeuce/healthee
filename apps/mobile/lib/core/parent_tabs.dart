@@ -31,8 +31,6 @@
 /// need an entry of its own.
 ///
 /// **An unmapped screen goes to Today**, which is the prototype's `|| 'today'`.
-/// Coach is deliberately unmapped in both: it is opened from five different
-/// tabs, so there is no one tab it belongs under.
 library;
 
 import 'package:healthee/core/routes.dart';
@@ -47,10 +45,6 @@ const Map<String, String> kParentTabs = <String, String>{
   'workout': Routes.activity,
   'fitness': Routes.activity,
   'body': Routes.activity,
-  'challenge': Routes.actions,
-  'program': Routes.actions,
-  'outcomes': Routes.actions,
-  'recommendations': Routes.actions,
 };
 
 /// The tab [location] belongs under, or [Routes.today] when it belongs to none.

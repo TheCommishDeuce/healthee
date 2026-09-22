@@ -51,7 +51,6 @@ class InsightsScreen extends ConsumerWidget {
           onOpenProfile: () => unawaited(context.push(Routes.settings)),
           onOpenMetric: (metric) => openMetricHistory(context, metric),
           onOpenHistory: () => unawaited(context.push(Routes.history)),
-          onOpenOutcomes: () => unawaited(context.push(Routes.outcomes)),
           onOpenSleepHistory: () =>
               unawaited(context.push(Routes.sleepHistory)),
           onOpenFitness: () => unawaited(context.push(Routes.fitness)),

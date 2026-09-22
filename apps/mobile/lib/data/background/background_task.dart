@@ -9,7 +9,6 @@ import 'package:healthee/core/provider_logger.dart';
 import 'package:healthee/data/api/provider_retry.dart';
 import 'package:healthee/data/background/background_store.dart';
 import 'package:healthee/data/background/background_task_names.dart';
-import 'package:healthee/data/notifications/notify_completions.dart';
 import 'package:healthee/data/push/push_service.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/data/store/store_provider.dart';
@@ -51,21 +50,6 @@ void backgroundDispatcher() {
                 .summary
           : (await container.read(pushServiceProvider).run()).summary;
       await preferences.report(result);
-      try {
-        await container.read(
-          notifyCompletionsProvider(background: true).future,
-        );
-      } on Exception catch (error, stack) {
-        AppLog.failure(
-          'background',
-          'checking completion reminders',
-          error,
-          stack,
-        );
-        await preferences.report(
-          '$result · Completion reminders could not be checked.',
-        );
-      }
       // A refused connection is recorded; the next periodic run retries without a retry storm.
       return true;
     } on Exception catch (error, stack) {

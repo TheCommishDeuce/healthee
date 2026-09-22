@@ -119,6 +119,20 @@ mutate 'coach removal leaves the stored conversations on the phone' \
         await m.deleteTable('stored_coach_threads');" \
   '        // tables kept'
 
+# Actions removal must not come back as a tab, and its notifications stay gone.
+mutate 'actions removal restores the retired notification destination' \
+  test/notifications/notification_service_test.dart \
+  lib/data/notifications/notification_service.dart \
+  "    if (payload == 'sleep') destinations.add(payload!);" \
+  "    if (payload == 'actions' || payload == 'sleep') destinations.add(payload!);"
+
+mutate 'actions removal keeps scheduling the old daily reminder' \
+  test/notifications/notification_service_test.dart \
+  lib/data/notifications/notification_service.dart \
+  "  Future<void> _schedule(ReminderPreferences value) async {" \
+  "  Future<void> _schedule(ReminderPreferences value) async {
+    await _daily(1001, 540, 'Your daily focus', 'x', 'sleep');"
+
 # GPS removal must not hide strap workouts or request modern location access.
 mutate 'GPS removal accidentally hides recorded workouts' \
   test/features/gps_removal_test.dart lib/features/activity/activity_sections.dart \
@@ -1499,104 +1513,9 @@ mutate 'a trend sparkline is laid out at zero height' \
   "$SURFACE_TEST" "$INS_TRENDS" \
   '  static const double sparklineHeight = 30;' \
   '  static const double sparklineHeight = 0;'
-# ── Actions · Journal · Coach, rebuilt to v02 ───────────────────────────────
-# The honesty layer on these three screens is almost entirely a set of things
-# that must NOT be drawn — a bar with no observation behind it, an input with no
-# balance behind it, a prompt that spends a question the owner does not have.
-# Every one of those is invisible when it is right, so each is broken here.
-SUGGESTION=lib/features/actions/v02/suggestion_card.dart
-DECK_ITEM=lib/features/actions/v02/deck_item.dart
-CHALLENGE_CARD=lib/features/actions/v02/challenge_card.dart
-ACTIONS_SCREEN=lib/features/actions/actions_screen.dart
-OUTCOME_CARD=lib/shared/challenge_outcome_card.dart
-CHOICES=lib/shared/v02/choices.dart
+# ── Weight entry, after the Actions/Journal/Coach screens were removed ─────
 LOG_SHEET=lib/shared/sheets/weight_log_sheet.dart
-ACTIONS_TEST=test/features/actions_v02_test.dart
-CARDS_TEST=test/features/actions_cards_test.dart
 JOURNAL_TEST=test/features/today_weight_test.dart
-
-# A snake_case token on a health screen is a log line where a source belongs.
-mutate 'a raw signal id reaches the suggestion card' "$ACTIONS_TEST" "$SUGGESTION" \
-  "  if (!hasMetricName(id)) {
-    return 'Raised by a reading with no name in this app';
-  }" \
-  "  if (false) {
-    return 'Raised by a reading with no name in this app';
-  }
-  return 'Raised by \$signal';"
-
-# Adoption records an INTENTION. Nothing in this app observes the doing.
-mutate 'the adopted line starts claiming the action was done' \
-  "$CARDS_TEST" "$SUGGESTION" \
-  "const String kAdoptedNote = 'An intention, not a completed action.';" \
-  "const String kAdoptedNote = 'Done for today.';"
-
-# The family is the rec's own category. A card that picked one would be a hue
-# that can disagree with what the card is about — and the hue is the control's
-# ground now, which is where the owner asked the category to speak.
-mutate 'the suggestion row ignores its category' "$ACTIONS_TEST" "$DECK_ITEM" \
-  '    tone: toneForCategory(rec.category),' \
-  '    tone: Tone.fitness,'
-
-# The ranking is the server's claim about which suggestion matters most today.
-# A client that re-sorted it would be overruling that silently.
-mutate 'the client re-sorts the server’s ranking' "$ACTIONS_TEST" "$ACTIONS_SCREEN" \
-  '        SuggestionList(recommendations: recommendations),' \
-  '        SuggestionList(recommendations: recommendations.reversed.toList()),'
-
-# The prototype's order, moved by one: the owner's own record climbs above the
-# suggestions, which are the screen's subject and the whole of its top half.
-mutate 'the Actions sections come out of order' "$ACTIONS_TEST" "$ACTIONS_SCREEN" \
-  '    const PageSection(SectionHead(title: kRecordHeading), gap: 0),' \
-  '' \
-  '    if (snapshot != null)
-      PageSection(' \
-  '    const PageSection(SectionHead(title: kRecordHeading), gap: 0),
-    if (snapshot != null)
-      PageSection('
-
-# "Nothing observed yet" and "you are at zero" are different days.
-mutate 'a challenge with no progress draws a bar at zero' "$CARDS_TEST" "$CHALLENGE_CARD" \
-  '  static double? fraction(ChallengeProgress? progress) {
-    if (progress == null) {
-      return null;
-    }' \
-  '  static double? fraction(ChallengeProgress? progress) {
-    if (progress == null) {
-      return 0;
-    }'
-
-# A 7-day window over something nobody started reads as a commitment.
-mutate 'a suggested challenge is labelled as a running one' "$CARDS_TEST" "$CHALLENGE_CARD" \
-  "    return challenge.status == 'active'
-        ? '\$window challenge'
-        : 'Suggested · \$window';" \
-  "    return '\$window challenge';"
-
-# `.check-action .checkbox { width: 24px; height: 24px }`.
-mutate 'the adopt checkbox loses its box' "$CARDS_TEST" "$CHOICES" \
-  '  static const double boxSize = 24;' \
-  '  static const double boxSize = 20;'
-
-# Half a comparison drawn as a whole one is the claim the card refuses.
-mutate 'an outcome invents the half of the comparison it was not sent' \
-  "$CARDS_TEST" "$OUTCOME_CARD" \
-  '    if (before == null || during == null) {
-      return null;
-    }' \
-  '    if (during == null) {
-      return null;
-    }
-    final start = before ?? during;'
-
-# The sentence that keeps an outcome an observation.
-mutate 'the outcome drops its "not a proven effect" sentence' \
-  "$CARDS_TEST" "$OUTCOME_CARD" \
-  "const String kObservationNote =
-    'These are the readings inside the window, beside the readings before it. '
-    'That is an observation, not a proven effect of the challenge.';" \
-  "const String kObservationNote =
-    'The challenge raised your average over the window.';"
 
 # The journal UI is gone; direct weight entry must still post the right kind.
 mutate 'journal removal redirects weight into another log kind' \
@@ -2452,19 +2371,10 @@ mutate 'a step bucket parses a distance nobody measured' \
 # rather than a number, which is the class this app has the least other cover
 # for: none of them fails loudly, and all four read as working code.
 
-REC_MODEL=lib/data/models/recommendation.dart
 SHARED_OTHER_DAY=lib/shared/format/other_day.dart
 GEN_INSIGHT=lib/data/insights/generated_insight.dart
-DATING_TEST="test/features/other_day_shared_test.dart test/features/actions_v02_test.dart"
+DATING_TEST=test/features/other_day_shared_test.dart
 FALLBACK_TEST=test/features/insight_fallback_test.dart
-
-# ── A3 ───────────────────────────────────────────────────────────────────────
-# The row's own date is dropped again, so a two-day-old action is drawn as the
-# day's own with nothing able to say otherwise.
-mutate 'a recommendation drops the day it was written for' \
-  "$DATING_TEST" "$REC_MODEL" \
-  "      date: json['date'] as String?," \
-  '      date: null,'
 
 # The date is parsed and not drawn — a field that exists and changes nothing,
 # which reads exactly like a working fix.
@@ -2701,15 +2611,7 @@ mutate 'the baseline depths collapse into one number' \
 
 # ── C5 — one “from another day” decision, two surfaces ───────────────────────
 OTHER_DAY=lib/shared/format/other_day.dart
-ACTIONS_V02=test/features/actions_v02_test.dart
 SHARED_DAY_TEST=test/features/other_day_shared_test.dart
-
-# The v02 Actions screen goes back to relabelling a two-day-stale set as today'"'"'s.
-mutate 'the v02 actions set is relabelled as this day’s' "$ACTIONS_V02" \
-  lib/features/actions/actions_screen.dart \
-  '    if (recommendationsFromDay(recommendations, snapshot?.asOf?.day)
-        case final String day)' \
-  '    if (null case final String day)'
 
 # An undated block is filled in from the day on screen — "we do not know this
 # block'"'"'s day" quietly becomes "it is this day'"'"'s", which is the one claim
@@ -2733,7 +2635,8 @@ mutate 'an undated block is filled in from the day on screen' \
 mutate 'a raised signal is described as unwritten advice' \
   "$SHARED_DAY_TEST" "$OTHER_DAY" \
   "String raisedOnDay(String isoDay) => 'Raised on \${shortDate(isoDay)}, not on this day.';" \
-  "String raisedOnDay(String isoDay) => writtenForDay(isoDay);"
+  "String raisedOnDay(String isoDay) =>
+    'Written for \${shortDate(isoDay)} — nothing was written for this day.';"
 
 # ── C6 — the journal panel follows the wire ──────────────────────────────────
 ROUTINE=lib/data/models/routine.dart
@@ -3078,28 +2981,6 @@ mutate 'the loopback fallback is prefilled as if it were an answer' \
   "String get _suggestedAddress => Env.isUsingFallbackApi ? '' : Env.apiBaseUrl;" \
   'String get _suggestedAddress => Env.apiBaseUrl;'
 
-
-# ⛔ A program the coach designed reached NO screen. `create_program` wrote a
-# ladder in `suggested`, the feed served it with every field the client parses, and
-# the deck knew about two of the three feeds. Found on a real install: the owner
-# went looking for a six-week ladder and it was nowhere — which is also why it was
-# still `suggested` with no adopted_at. There was never a button.
-mutate 'suggested programs are dropped from the deck again' \
-  test/features/program_in_deck_test.dart \
-  lib/features/actions/v02/suggestion_list.dart \
-  '      if (repository != null)
-        for (final program in programs?.suggested ?? const <HealthProgram>[])
-          DeckItem.program(program, repository, ref),' \
-  ''
-
-# A ladder commits you to an ORDER, not a number. Quoting the first rung's target
-# reads as the whole commitment when it is only the first step, and the point of a
-# ladder is that the target moves.
-mutate 'a program quotes its first rung as the commitment' \
-  test/features/program_in_deck_test.dart \
-  lib/features/actions/v02/deck_item.dart \
-  "        '\${program.rungs.length} rungs, one at a time'" \
-  "        '\${program.rungs.first.target.round()} steps'"
 
 
 echo

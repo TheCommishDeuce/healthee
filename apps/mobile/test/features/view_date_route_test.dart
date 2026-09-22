@@ -85,21 +85,19 @@ void main() {
     test('the remaining date-aware routes exclude the retired journal', () {
       // `metrics` and `metric` are one route in this app — `/history` with and
       // without a `metric=`. Everything else maps one to one.
-      expect(kDateAwareRoutes.length, 12);
+      expect(kDateAwareRoutes.length, 10);
       expect(isDateAwareRoute('/journal'), isFalse);
       for (final path in <String>[
         Routes.today,
         Routes.sleep,
         Routes.activity,
         Routes.insights,
-        Routes.actions,
         Routes.recovery,
         Routes.body,
         Routes.fitness,
         Routes.history,
         Routes.sleepHistory,
         Routes.workouts,
-        Routes.recommendations,
       ]) {
         expect(isDateAwareRoute(path), isTrue, reason: path);
       }

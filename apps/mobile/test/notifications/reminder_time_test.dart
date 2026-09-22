@@ -17,16 +17,25 @@ void main() {
   test(
     'reminders default off; chosen times and account survive serialization',
     () {
-      expect(ReminderPreferences.decode(null).daily, isFalse);
+      expect(ReminderPreferences.decode(null).bedtime, isFalse);
       const prefs = ReminderPreferences(
         scope: 'owner',
-        daily: true,
-        dailyMinute: 601,
+        bedtime: true,
+        bedtimeMinute: 1321,
       );
       final restored = ReminderPreferences.decode(prefs.encode());
       expect(restored.scope, 'owner');
-      expect(restored.dailyMinute, 601);
-      expect(restored.bedtime, isFalse);
+      expect(restored.bedtimeMinute, 1321);
+      expect(restored.bedtime, isTrue);
     },
   );
+  test('an older record with the removed daily fields still decodes', () {
+    final restored = ReminderPreferences.decode(
+      '{"scope":"owner","daily":true,"bedtime":true,"completions":true,'
+      '"daily_minute":540,"bedtime_minute":1350}',
+    );
+    expect(restored.bedtime, isTrue);
+    expect(restored.bedtimeMinute, 1350);
+    expect(restored.encode(), isNot(contains('daily')));
+  });
 }
