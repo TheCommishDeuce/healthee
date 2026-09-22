@@ -138,6 +138,9 @@ dependencies:
   crypto: any
   refresh_rate: ^1.0.2
   gotrue: ^2.27.2
+  # Scans the administrator's one-time enrollment QR (docs/QR_ENROLLMENT.md).
+  # Brings the CAMERA permission; the scanner screen is the only camera use.
+  mobile_scanner: ^7.4.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

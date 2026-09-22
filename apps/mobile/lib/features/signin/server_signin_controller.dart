@@ -15,6 +15,8 @@ library;
 
 import 'package:healthee/data/api/server_session.dart';
 import 'package:healthee/data/api/signin_failure.dart';
+import 'package:healthee/data/auth/enrollment_link.dart';
+import 'package:healthee/data/auth/phone_enrollment.dart';
 import 'package:healthee/features/signin/server_signin_state.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -74,6 +76,16 @@ class ServerSignInController extends _$ServerSignInController {
   }
 
   /// The shape both sign-ins share: busy, one call, idle or a named failure.
+  /// Redeems the administrator's enrollment [link] (`docs/QR_ENROLLMENT.md`).
+  Future<bool> enroll(EnrollmentLink link) async {
+    return _run('Enrolling this phone…', (repository) async {
+      await repository.enroll(
+        link: link,
+        client: ref.read(enrollmentClientProvider),
+      );
+    });
+  }
+
   Future<bool> _run(
     String label,
     Future<void> Function(ServerSessionRepository repository) call,

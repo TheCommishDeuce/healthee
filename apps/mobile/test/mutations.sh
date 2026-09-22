@@ -133,6 +133,34 @@ mutate 'actions removal keeps scheduling the old daily reminder' \
   "  Future<void> _schedule(ReminderPreferences value) async {
     await _daily(1001, 540, 'Your daily focus', 'x', 'sleep');"
 
+# QR enrollment (docs/QR_ENROLLMENT.md): confirm before sending, route the phone
+# token to both paths, file it as enrolled, and parse the link strictly.
+mutate 'enrollment sends before the owner confirms the server' \
+  test/signin/enrollment_screen_test.dart \
+  lib/features/signin/widgets/enrollment_entry.dart \
+  '      final link = EnrollmentLink.parse(raw);
+      setState(() {' \
+  '      final link = EnrollmentLink.parse(raw);
+      widget.onEnroll(link);
+      setState(() {'
+
+mutate 'an enrolled phone stops sending its token to /api' \
+  test/signin/credential_routing_test.dart lib/data/api/interceptors.dart \
+  '    if (session.kind == StoredCredentialKind.enrolled) {
+      return session.token;
+    }' \
+  ''
+
+mutate 'an enrolled token is filed as an ingest-only device token' \
+  test/signin/enrollment_test.dart lib/data/auth/phone_enrollment.dart \
+  'kind: StoredCredentialKind.enrolled,' \
+  'kind: StoredCredentialKind.device,'
+
+mutate 'the enrollment link accepts any scheme' \
+  test/signin/enrollment_test.dart lib/data/auth/enrollment_link.dart \
+  "uri.scheme != 'healthee' || " \
+  ''
+
 # GPS removal must not hide strap workouts or request modern location access.
 mutate 'GPS removal accidentally hides recorded workouts' \
   test/features/gps_removal_test.dart lib/features/activity/activity_sections.dart \

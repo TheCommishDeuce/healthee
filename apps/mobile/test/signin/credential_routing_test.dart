@@ -183,6 +183,46 @@ void main() {
     });
   });
 
+  group('an ENROLLED phone (docs/QR_ENROLLMENT.md)', () {
+    test('its own token goes on both paths', () async {
+      await credentials.setServerSession(
+        baseUrl: 'https://healthee.example.com',
+        token: _stored,
+        kind: StoredCredentialKind.enrolled,
+      );
+      final dio = clientWith(signedIn: false);
+      await dio.get<Object?>('/api/today');
+      expect(sentAuth(), 'Bearer $_stored');
+
+      server.sent.clear();
+      await dio.post<Object?>('/ingest/helio', data: <String, Object?>{});
+      expect(sentAuth(), 'Bearer $_stored');
+    });
+
+    test('A LEFTOVER IDENTITY SESSION DOES NOT REPLACE IT ON /api/*', () async {
+      await credentials.setServerSession(
+        baseUrl: 'https://healthee.example.com',
+        token: _stored,
+        kind: StoredCredentialKind.enrolled,
+      );
+      final dio = await signedInClient();
+      await dio.get<Object?>('/api/today');
+      expect(sentAuth(), 'Bearer $_stored');
+    });
+
+    test('the kind survives the keystore round trip', () async {
+      await credentials.setServerSession(
+        baseUrl: 'https://healthee.example.com',
+        token: _stored,
+        kind: StoredCredentialKind.enrolled,
+      );
+      expect(
+        (await credentials.serverSession())!.kind,
+        StoredCredentialKind.enrolled,
+      );
+    });
+  });
+
   group('no session at all', () {
     test('nothing is sent, and the build default stands', () async {
       final empty = FakeSecretStore();

@@ -103,6 +103,11 @@ class ServerSessionInterceptor extends Interceptor {
     if (path.startsWith(ingestPrefix)) {
       return session.token;
     }
+    // An enrolled phone's own token is accepted on BOTH paths by design
+    // (`docs/QR_ENROLLMENT.md`); there is no identity session behind it.
+    if (session.kind == StoredCredentialKind.enrolled) {
+      return session.token;
+    }
     // ⛔ The transitional path. The shared token is the one credential the
     // server takes on BOTH, and it is what a phone mid-migration holds.
     if (session.kind == StoredCredentialKind.shared) {

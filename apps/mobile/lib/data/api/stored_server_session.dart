@@ -15,6 +15,11 @@ enum StoredCredentialKind {
   /// takes the Supabase JWT beside it.
   device,
 
+  /// Redeemed from an administrator's one-time QR code (`POST /api/enroll`).
+  /// This phone's own `phone`-scoped token, accepted on BOTH `/api/*` and
+  /// `/ingest/*` and revocable per phone (`docs/QR_ENROLLMENT.md`).
+  enrolled,
+
   /// ⛔ The shared `REALTIME_INGEST_TOKEN`, pasted by the owner. One string, no
   /// identity, and accepted by the server on BOTH paths — which is exactly why
   /// it is going away. It is also what every session written before this field
@@ -74,9 +79,11 @@ class StoredServerSession {
       // because that is the only thing this app could store then. Defaulting to
       // `device` would silently stop sending the one credential those phones
       // have — an upgrade that signs the owner out for no visible reason.
-      kind: data['kind'] == 'device'
-          ? StoredCredentialKind.device
-          : StoredCredentialKind.shared,
+      kind: switch (data['kind']) {
+        'device' => StoredCredentialKind.device,
+        'enrolled' => StoredCredentialKind.enrolled,
+        _ => StoredCredentialKind.shared,
+      },
     );
   }
 

@@ -35,6 +35,7 @@ library;
 import 'package:meta/meta.dart';
 
 // The identity provider's half of the taxonomy — see that file's own note.
+part 'enrollment_failure.dart';
 part 'identity_failure.dart';
 
 /// A named sign-in failure, with the copy the screen renders.
