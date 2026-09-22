@@ -22,8 +22,6 @@ class ActivityExtras {
     this.plan,
     this.onOpenWorkouts,
     this.onOpenWorkout,
-    this.onOpenRoutes,
-    this.onRecord,
     this.onOpenMetric,
     this.onOpenRecovery,
     this.onOpenFitness,
@@ -41,12 +39,6 @@ class ActivityExtras {
 
   /// Opens one recorded session.
   final void Function(DeviceWorkout workout)? onOpenWorkout;
-
-  /// Opens the saved routes.
-  final VoidCallback? onOpenRoutes;
-
-  /// Opens the GPS recording flow.
-  final VoidCallback? onRecord;
 
   /// Opens one metric's own history. The panels' `Details` action.
   final void Function(String metric)? onOpenMetric;

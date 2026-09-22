@@ -67,9 +67,6 @@ import 'package:healthee/features/actions/recommendation_history_screen.dart';
 import 'package:healthee/features/activity/fitness_screen.dart';
 import 'package:healthee/features/coach/coach_history_screen.dart';
 import 'package:healthee/features/coach/coach_screen.dart';
-import 'package:healthee/features/gps/gps_screen.dart';
-import 'package:healthee/features/gps/route_detail_screen.dart';
-import 'package:healthee/features/gps/routes_screen.dart';
 import 'package:healthee/features/history/history_screen.dart';
 import 'package:healthee/features/history/metric_explorer_screen.dart';
 import 'package:healthee/features/insights/v02/finding_detail_screen.dart';
@@ -136,16 +133,6 @@ GoRouter buildRouter(WidgetRef ref) {
       GoRoute(
         path: Routes.recommendations,
         builder: (context, state) => const RecommendationHistoryScreen(),
-      ),
-      GoRoute(path: Routes.gps, builder: (context, state) => const GpsScreen()),
-      GoRoute(
-        path: Routes.routes,
-        builder: (context, state) => const RoutesScreen(),
-      ),
-      GoRoute(
-        path: '${Routes.route}/:id',
-        builder: (context, state) =>
-            RouteDetailScreen(id: state.pathParameters['id']!),
       ),
       // The tabs. Branch order IS `kAppTabs` order, by construction rather than
       // by agreement — the bar moves by index, so two lists would be a defect

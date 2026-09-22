@@ -2,7 +2,7 @@
 ///
 /// ```js
 /// const parents = { recovery:'today','sleep-history':'sleep',
-///   workouts:'activity',workout:'activity',route:'activity',record:'activity',
+///   workouts:'activity',workout:'activity',
 ///   fitness:'activity',body:'activity',metric:'insights',metrics:'insights',
 ///   insight:'insights',challenge:'actions',program:'actions',
 ///   outcomes:'actions','action-history':'actions',journal:'actions' };
@@ -26,8 +26,8 @@
 ///
 /// ## The lookup is on the FIRST path segment
 ///
-/// `H.route.split('/')[0]` — so `route/abc` and `insight/caffeine-sleep` resolve
-/// through `route` and `insight`, and a screen with an id in its path does not
+/// `H.route.split('/')[0]` — so `insight/caffeine-sleep` resolves through
+/// `insight`, and a screen with an id in its path does not
 /// need an entry of its own.
 ///
 /// **An unmapped screen goes to Today**, which is the prototype's `|| 'today'`.
@@ -37,14 +37,7 @@ library;
 
 import 'package:healthee/core/routes.dart';
 
-/// The prototype's map, in this app's paths.
-///
-/// Two entries have no prototype counterpart and are filed by what they are:
-///
-///   * `/routes` — the app's saved-route list. The prototype's `record` links
-///     straight to a single `route`, having no list screen; the list is a
-///     sibling of both and belongs where they do.
-///   * `/gps` — this app's name for the prototype's `record`.
+/// The parent map for the app's current detail screens.
 const Map<String, String> kParentTabs = <String, String>{
   'recovery': Routes.today,
   'sleep-history': Routes.sleep,
@@ -52,9 +45,6 @@ const Map<String, String> kParentTabs = <String, String>{
   'insight': Routes.insights,
   'workouts': Routes.activity,
   'workout': Routes.activity,
-  'route': Routes.activity,
-  'routes': Routes.activity,
-  'gps': Routes.activity,
   'fitness': Routes.activity,
   'body': Routes.activity,
   'challenge': Routes.actions,

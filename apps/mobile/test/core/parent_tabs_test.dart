@@ -29,15 +29,12 @@ void main() {
       expect(parentTabFor('${Routes.insight}/caffeine-sleep'), Routes.insights);
     });
 
-    test('the workout, GPS and fitness screens are filed under Activity', () {
+    test('the workout and fitness screens are filed under Activity', () {
       for (final String location in <String>[
         Routes.workouts,
         Routes.workout,
-        Routes.routes,
-        Routes.gps,
         Routes.fitness,
         Routes.body,
-        '${Routes.route}/2026-07-31T07:00:00Z',
       ]) {
         expect(parentTabFor(location), Routes.activity, reason: location);
       }

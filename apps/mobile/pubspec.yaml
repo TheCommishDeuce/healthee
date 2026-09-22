@@ -128,7 +128,6 @@ dependencies:
   # still to port name it throughout. If those land on Material icons instead,
   # this comes out with the last usage (Standards §1, dead code).
   solar_icons: ^0.1.0
-  geolocator: ^14.0.3
   workmanager: ^0.10.9
   flutter_local_notifications: ^22.3.0
   timezone: ^0.11.1

@@ -25,8 +25,6 @@ import 'package:healthee/data/challenges/challenge_feed.dart';
 import 'package:healthee/data/challenges/commitment_repository.dart';
 import 'package:healthee/data/challenges/health_program.dart';
 import 'package:healthee/data/challenges/program_feed.dart';
-import 'package:healthee/data/gps/gps_recorder.dart';
-import 'package:healthee/data/gps/gps_recording_state.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/honesty/last_known.dart';
 import 'package:healthee/data/insights/notable_event.dart';
@@ -209,7 +207,6 @@ Widget _scoped(
       notableEventsProvider.overrideWith(
         (ref) => Stream.value(ServerSnapshot(<NotableEvent>[], fetchedAt: now)),
       ),
-      gpsRecorderProvider.overrideWith(FixedGps.new),
       commitmentRepositoryProvider.overrideWith(
         (ref) async => CommitmentRepository(
           AccountApi(Dio(), await CacheSession.capture(null)),
@@ -371,12 +368,6 @@ Future<void> tapTab(WidgetTester tester, String label) async {
     find.descendant(of: find.byType(AppTabBar), matching: find.text(label)),
   );
   await tester.pumpAndSettle();
-}
-
-/// GPS acquisition has its own scripted suite; screen tests never open hardware.
-class FixedGps extends GpsRecorder {
-  @override
-  Future<GpsRecordingState> build() async => const GpsRecordingState();
 }
 
 /// Moves the screen to [iso] the way the owner now does.

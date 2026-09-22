@@ -949,19 +949,21 @@ The implemented parity flows and physical acceptance checklist are maintained in
 [Legacy feature migration](../../docs/LEGACY_FEATURE_PARITY.md).
 
 Actions now includes challenges, programs, outcome review, recommendation history
-and the journal. Activity adds workout history/details, durable GPS recording and
-saved route maps. Insights adds notable events and 20-metric history with
+and the journal. Activity retains workout history/details. Built-in GPS recording
+and saved-route maps were removed in the personal-use cleanup (2026-09-22); location
+tracking is handled separately in Dawarich. Insights adds notable events and 20-metric history with
 30/90/365/1825-day ranges, log markers and detail analysis. Settings adds profile
 editing, separate scheduled collection/upload controls, opt-in reminders and
 persisted appearance variants. Today restores active commitments and Tonight.
 
-GPS uses Drift schema v5 with owner-scoped recordings/fixes and immutable upload
-IDs. The earlier schema v4 account-cache migration remains intact. Feed caches
+Legacy GPS recordings/fixes remain in Drift for data preservation; this build no
+longer records, displays or uploads routes. The schema and earlier account-cache
+migration remain intact. Feed caches
 show saved timestamps and refresh failures. Journal drafts remain editor-local;
 uncertain non-idempotent saves are not automatically retried.
 
 The matching server changes are required for profile edits, account identity,
-recommendation history, expanded history and retry-safe GPS uploads. They are
-implemented locally; this work does not deploy production. Background execution,
-GPS and notification delivery also require physical acceptance, as recorded in
-the checklist. Android native builds include desugaring 2.1.5; iOS requires 14+.
+recommendation history and expanded history. Existing server GPS endpoints remain
+for older clients; no server or production data is removed with the mobile UI.
+Background execution and notification delivery still require physical acceptance,
+as recorded in the checklist. Android native builds include desugaring 2.1.5; iOS requires 14+.

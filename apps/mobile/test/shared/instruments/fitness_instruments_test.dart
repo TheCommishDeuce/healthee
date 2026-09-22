@@ -11,9 +11,7 @@
 /// > This file also covered `shared/v02/instruments/route_plot.dart` until that
 /// > instrument was deleted. It was never reachable from `main.dart`, and the
 /// > ground it drew — parks, a river and two roads at fixed fractions of the box
-/// > — is precisely what a real basemap replaces. The route drawing that ships
-/// > is `features/gps/route_map.dart`, and `test/gps/route_map_test.dart`
-/// > measures it.
+/// > — was fabricated geography. GPS/maps have since been removed entirely.
 library;
 
 import 'package:flutter_test/flutter_test.dart';

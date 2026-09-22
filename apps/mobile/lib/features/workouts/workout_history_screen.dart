@@ -1,4 +1,4 @@
-/// **Every session this server holds** — the recording action, the days, and
+/// **Every session this server holds** — the days and
 /// the week's strength.
 ///
 /// **This is the v02 prototype's screen, in the prototype's order.**
@@ -7,7 +7,6 @@
 ///
 /// ```text
 ///   header (detail)          Activity history        Your workouts.
-///   .button.full             Record a workout
 ///   <p class="small">        what this list is, and what it leaves out
 ///   .tiny-label + .card      one caption and one flush card per day
 ///   Weekly strength          the minutes, and what they are not counted against
@@ -19,19 +18,9 @@
 /// The data wiring, whole: `workoutHistoryProvider` and its parse are untouched,
 /// and so is the empty state's promise about what the list contains. The
 /// `ListTile` subtitle that carried *"Latest 100 uploaded sessions · at least 10
-/// minutes"* is now a sentence under the button, because it is a **limit on this
+/// minutes"* is now a sentence above the sessions, because it is a **limit on this
 /// list** rather than a row in it — a reader who meets the rows first has no way
 /// to know the list is bounded.
-///
-/// ## The prototype's second row is not invented here
-///
-/// Its day card holds a workout row *and* a `GPS recording` row, because its
-/// fixture has one saved route on that day. This app keeps its routes in their
-/// own list and Activity already carries the door to it (`activity_sections.dart`
-/// draws `Saved routes` in the same flush card as the sessions). A day group
-/// here holds the sessions recorded on that day and nothing else; a routes row
-/// filed under a date would be claiming a route belongs to a day this screen
-/// never asked the server about.
 ///
 /// ## Why the strength card reads the Today payload
 ///
@@ -59,7 +48,6 @@ import 'package:healthee/shared/states/async_view.dart';
 import 'package:healthee/shared/states/current_account_value.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/detail_page.dart';
-import 'package:healthee/shared/v02/full_button.dart';
 import 'package:healthee/shared/v02/past_day.dart';
 import 'package:healthee/shared/v02/section_head.dart';
 import 'package:healthee/shared/v02/surface_cards.dart' show SmallProse;
@@ -68,9 +56,6 @@ import 'package:healthee/shared/v02/view_day.dart';
 
 /// `.section { margin-top: 24px }`.
 const double kWorkoutsSectionGap = 24;
-
-/// `H.link('Record a workout','record','button full')`.
-const String kRecordLabel = 'Record a workout';
 
 /// What this list is bounded by. The server's own limit, said out loud.
 const String kHistoryBounds =
@@ -109,11 +94,6 @@ class WorkoutHistoryScreen extends ConsumerWidget {
       title: 'Your workouts.',
       eyebrow: day.line,
       children: <Widget>[
-        V02FullButton(
-          label: kRecordLabel,
-          onPressed: () => unawaited(context.push(Routes.gps)),
-        ),
-        const SizedBox(height: kWorkoutsSectionGap),
         const SmallProse(kHistoryBounds),
         const SizedBox(height: kWorkoutsSectionGap),
         AsyncView<List<WorkoutSummary>>(

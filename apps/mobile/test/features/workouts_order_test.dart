@@ -59,14 +59,13 @@ void main() {
   useRealFonts();
 
   group('the session list is H.screens.workouts', () {
-    testWidgets('BUTTON · BOUNDS · DAY · SESSIONS · STRENGTH · FOOTER', (
+    testWidgets('BOUNDS · DAY · SESSIONS · STRENGTH · FOOTER', (
       tester,
     ) async {
       await _pump(tester, const WorkoutHistoryScreen(), withToday: true);
 
       _inOrder(textsOn(tester), <String>[
         'Your workouts.', // the detail head's h1
-        kRecordLabel, // H.link('Record a workout', …, 'button full')
         'The latest 100 uploaded sessions', // what the list leaves out
         // Derived for the same reason the detail header's is: the caption is
         // `prettyDate` over the session's LOCAL day, so a literal is only true

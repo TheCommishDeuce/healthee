@@ -17,9 +17,6 @@ library;
 /// runtime, a typo'd constant fails at compile time.
 abstract final class Routes {
   static const recommendations = '/recommendations';
-  static const gps = '/gps';
-  static const routes = '/routes';
-  static const route = '/route';
   static const String challenge = '/challenge';
   static const String program = '/program';
   static const String outcomes = '/outcomes';

@@ -10,8 +10,7 @@
 ///   context bridge            movement → the longer view, and → recovery
 ///   your week, by intensity   moderate-equivalent minutes and their parts
 ///   training load             today's TRIMP against the habit behind it
-///   the sessions behind it    the recorded workouts, and the saved routes
-///   record an outdoor workout the one filled action on the screen
+///   the sessions behind it    the recorded workouts
 ///   fitness with its source   VO₂max, its rail, its instrument
 ///   context bridge            the fitness term of the age model
 ///   activity analysis         this app's own — the prototype has no surface
@@ -72,7 +71,6 @@ import 'package:healthee/shared/states/reading_view.dart';
 import 'package:healthee/shared/v02/context_bridge.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/dated_history.dart';
-import 'package:healthee/shared/v02/full_button.dart';
 import 'package:healthee/shared/v02/list_rows.dart';
 import 'package:healthee/shared/v02/page_header.dart';
 import 'package:healthee/shared/v02/section_head.dart';
@@ -302,12 +300,7 @@ List<PageSection> activitySections(ScreenData data, ActivityExtras extras) {
   return sections.build();
 }
 
-/// `The sessions behind it` — the recorded workouts, and the saved routes.
-///
-/// The routes row is drawn whether or not a session was recorded today: it opens
-/// a list this app holds independently of the day being read, and a heading with
-/// only that under it is still a true list. A day with no sessions simply has no
-/// session rows.
+/// Recorded workouts, with a link to history even on days without a session.
 void _sessions(
   SectionList sections,
   ScreenData data,
@@ -322,36 +315,24 @@ void _sessions(
       onAction: extras.onOpenWorkouts,
     ),
   );
-  sections.add(
-    FlushCard(
-      rows: <Widget>[
-        for (final workout in workouts)
-          V02ListRow(
-            icon: SolarIconsOutline.running,
-            title: workout.sportLabel,
-            detail: _sessionDetail(workout),
-            tone: Tone.heart,
-            onOpen: extras.onOpenWorkout == null
-                ? null
-                : () => extras.onOpenWorkout!(workout),
-          ),
-        V02ListRow(
-          icon: SolarIconsOutline.mapPoint,
-          title: 'Saved routes',
-          detail: 'Recorded GPS tracks · elevation and pace',
-          tone: Tone.movement,
-          onOpen: extras.onOpenRoutes,
-        ),
-      ],
-    ),
-  );
-  sections.gap(PageSpacing.block);
-  sections.add(
-    V02FullButton(
-      label: 'Record an outdoor workout',
-      onPressed: extras.onRecord,
-    ),
-  );
+  if (workouts.isNotEmpty) {
+    sections.add(
+      FlushCard(
+        rows: <Widget>[
+          for (final workout in workouts)
+            V02ListRow(
+              icon: SolarIconsOutline.running,
+              title: workout.sportLabel,
+              detail: _sessionDetail(workout),
+              tone: Tone.heart,
+              onOpen: extras.onOpenWorkout == null
+                  ? null
+                  : () => extras.onOpenWorkout!(workout),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// `30 min · 135 bpm avg · 412 kcal by the strap’s count`, dropping what the

@@ -75,6 +75,18 @@ mutate() {
   mv "$file.orig" "$file"
 }
 
+# GPS removal must not hide strap workouts or request modern location access.
+mutate 'GPS removal accidentally hides recorded workouts' \
+  test/features/gps_removal_test.dart lib/features/activity/activity_sections.dart \
+  '  if (workouts.isNotEmpty) {' \
+  '  if (false) {'
+
+mutate 'GPS removal leaves modern Android location permission enabled' \
+  test/features/gps_removal_test.dart android/app/src/main/AndroidManifest.xml \
+  '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />' \
+  '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />'
+
 PRUNE=lib/data/store/horizon_prune.dart
 WRITER=lib/data/store/strap_writer.dart
 SAFETY=test/store/prune_safety_test.dart
@@ -2301,48 +2313,6 @@ mutate 'an opening question characterises what it names' "$TOPIC_TEST" \
   "    'What should I notice in my \${metricName(metric)} trend?';" \
   "    'Why has my \${metricName(metric)} been getting worse?';"
 
-# ── the GPS screens, ported off the legacy frame ────────────────────────────
-ROUTE_MAP=lib/features/gps/route_map.dart
-ROUTE_SECTIONS=lib/features/gps/route_detail_sections.dart
-GPS_TEST=test/gps/route_screens_test.dart
-# The drawing's own suite. Split out of `route_screens_test.dart` when that file
-# passed the 400-line gate — and this line is the reason the split is worth a
-# comment: the mutation below kept naming the old file, applied cleanly, and
-# SURVIVED, because the test that catches it had moved. A mutation whose target
-# no longer holds its test reports a pass it did not earn.
-MAP_TEST=test/gps/route_map_test.dart
-
-# One fix is a dot. A box with a dot in it is a picture of a journey nobody
-# recorded, and it looks like a map that simply did not load.
-mutate 'a single GPS fix is drawn as a route' "$MAP_TEST" "$ROUTE_MAP" \
-  '    if (widget.points.length < 2) {' \
-  '    if (widget.points.length < 1) {'
-
-# A session VO2max with no method beside it is the shape #108 shipped in: a
-# number nobody can trace to the tier that produced it.
-mutate 'a session VO2max loses the instrument that produced it' \
-  "$GPS_TEST" "$ROUTE_SECTIONS" \
-  "                ? 'Method not named by the server for this session'" \
-  "                ? ''"
-
-# The withheld estimate stops saying why, and the screen just has less on it.
-mutate 'a withheld fitness estimate stops giving its reason' \
-  "$GPS_TEST" "$ROUTE_SECTIONS" \
-  '  final double? vo2max = route.vo2max;
-  if (vo2max == null) {' \
-  '  final double? vo2max = route.vo2max;
-  if (false) {'
-
-# A track with no altitudes is drawn as level ground no barometer measured.
-mutate 'a track with no altitudes gets a flat elevation profile' \
-  "$GPS_TEST" "$ROUTE_SECTIONS" \
-  '  if (values.nonNulls.length < 2) {
-    return const <Widget>[];
-  }' \
-  '  if (false) {
-    return const <Widget>[];
-  }'
-
 # ── the links section 2 found undrawn, and the ones drawn at a neighbour ────
 # A link that lands on the wrong screen is the hard one: the control is there,
 # the tap does something, and a screen appears.
@@ -2604,41 +2574,6 @@ mutate 'the baseline loses the spread it is only meaningful with' \
   "$H_GOLDEN_TEST test/features/today_screen_test.dart" "$H_TODAY_BODY" \
   "  final spread = sd == null ? '' : ' ± \${sd.round()}';" \
   "  final spread = '';"
-
-# ── the recorded track, and the basemap under it ────────────────────────────
-GPS_RUN=lib/data/gps/gps_run.dart
-ROUTE_PAINTER=lib/features/gps/route_painter.dart
-GPS_RUN_TEST=test/gps/gps_run_test.dart
-
-# THE original defect, restored: the state keeps only the newest fix, so the
-# count still climbs, the distance still climbs, and the map has one dot to
-# draw. The recorder screen had no map for exactly this reason — not a missing
-# painter, a missing measurement.
-mutate 'the recording state drops the coordinates it recorded' \
-  "$GPS_RUN_TEST" "$GPS_RUN" \
-  '      track: <RoutePoint>[...value.track, _asRoutePoint(fix)],' \
-  '      track: <RoutePoint>[_asRoutePoint(fix)],'
-
-# The tiles are thrown away whenever the view moves. On the recorder the view
-# moves on every accepted fix, so this is a basemap that blanks once a second
-# and re-asks for the squares it is already holding, for as long as somebody
-# keeps running.
-mutate 'a new view throws away the tiles it could have kept' \
-  "$MAP_TEST" "$ROUTE_MAP" \
-  '    final List<MapTileRef> missing = <MapTileRef>[
-      for (final MapTileRef tile in view.tiles())
-        if (!_tiles.containsKey(tile)) tile,
-    ];' \
-  '    _tiles = const <MapTileRef, ui.Image>{};
-    final List<MapTileRef> missing = view.tiles();'
-
-# A cache miss withholds the track instead of drawing it on the plain ground.
-# Offline is the day the owner most needs to see what they recorded, and this
-# failure looks exactly like a screen that has not finished loading.
-mutate 'a cache miss blanks the route instead of falling back to the ground' \
-  "$MAP_TEST" "$ROUTE_PAINTER" \
-  '  bool get drawsTrack => points.length >= 2;' \
-  '  bool get drawsTrack => points.length >= 2 && tiles.isNotEmpty;'
 
 # ── BACKEND_AUDIT.md section A — the client half ─────────────────────────────
 #
@@ -3142,33 +3077,6 @@ mutate 'a caffeine-only day is empty again' "$JOURNAL_TEST" "$ROUTINE" \
 mutate 'meditation is drawn from both of its carriers' "$JOURNAL_TEST" "$ROUTINE" \
   "  static const Set<String> _ownBlock = <String>{'meditation', 'fasting'};" \
   "  static const Set<String> _ownBlock = <String>{};"
-
-# ── C7 — the route counts describe the RUN, not the response ────────────────
-#
-# The server thins a long track for the map (`read/gps.py::MAX_MAP_POINTS`), so
-# `points` is a sample of the recording rather than all of it. Every count this
-# screen shows the owner has to come off the summary, which still counts the
-# whole track. The first two mutations put a count back on the array: nothing
-# throws, every number stays plausible, and a 28,800-fix run is described to the
-# person who ran it as a 2,000-fix one.
-ROUTE_SECTIONS=lib/features/gps/route_detail_sections.dart
-ROUTE_TEST=test/gps/route_screens_test.dart
-
-mutate 'the fix count is taken off the drawn points' "$ROUTE_TEST" "$ROUTE_SECTIONS" \
-  "  final String recorded = 'Phone GPS · \${route.recordedPoints} fixes';" \
-  "  final String recorded = 'Phone GPS · \${route.points.length} fixes';"
-
-mutate 'the matched-HR count is taken off the drawn points' "$ROUTE_TEST" "$ROUTE_SECTIONS" \
-  'body: noFitnessBody(route.matchedHrPoints)' \
-  'body: noFitnessBody(
-        route.points.where((RoutePoint point) => point.hr != null).length,
-      )'
-
-# The server said it thinned and the caption stops saying so, so a sampled
-# drawing is presented as the whole track.
-mutate 'a thinned drawing stops saying it was thinned' "$ROUTE_TEST" "$ROUTE_SECTIONS" \
-  '  if (!route.pointsDecimated) {' \
-  '  if (true) {'
 
 # ── the two credentials, and the 401 that ends a session ────────────────────
 #
