@@ -12,7 +12,8 @@ Implementation status and verified facts belong in `REVIEW_PLAN.md` and
 |---|---|---|
 | P1 | Accepted direction | Personal, self-hosted app rather than a commercial SaaS. Preserve useful BLE data; remove unnecessary product complexity. |
 | P2 | Accepted | Try the owner's local Gemma instance later. Nightly batch generation is useful; it need not be in the first build. |
-| P3 | Proposed | Remove interactive coach UI from the first simplified build. This is not a permanent prohibition on chat. |
+| P3 | Accepted (2026-09-23) | Remove interactive coach UI from the first simplified build, including the conversations stored on the phone. The server's `/api/coach` stays for installed older clients. This is not a permanent prohibition on chat. |
+| P5 | Accepted (2026-09-23) | Remove the Actions tab and its challenge, program, outcomes and recommendation-history screens. The daily-focus and challenge-completed notifications go with it. Nightly recommendation/correlation jobs stay on the server (A7). |
 | P4 | Preserve | Keep knowledge, citation validation, confidence and safety guardrails for any future LLM output. |
 
 `prime_slop` has a llama.cpp/OpenAI-compatible client and a configured homelab endpoint.
@@ -116,6 +117,18 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 | X1 | Delegated, not a rules change | Owner permits changes to engineering conventions. Earlier proposal of a 600-line cap was not applied to the binding standards or CI. Follow existing gates until changed together in a separate, justified patch. |
 | X2 | Accepted approach | Small, reviewable changes with tests. Preserve BLE parsing, science formulas, owner isolation and upload integrity. Tags/commits do not substitute for regression coverage. |
 | X3 | In progress | Establish a measured local build/test baseline before deletion. Report pre-existing failures and unavailable hardware checks honestly. Never run tests against the live health database. |
+
+### Offline weight and delivery order (2026-09-23)
+
+- **A8 — accepted:** manual weight entries must survive a server outage like strap
+  data: stored durably on the phone first, uploaded later, never duplicated.
+- **X4 — accepted order:** mobile trimming → QR enrollment → offline guarantees →
+  full-history mirroring → local LLM → deferred cleanup.
+- **R1 — open blocker:** the release signing key is unknown. The fork has no
+  `HEALTHEE_KEYSTORE_BASE64` secret and no releases; the installed app is most likely
+  upstream `afkcodes/healthee` v1.0.7, signed by that repository's key. Until that key
+  is obtained (or a supervised one-time reinstall is chosen after draining unsent data),
+  no build from this branch can be installed over the existing app.
 
 ## Resolved questions from the interview
 
