@@ -71,11 +71,11 @@ from healthee.core.tenancy import SENTINEL_USER_ID
 
 log = get_logger(__name__)
 
-# `device_token` references app_user but holds credentials, not owned data: an owner
-# who paired a device before claiming is not an "ambiguous merge", so it is excluded
-# from the table list this tool REPORTS and counts. It is NOT excluded from the
-# post-check — nothing at all may still reference the sentinel afterwards.
-_NON_TENANT_TABLES = frozenset({"device_token"})
+# `device_token` and `enrollment_code` (0023) reference app_user but hold credentials,
+# not owned data: an owner who paired a device before claiming is not an "ambiguous
+# merge", so they are excluded from the table list this tool REPORTS and counts. They
+# are NOT excluded from the post-check — nothing may still reference the sentinel.
+_NON_TENANT_TABLES = frozenset({"device_token", "enrollment_code"})
 
 # The narrower list: tenant tables that hold no HEALTH data, so a row in one of them
 # cannot make a claim an ambiguous merge. `subscription` is a tenant table and stays one
@@ -266,6 +266,12 @@ def _rekey(cur: Cursor[TupleRow], claim_plan: ClaimPlan) -> None:
     """
     cur.execute(
         "UPDATE device_token SET user_id = %s WHERE user_id = %s",
+        (SENTINEL_USER_ID, claim_plan.target),
+    )
+    # The target's enrollment codes ride the same way: step 2 would cascade-delete
+    # them, and with them the record of which code enrolled which phone.
+    cur.execute(
+        "UPDATE enrollment_code SET user_id = %s WHERE user_id = %s",
         (SENTINEL_USER_ID, claim_plan.target),
     )
     if _has_subscription(cur, claim_plan.target):

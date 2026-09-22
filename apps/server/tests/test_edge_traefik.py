@@ -273,6 +273,17 @@ def test_sign_in_is_rate_limited_harder_than_the_api(dynamic: dict[str, Any]) ->
     assert "healthee-authlimit" in dynamic["routers"]["healthee-auth"]["middlewares"]
 
 
+def test_enrollment_redemption_gets_the_sign_in_limit(dynamic: dict[str, Any]) -> None:
+    """`POST /api/enroll` is unauthenticated (docs/QR_ENROLLMENT.md), so it takes the
+    sign-in limiter rather than the API's, and must outrank the catch-all router."""
+    enroll = dynamic["routers"]["healthee-enroll"]
+    assert "Path(`/api/enroll`)" in enroll["rule"]
+    assert enroll["service"] == "healthee"
+    assert enroll["priority"] > 0
+    assert enroll["middlewares"][0] == "healthee-authlimit"
+    assert "healthee-headers" in enroll["middlewares"]
+
+
 def test_the_auth_route_is_not_missing_the_security_headers(dynamic: dict[str, Any]) -> None:
     """It serves a login form's backend; losing nosniff/frameDeny here would be the
     worst place to lose them."""

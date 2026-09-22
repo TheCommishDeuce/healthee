@@ -105,6 +105,10 @@ _SEQUENCES: tuple[str, ...] = (
 # The webhook that DOES write it (6.6b) runs as the admin, like `claim_sentinel`.
 _READ_ONLY_TABLES: tuple[str, ...] = ("subscription",)
 
+# Read + UPDATE only (0023): redeeming a code is an UPDATE, CREATING one enrolls a
+# phone and stays with the admin CLI (docs/QR_ENROLLMENT.md).
+_REDEEM_ONLY_TABLES: tuple[str, ...] = ("enrollment_code",)
+
 # DML only. TRUNCATE is NOT here on purpose: it is the one DML-shaped privilege that
 # can erase a life's health history in one statement, and no request path needs it.
 _TABLE_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE"
@@ -115,6 +119,8 @@ _READ_ONLY_PRIVILEGES = "SELECT"
 # grant it" is not the same statement as "the role does not have it".
 _READ_ONLY_REVOKED = "INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER"
 _SEQUENCE_PRIVILEGES = "USAGE, SELECT"
+_REDEEM_ONLY_PRIVILEGES = "SELECT, UPDATE"
+_REDEEM_ONLY_REVOKED = "INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER"
 
 # Explicitly denied attributes. Spelled out rather than left to defaults because the
 # entire 6.5b-2 security model rests on the first two being false, and a default is
@@ -253,29 +259,33 @@ def _grant_data_privileges(cur: Cursor[TupleRow], role: str) -> None:
 
 
 def _grant_read_only(cur: Cursor[TupleRow], role: str) -> None:
-    """SELECT, and an explicit REVOKE of everything else, on `_READ_ONLY_TABLES`.
+    """SELECT (plus UPDATE for `_REDEEM_ONLY_TABLES`) and an explicit REVOKE of the rest.
 
     The REVOKE is the load-bearing half. `_grant_future_privileges` sets default
     privileges that hand the app role full DML on any table a later migration creates,
-    which is right for a data table and exactly wrong for `subscription` — so the
-    write privileges are taken back here, every run, rather than assumed absent.
-    Idempotent: revoking a privilege the role does not hold is a no-op.
+    which is exactly wrong for these tables — so the privileges are taken back here,
+    every run. Idempotent: revoking a privilege the role does not hold is a no-op.
     """
-    for table in _READ_ONLY_TABLES:
-        cur.execute(
-            sql.SQL("GRANT {privs} ON TABLE {table} TO {role}").format(
-                privs=sql.SQL(_READ_ONLY_PRIVILEGES),
-                table=sql.Identifier(table),
-                role=sql.Identifier(role),
+    limited: tuple[tuple[tuple[str, ...], LiteralString, LiteralString], ...] = (
+        (_READ_ONLY_TABLES, _READ_ONLY_PRIVILEGES, _READ_ONLY_REVOKED),
+        (_REDEEM_ONLY_TABLES, _REDEEM_ONLY_PRIVILEGES, _REDEEM_ONLY_REVOKED),
+    )
+    for tables, granted, revoked in limited:
+        for table in tables:
+            cur.execute(
+                sql.SQL("GRANT {privs} ON TABLE {table} TO {role}").format(
+                    privs=sql.SQL(granted),
+                    table=sql.Identifier(table),
+                    role=sql.Identifier(role),
+                )
             )
-        )
-        cur.execute(
-            sql.SQL("REVOKE {privs} ON TABLE {table} FROM {role}").format(
-                privs=sql.SQL(_READ_ONLY_REVOKED),
-                table=sql.Identifier(table),
-                role=sql.Identifier(role),
+            cur.execute(
+                sql.SQL("REVOKE {privs} ON TABLE {table} FROM {role}").format(
+                    privs=sql.SQL(revoked),
+                    table=sql.Identifier(table),
+                    role=sql.Identifier(role),
+                )
             )
-        )
 
 
 def _grant_future_privileges(cur: Cursor[TupleRow], role: str, admin: str) -> None:

@@ -1,9 +1,14 @@
 """Request identity for `/api/*` and `/ingest/*` — the ONE place a request becomes a user.
 
-A request presents exactly one kind of credential and each path has exactly one
-interpretation: `/api/*` takes a Supabase JWT (`supabase_auth.current_user`,
-JIT-provisioning the `app_user` row), `/ingest/*` takes a device token minted by
-this server for one phone (`core.device_token`). Anything else is 401.
+A request presents exactly one kind of credential. `/api/*` takes a Supabase JWT
+(`supabase_auth.current_user`, JIT-provisioning the `app_user` row) or a `phone`-scope
+device token from QR enrollment (`hph_…`, `docs/QR_ENROLLMENT.md`); `/ingest/*` takes
+any live device token this server minted (`core.device_token`). Anything else is 401.
+
+The two `/api/*` credentials are told apart by the phone token's PREFIX, never by
+trying one and falling back to the other: an unprefixed string goes to JWT
+verification and is refused there without a database lookup, and a prefixed one is
+only ever a phone token. An `ingest`-scope token never reads.
 
 ## What used to be here, and why its absence is the point
 
@@ -36,7 +41,7 @@ from uuid import UUID
 from fastapi import Depends, Header
 
 from healthee.core.db import transaction
-from healthee.core.device_token import resolve_device_token
+from healthee.core.device_token import PHONE_TOKEN_PREFIX, resolve_device_token
 from healthee.core.logging import get_logger
 from healthee.core.supabase_auth import (
     RequestUser,
@@ -69,8 +74,12 @@ def _active_timezone_of(user_id: UUID) -> str | None:
 def request_user(authorization: str | None = Header(default=None)) -> RequestUser:
     """FastAPI dependency: the authenticated tenant for an `/api/*` request.
 
+    Phone token (`hph_…`) → its owner, if it is live and `phone`-scoped. Otherwise a
     Supabase JWT → that real user (JIT-provisioned). Anything else → 401.
     """
+    token = bearer_token(authorization)
+    if token.startswith(PHONE_TOKEN_PREFIX):
+        return _owner_of(resolve_device_token(token, phone_only=True))
     return current_user(authorization)
 
 
@@ -81,13 +90,17 @@ def ingest_user(authorization: str | None = Header(default=None)) -> RequestUser
     would be silent cross-tenant corruption of health data, so attribution is never
     guessed.
     """
-    owner = resolve_device_token(bearer_token(authorization))
+    return _owner_of(resolve_device_token(bearer_token(authorization)))
+
+
+def _owner_of(owner: UUID | None) -> RequestUser:
+    """The request identity for a resolved device token; 401 when it resolved nobody."""
     if owner is None:
         raise unauthorized("Invalid token")
     tz = _active_timezone_of(owner)
     if tz is None:
         # The device_token → app_user FK makes this unreachable; if it ever happens the
-        # owner is unknowable, so refuse rather than write the push under a guess.
+        # owner is unknowable, so refuse rather than act under a guess.
         log.warning("device token resolved to %s, which has no app_user row", owner)
         raise unauthorized("Invalid token")
     return RequestUser(id=owner, timezone=tz)

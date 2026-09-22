@@ -35,6 +35,8 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from psycopg import Cursor
+from psycopg.rows import TupleRow
 
 from healthee.core.db import transaction
 from healthee.core.logging import get_logger
@@ -56,6 +58,17 @@ _DEVICE_TOKEN_BYTES = 32  # secrets.token_urlsafe entropy — ~43 url-safe chars
 # than terminal.
 _MAX_LIVE_DEVICE_TOKENS = 10
 
+# The two scopes (0023, docs/QR_ENROLLMENT.md). An INGEST token is minted by a signed-in
+# owner through `POST /api/device` and only writes. A PHONE token is minted by
+# redeeming an administrator's one-time enrollment code and also reads `/api/*`.
+INGEST_SCOPE = "ingest"
+PHONE_SCOPE = "phone"
+
+# Phone tokens carry a prefix so `/api/*` can tell one from any other opaque string
+# WITHOUT a database lookup: an unprefixed bearer is refused before it costs a query,
+# and a leaked phone token is recognisable as one in a log or a secret scan.
+PHONE_TOKEN_PREFIX = "hph_"
+
 
 def too_many_tokens(detail: str) -> HTTPException:
     """A 409 for a mint that would exceed the per-owner cap.
@@ -76,7 +89,7 @@ def _hash_token(raw: str) -> str:
 
 
 def mint_device_token(user_id: UUID, label: str | None) -> tuple[str, UUID]:
-    """Mint a long-lived device ingest token for `user_id`; store only its hash.
+    """Mint a long-lived device INGEST token for `user_id`; store only its hash.
 
     Returns `(raw token, the TOKEN's row id)`. The raw value is returned ONCE — it is
     never persisted and cannot be recovered.
@@ -87,41 +100,57 @@ def mint_device_token(user_id: UUID, label: str | None) -> tuple[str, UUID]:
     to address a token by. `device_token.id` is a `gen_random_uuid()` primary key the
     caller otherwise never learns.
     """
-    raw = secrets.token_urlsafe(_DEVICE_TOKEN_BYTES)
     with transaction() as cur:
-        # Counted and inserted in ONE transaction: two concurrent mints that each
-        # counted nine would each insert a tenth, and the cap would be a suggestion.
-        cur.execute(
-            "SELECT count(*) FROM device_token WHERE user_id = %s AND revoked_at IS NULL",
-            (str(user_id),),
+        return insert_device_token(cur, user_id, label, INGEST_SCOPE)
+
+
+def insert_device_token(
+    cur: Cursor[TupleRow], user_id: UUID, label: str | None, scope: str
+) -> tuple[str, UUID]:
+    """Mint a token of `scope` inside the CALLER's transaction; `(raw, row id)`.
+
+    Shared by `mint_device_token` and enrollment redemption, which must consume its
+    one-time code and create the token atomically — a code marked used with no token
+    behind it would strand the phone, and a token without the code consumed would let
+    the same code enroll twice.
+    """
+    prefix = PHONE_TOKEN_PREFIX if scope == PHONE_SCOPE else ""
+    raw = prefix + secrets.token_urlsafe(_DEVICE_TOKEN_BYTES)
+    # Counted and inserted in ONE transaction: two concurrent mints that each
+    # counted nine would each insert a tenth, and the cap would be a suggestion.
+    cur.execute(
+        "SELECT count(*) FROM device_token WHERE user_id = %s AND revoked_at IS NULL",
+        (str(user_id),),
+    )
+    live = cur.fetchone()
+    if live is not None and live[0] >= _MAX_LIVE_DEVICE_TOKENS:
+        log.warning("device token refused: %s already holds %s live", user_id, live[0])
+        raise too_many_tokens(
+            f"This account already has {_MAX_LIVE_DEVICE_TOKENS} device tokens. "
+            "Revoke one you no longer use, then try again."
         )
-        live = cur.fetchone()
-        if live is not None and live[0] >= _MAX_LIVE_DEVICE_TOKENS:
-            log.warning("device token refused: %s already holds %s live", user_id, live[0])
-            raise too_many_tokens(
-                f"This account already has {_MAX_LIVE_DEVICE_TOKENS} device tokens. "
-                "Revoke one you no longer use, then try again."
-            )
-        cur.execute(
-            "INSERT INTO device_token (user_id, token_hash, label) VALUES (%s, %s, %s) "
-            "RETURNING id",
-            (str(user_id), _hash_token(raw), label),
-        )
-        row = cur.fetchone()
+    cur.execute(
+        "INSERT INTO device_token (user_id, token_hash, label, scope) "
+        "VALUES (%s, %s, %s, %s) RETURNING id",
+        (str(user_id), _hash_token(raw), label, scope),
+    )
+    row = cur.fetchone()
     if row is None:  # INSERT ... RETURNING always yields the row it just wrote
         raise RuntimeError("device_token insert returned no id")
     token_id = row[0] if isinstance(row[0], UUID) else UUID(str(row[0]))
     return raw, token_id
 
 
-def resolve_device_token(raw: str) -> UUID | None:
+def resolve_device_token(raw: str, *, phone_only: bool = False) -> UUID | None:
     """Resolve a raw device token to its owner UUID, touching `last_seen`.
 
     Returns None for an unknown/blank token — the caller distinguishes "no match"
-    (None) from a successful lookup (a UUID).
+    (None) from a successful lookup (a UUID). `phone_only` is the `/api/*` question:
+    an INGEST token must not read, so there it is simply no match.
     """
     if not raw:
         return None
+    scope_filter = " AND scope = 'phone'" if phone_only else ""
     with transaction() as cur:
         # `revoked_at IS NULL` in the predicate, not checked after the fact: a
         # revoked token must not have its `last_seen` touched either, or the column
@@ -129,7 +158,7 @@ def resolve_device_token(raw: str) -> UUID | None:
         # as a use.
         cur.execute(
             "UPDATE device_token SET last_seen = now() "
-            "WHERE token_hash = %s AND revoked_at IS NULL RETURNING user_id",
+            "WHERE token_hash = %s AND revoked_at IS NULL" + scope_filter + " RETURNING user_id",
             (_hash_token(raw),),
         )
         row = cur.fetchone()
@@ -153,6 +182,7 @@ class DeviceTokenRow:
     label: str | None
     last_seen: datetime | None
     created_at: datetime
+    scope: str = INGEST_SCOPE
 
 
 def list_device_tokens(user_id: UUID) -> list[DeviceTokenRow]:
@@ -169,7 +199,7 @@ def list_device_tokens(user_id: UUID) -> list[DeviceTokenRow]:
     """
     with transaction() as cur:
         cur.execute(
-            "SELECT id, label, last_seen, created_at FROM device_token "
+            "SELECT id, label, last_seen, created_at, scope FROM device_token "
             "WHERE user_id = %s AND revoked_at IS NULL ORDER BY created_at DESC",
             (str(user_id),),
         )
@@ -180,6 +210,7 @@ def list_device_tokens(user_id: UUID) -> list[DeviceTokenRow]:
             label=row[1],
             last_seen=row[2],
             created_at=row[3],
+            scope=row[4],
         )
         for row in rows
     ]

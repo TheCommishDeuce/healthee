@@ -20,6 +20,8 @@ dependencies = [
     # has no torch anywhere; the eval group's sentence-transformers pull above is the one
     # torch dependency in this project, and it must stay opt-in only).
     "fastembed>=0.8.0",
+    # Terminal QR for the enrollment CLI (db/enroll.py). Pure Python, no dependencies.
+    "segno>=1.6",
 ]
 
 [build-system]

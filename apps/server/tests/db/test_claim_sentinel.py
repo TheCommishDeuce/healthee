@@ -73,6 +73,8 @@ def test_the_tenant_table_list_is_discovered_not_hand_written(claimable: None) -
         # device_token references app_user but holds credentials, not owned data.
         assert "device_token" in claim_sentinel.referencing_tables(cur)
         assert "device_token" not in claim_sentinel.tenant_tables(cur)
+        assert "enrollment_code" in claim_sentinel.referencing_tables(cur)
+        assert "enrollment_code" not in claim_sentinel.tenant_tables(cur)
 
 
 # ── dry run ────────────────────────────────────────────────────────────────────
@@ -187,6 +189,25 @@ def test_a_target_device_token_survives_the_claim(claimable: None) -> None:  # n
         cur.execute("SELECT user_id FROM device_token WHERE token_hash = %s", (f"{MARK}-target",))
         row = cur.fetchone()
     assert row is not None, "the target's own device token was destroyed"
+    assert row[0] == TARGET
+
+
+def test_a_target_enrollment_code_survives_the_claim(claimable: None) -> None:  # noqa: ARG001
+    """The same for the target's enrollment codes (0023): they record which code
+    enrolled which phone, and deleting the target's row must not cascade them away."""
+    with admin_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO enrollment_code (user_id, code_hash, label, expires_at) "
+            "VALUES (%s, %s, %s, now() + interval '10 minutes')",
+            (TARGET, f"{MARK}-code", MARK),
+        )
+
+    claim_sentinel.claim(TARGET, apply=True)
+
+    with admin_connection() as conn, conn.cursor() as cur:
+        cur.execute("SELECT user_id FROM enrollment_code WHERE code_hash = %s", (f"{MARK}-code",))
+        row = cur.fetchone()
+    assert row is not None, "the target's enrollment code was destroyed"
     assert row[0] == TARGET
 
 
