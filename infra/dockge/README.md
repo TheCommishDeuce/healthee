@@ -89,19 +89,28 @@ HEALTHEE_BUILD_LOCALLY=false
 > hours later. Check `gh api repos/<you>/healthee/actions/workflows` returns a
 > non-zero `total_count` before your first deploy.
 
-Push to your fork's `main`, let CI finish, then make the package pullable. A new
-GHCR package is **private** by default and the first pull fails with `denied` /
-`manifest unknown`, which says nothing about permissions:
+Push to your fork's `main` and let CI finish. The package inherits the **fork's**
+visibility: a public fork publishes a publicly pullable image and the VPS needs no
+credentials at all. Verified for this deployment — an anonymous manifest fetch of
+`ghcr.io/thecommishdeuce/healthee-api:main` returns 200.
 
-- **Make it public** (simplest; the image holds no secrets — all config is env):
-  `github.com/<you>?tab=packages` → `healthee-api` → Package settings → Change
-  visibility.
-- **Or keep it private** and log the box in once, with a classic PAT scoped
-  `read:packages`:
-  ```bash
-  echo "$GHCR_PAT" | docker login ghcr.io -u <you> --password-stdin
-  ```
-  Dockge shares the Docker daemon, so its update button uses this login too.
+If your fork is **private**, so is the package, and the first pull on the box fails
+with `denied` / `manifest unknown` — which says nothing about permissions. Log the
+box in once, with a classic PAT scoped `read:packages`:
+
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u <you> --password-stdin
+```
+
+Dockge shares the Docker daemon, so its update button uses this login too.
+
+Check either case from anywhere, without Docker:
+
+```bash
+TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:<you>/healthee-api:pull&service=ghcr.io" \
+  | python3 -c "import sys,json;print(json.load(sys.stdin).get('token',''))")
+curl -s -H "Authorization: Bearer $TOKEN" https://ghcr.io/v2/<you>/healthee-api/tags/list
+```
 
 ### B. Your own registry
 
