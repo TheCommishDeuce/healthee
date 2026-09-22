@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/today/recovery_screen.dart';
+import 'package:healthee/shared/format/date_labels.dart';
 import 'package:healthee/shared/v02/meters.dart';
 
 import '../_today_stubs.dart';
@@ -138,27 +139,34 @@ void main() {
     expect(find.textContaining('Night ending'), findsNothing);
   });
 
-  testWidgets('the sleep date keeps the calendar day in the server timezone', (
-    tester,
-  ) async {
-    viewport(tester);
-    await tester.pumpWidget(
-      todayHost(
-        store,
-        server: todayView(
-          mutate: (json) => {
-            ...json,
-            'last_sleep': {
-              ...json['last_sleep']! as Map<String, Object?>,
-              'end_iso': '2026-07-31T00:30:00+14:00',
+  testWidgets(
+    'the sleep date converts the wire instant to explicitly local time',
+    (tester) async {
+      viewport(tester);
+      await tester.pumpWidget(
+        todayHost(
+          store,
+          server: todayView(
+            mutate: (json) => {
+              ...json,
+              'last_sleep': {
+                ...json['last_sleep']! as Map<String, Object?>,
+                'end_iso': '2026-07-31T00:30:00+14:00',
+              },
             },
-          },
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Night ending FRI · JUL 31 · 2026'), findsOneWidget);
-  });
+      );
+      await tester.pumpAndSettle();
+      final end = DateTime.parse('2026-07-31T00:30:00+14:00').toLocal();
+      expect(
+        find.text(
+          'Night ending ${prettyDate(end.toIso8601String())} · ${end.year} (local)',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('recovery detail remains reachable', (tester) async {
     viewport(tester);

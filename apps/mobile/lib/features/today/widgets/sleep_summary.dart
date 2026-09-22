@@ -37,8 +37,8 @@ class SleepSummary extends StatelessWidget {
             WithheldPanel(label: 'Sleep', disclosure: disclosure),
         builder: (context, night) => _panel(
           minutes: night.durationMin,
-          // Preserve the server's calendar day when the phone is in another zone.
-          end: DateTime.tryParse(night.endIso?.split('T').first ?? ''),
+          // The wire timestamp can be UTC; display the instant in phone-local time.
+          end: DateTime.tryParse(night.endIso ?? ''),
           source: 'Stored on your server',
         ),
       );
@@ -78,7 +78,7 @@ class SleepSummary extends StatelessWidget {
         PanelNote(
           end == null
               ? 'Sleep date unavailable'
-              : 'Night ending ${prettyDate(end.toLocal().toIso8601String())} · ${end.toLocal().year}',
+              : 'Night ending ${prettyDate(end.toLocal().toIso8601String())} · ${end.toLocal().year} (local)',
         ),
         PanelNote(source),
       ],

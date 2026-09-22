@@ -107,10 +107,10 @@ mutate 'Today overview entry stops observing credential loading' \
   'currentAccountValue(ref.watch(journalRepositoryProvider))' \
   'currentAccountValue(ref.read(journalRepositoryProvider))'
 
-mutate 'Today overview shifts the server sleep date into the phone timezone' \
+mutate 'Today overview drops the timezone before interpreting a sleep instant' \
   test/features/today_minimal_test.dart lib/features/today/widgets/sleep_summary.dart \
-  "DateTime.tryParse(night.endIso?.split('T').first ?? '')" \
-  "DateTime.tryParse(night.endIso ?? '')"
+  "DateTime.tryParse(night.endIso ?? '')" \
+  "DateTime.tryParse(night.endIso?.split('T').first ?? '')"
 
 # GPS removal must not hide strap workouts or request modern location access.
 mutate 'GPS removal accidentally hides recorded workouts' \
