@@ -269,7 +269,23 @@ fi
 # stay down rather than serving a schema they do not match.
 step "Recreating api + scheduler"
 run docker compose up -d --force-recreate api scheduler
-ok "compose up"
+ok "api + scheduler recreated"
+
+# ── 9a. Converge everything else in the stack ──────────────────────────
+# ⛔ A BARE `up -d`, deliberately, and it is not redundant with the line above.
+#
+# Every `up` in this script used to name its services, so a service ADDED to
+# compose.yaml was never started by a deploy — it simply did not exist, with no
+# error anywhere. That is exactly how `auth` (GoTrue) stayed down after being added:
+# `docker compose logs auth` printed nothing at all, because there was no container
+# to have logged anything.
+#
+# NOT force-recreated: this converges services whose lifecycle is their own (GoTrue
+# holds sign-in sessions; db holds everything), starting what is missing and
+# recreating only what actually changed.
+step "Converging the rest of the stack"
+run docker compose up -d
+ok "all services up"
 
 # ── 9b. Verify the embedding index artifact ─────────────────────────────
 # The passage matrix is a COMMITTED artifact (packages/knowledge/embeddings/), built
@@ -315,6 +331,31 @@ else
 		printf '  Recent scheduler logs:\n' >&2
 		docker compose logs --tail 20 scheduler >&2 || true
 		exit 1
+	fi
+fi
+
+# ── 10a. Is sign-in actually answering? ──────────────────────────────
+# A green api proves nothing about GoTrue: they are separate containers on separate
+# ports, and the app needs both. When `auth` was silently never started, everything
+# in this script still passed and the only symptom was an error on a phone.
+#
+# Asked from INSIDE the compose network, so it tests the container rather than the
+# host's routing — the edge is checked separately below.
+step "Sign-in check (GoTrue)"
+if [ "$dry_run" -eq 1 ]; then
+	printf '  \033[2m$ docker compose exec -T api python -c "<GET auth:9999/health>"\033[0m\n'
+else
+	gotrue_probe='import urllib.request; print(urllib.request.urlopen("http://auth:9999/health", timeout=3).status)'
+	if docker compose exec -T api python -c "$gotrue_probe" >/dev/null 2>&1; then
+		ok "GoTrue is answering on auth:9999"
+	else
+		warn "GoTrue did NOT answer on auth:9999. Sign-in will fail in the app with
+    'that account could not be created' — the app gets a non-GoTrue response and has
+    no provider code to report. The api itself is fine. Check, in this order:
+      docker compose ps auth
+      docker compose logs --tail 80 auth
+    A crash loop here is usually the gotrue DB role or the auth schema grants —
+    infra/dockge/README.md, 'Create the gotrue database role'."
 	fi
 fi
 

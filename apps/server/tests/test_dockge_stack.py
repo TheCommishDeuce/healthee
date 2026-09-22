@@ -16,6 +16,7 @@ failure message what breaks when it is wrong.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -207,4 +208,41 @@ def test_gotrue_stores_its_users_in_the_backed_up_database() -> None:
     assert "@db:5432/${POSTGRES_DB}" in env["GOTRUE_DB_DATABASE_URL"], (
         "GoTrue points at a database other than the one the backup dumps — a "
         "restore would come back with data and no accounts"
+    )
+
+
+# ── The deploy script must start everything the stack declares ──────────────
+
+
+def test_the_deploy_script_converges_the_whole_stack() -> None:
+    """⛔ Every `up` in deploy.sh used to name its services explicitly.
+
+    So a service ADDED to compose.yaml was never started by a deploy — no error,
+    no container, and `docker compose logs <svc>` printing nothing at all because
+    there was nothing to have logged. That is precisely how GoTrue stayed down
+    after being added, and the only symptom was a failure on a phone.
+
+    A bare `docker compose up -d` (no service list) is the fix, and it has to stay:
+    it is what makes the next service added to this stack start on its own.
+    """
+    script = (_REPO_ROOT / "infra" / "dockge" / "deploy.sh").read_text()
+    bare_up = [
+        line.strip()
+        for line in script.splitlines()
+        if re.fullmatch(r"run docker compose up -d", line.strip())
+    ]
+    assert bare_up, (
+        "deploy.sh has no bare `docker compose up -d`. Every up names its services, "
+        "so any service added to compose.yaml will silently never be started."
+    )
+
+
+def test_the_deploy_script_checks_that_sign_in_answers() -> None:
+    """A green api proves nothing about GoTrue — separate container, separate port,
+    and the app needs both. Without this check the deploy passes end to end while
+    sign-in is dead."""
+    script = (_REPO_ROOT / "infra" / "dockge" / "deploy.sh").read_text()
+    assert "auth:9999/health" in script, (
+        "deploy.sh no longer verifies GoTrue is answering; a deploy would report "
+        "success with sign-in down"
     )
