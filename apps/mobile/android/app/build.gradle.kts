@@ -57,6 +57,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appLabel"] = "healthee"
     }
 
     signingConfigs {
@@ -71,6 +72,17 @@ android {
     }
 
     buildTypes {
+        // A debug build is a SEPARATE app (`codes.afk.healthee.debug`, "healthee
+        // debug"). It installs beside the owner's release instead of trying to
+        // replace it: the release is signed with a key this machine does not hold,
+        // so the only way to put a same-id debug build on the phone would be to
+        // uninstall the release — which deletes its unsent measurements and keys.
+        // The two apps share nothing on the phone. test/core/debug_variant_test.dart.
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            manifestPlaceholders["appLabel"] = "healthee debug"
+        }
         release {
             // Falls back to the debug key ONLY for a local `flutter run --release`,
             // and says so loudly. It is deliberately not silent: an unsigned-for-
