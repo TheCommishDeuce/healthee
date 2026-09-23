@@ -39,20 +39,6 @@ List<PageSection> sections({
 int _indexOf<T>(List<PageSection> list) =>
     list.indexWhere((section) => section.child is T);
 
-/// The nth section whose child is a [T], counting from zero.
-int _nthOf<T>(List<PageSection> list, int n) {
-  var seen = 0;
-  for (var i = 0; i < list.length; i++) {
-    if (list[i].child is T) {
-      if (seen == n) {
-        return i;
-      }
-      seen++;
-    }
-  }
-  return -1;
-}
-
 void main() {
   group("the prototype's order, entry by entry", () {
     test('EVERY SECTION THE PROTOTYPE DRAWS IS DRAWN, AND IN ITS ORDER', () {
@@ -62,21 +48,17 @@ void main() {
         _indexOf<V02PageHeader>(list),
         // `.relationship-grid` — one pattern of the owner's own, and the age.
         _indexOf<EntryGrid>(list),
-        // `H.panel('Effort & stress, side by side', …)`.
-        _indexOf<EffortStressPanel>(list),
-        // `H.bridge('stress', …, 'journal')`.
-        _indexOf<ContextBridge>(list),
+        // ⛔ No `Effort & stress` panel and no bridge under it (F4): that is
+        // the current day's material, and Activity carries it.
         // `H.section('Your longer patterns', …, 'metrics','All metrics')`.
-        _nthOf<SectionHead>(list, 0),
+        _indexOf<SectionHead>(list),
         // The `.twin-panels` of `H.miniTrend(...)` under it.
         _indexOf<TrendsGrid>(list),
-        // `H.section('What changed together?', …)`.
-        _nthOf<SectionHead>(list, 1),
-        // The findings themselves, in the block whose heading is their framing.
-        _indexOf<FindingsSection>(list),
+        // ⛔ No `What changed together?` findings list (F4, owner). The top
+        // pattern stays reachable from the entry card above.
         // The notable days — this app's own server surface, kept.
         _indexOf<NotableEvents>(list),
-        // The section's two `.list-row`s: outcomes, and the journal.
+        // The two `.list-row`s: Sleep history and Fitness estimates.
         _indexOf<FlushCard>(list),
         // `H.footer()`.
         _indexOf<DataFooter>(list),
@@ -93,14 +75,31 @@ void main() {
       }
     });
 
-    test('the two section heads are the prototype’s two, in its words', () {
+    test('the one section head is "Your longer patterns"', () {
       final list = sections();
       final heads = <String>[
         for (final section in list)
           if (section.child is SectionHead)
             (section.child as SectionHead).title,
       ];
-      expect(heads, <String>['Your longer patterns', 'What changed together?']);
+      expect(heads, <String>['Your longer patterns']);
+    });
+
+    test('NOTHING OWNER-CUT IS DRAWN, EVEN WITH ITS DATA ON HAND (F4)', () {
+      final list = sections();
+      // The fixture has findings and a full hourly day, so these are absent
+      // because they were cut, not because there was nothing to draw.
+      expect(_indexOf<EntryGrid>(list), isNonNegative);
+      for (final gone in <int>[
+        _indexOf<FindingsSection>(list),
+        _indexOf<ContextBridge>(list),
+      ]) {
+        expect(gone, -1);
+      }
+      expect(
+        list.map((s) => s.child.runtimeType.toString()),
+        isNot(contains('EffortStressPanel')),
+      );
     });
   });
 
@@ -137,7 +136,7 @@ void main() {
       expect(heads, isNot(contains('Your longer patterns')));
       // And the block that follows is untouched: a silent section is not a
       // truncated screen.
-      expect(_indexOf<FindingsSection>(none), isNonNegative);
+      expect(_indexOf<NotableEvents>(none), isNonNegative);
     });
 
     test('no findings means no findings block, and no pattern card', () {
@@ -147,10 +146,7 @@ void main() {
           'top_findings': const <Object?>[],
         },
       );
-      expect(_indexOf<FindingsSection>(none), -1);
       expect(_indexOf<FindingEntryCard>(none), -1);
-      // The heading stays, because the two rows and the notable days are still
-      // under it — this is a section with content, not a heading over nothing.
       expect(_indexOf<FlushCard>(none), isNonNegative);
     });
 
@@ -180,23 +176,5 @@ void main() {
       expect(_indexOf<AgeEntryCard>(none), -1);
       expect(_indexOf<FindingEntryCard>(none), -1);
     });
-
-    test(
-      'two hours is not a day, and the linked chart is not drawn for it',
-      () {
-        final thin = sections(
-          mutate: (json) => <String, Object?>{
-            ...json,
-            'today_hr_series': const <Object?>[],
-            'today_stress_series': const <Object?>[],
-          },
-        );
-        expect(_indexOf<EffortStressPanel>(thin), -1);
-        // The bridge belongs to that panel and goes with it — a connective
-        // sentence between two things, one of which is not there, connects
-        // nothing.
-        expect(_indexOf<ContextBridge>(thin), -1);
-      },
-    );
   });
 }

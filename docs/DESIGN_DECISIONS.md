@@ -75,7 +75,7 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 | U10 | Accepted | Do not build food tracking. Owner: “nevermind dont bother.” |
 | U11 | Accepted | Today's three content priorities, in order: **sleep, recovery, log weight**. Conditional sync/failure/safety notices are not extra dashboard sections and must remain useful. |
 | U12 | Proposed method | Remove surplus Today composition; retain shared components/details until callers are checked. Lack of a top-level tab does not mean a detail page has no caller. |
-| U13 | Tentative | Owner: “maybe (lets see it in the first build)” about Insights. Earlier notes incorrectly converted this into an unequivocal deletion. Retain it for review rather than silently remove it. |
+| U13 | Settled by F4 | Owner: “maybe (lets see it in the first build)” about Insights. Earlier notes incorrectly converted this into an unequivocal deletion. Retain it for review rather than silently remove it. |
 | U14 | Accepted direction | No general journal page is needed for caffeine/alcohol tracking; owner does not log those. Keep weight entry and its supporting code. Do not delete `data/journal` before moving/reusing the weight path. |
 | U15 | Accepted | Remove built-in GPS/maps; owner uses Dawarich. Preserve workout records and any stored data during the removal. |
 | U16 | Accepted | Keep recorded workouts for exploration. Current UI displays strap-recorded sessions; it is not an exercise/set/rep catalogue. |
@@ -111,6 +111,14 @@ Owner feedback from the first session with the debug build (`NEXT_SESSION.md` §
   only (owner chose this over removal). Rows in *Your body overnight* open the
   metric they name; skin temperature has no history series and is not a link.
   Partly revises U3 ("Sleep should change minimally").
+- **F4 — Insights kept, trimmed (settles U13).** Kept: the relationship grid
+  (pattern card + age card), *Your longer patterns*, notable days, and the Sleep
+  history / Fitness estimates rows. Removed: *Effort & stress, side by side* and
+  its bridge sentence (the current day's material; Activity carries the chart;
+  this also removes B5's orphaned sentence), and the *What changed together?*
+  findings list (owner confirmed). The top finding stays reachable from its card.
+  `shared/findings_section.dart` is kept: its headline/window helpers and the
+  citation tests still apply; its list widget currently has no caller.
 
 ### Presentation constraints for the first slice
 

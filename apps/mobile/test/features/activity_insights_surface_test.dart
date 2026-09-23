@@ -26,7 +26,6 @@ import 'package:healthee/features/activity/v02/movement_panels.dart';
 import 'package:healthee/features/insights/insights_screen.dart';
 import 'package:healthee/features/insights/widgets/trends_section.dart';
 import 'package:healthee/shared/charts/v02/v02_bar_chart.dart';
-import 'package:healthee/shared/charts/v02/v02_linked_chart.dart';
 import 'package:healthee/shared/charts/v02/v02_sparkline.dart';
 import 'package:healthee/shared/v02/instruments/vo2max_rail.dart';
 
@@ -268,22 +267,6 @@ void main() {
       expect(tester.getSize(chart).height, TrendPanel.sparklineHeight);
       // Body + trace. A chart that drew one of the two lost half its ink.
       expect(countOf(paintedAt(tester, chart), #drawPath), greaterThan(0));
-    });
-
-    testWidgets('THE LINKED CHART DRAWS BOTH PANES, AT REAL HEIGHT', (
-      tester,
-    ) async {
-      await open(tester, const InsightsScreen());
-      final chart = find.byType(V02LinkedChart);
-      await reveal(tester, chart);
-
-      expect(paintSize(tester, chart).height, greaterThan(100));
-      // Two panes, each an area and a trace, so at least four paths.
-      expect(
-        countOf(paintedAt(tester, chart), #drawPath),
-        greaterThanOrEqualTo(4),
-        reason: 'a linked chart with one live pane is a different chart',
-      );
     });
   });
 }

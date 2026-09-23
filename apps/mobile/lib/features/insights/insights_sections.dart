@@ -7,13 +7,16 @@
 /// ```text
 ///   header                    date · Insights · avatar
 ///   relationship grid         one pattern of your own, and the age model
-///   effort & stress           one hour cursor, two labelled scales
-///   context bridge            what a sensor cannot see
 ///   your longer patterns      the tracked metrics, and `All metrics`
-///   what changed together?    the findings, the notable days, the two ways in
-///   a useful question comes next
+///   notable days
+///   Sleep history · Fitness estimates
 ///   footer
 /// ```
+///
+/// **Trimmed at the owner's request** (F4, `DESIGN_DECISIONS.md`): the
+/// `Effort & stress` panel and its bridge (the current day's material — Activity
+/// carries it) and the `What changed together?` findings list are gone. The top
+/// pattern stays one tap away on the entry card.
 ///
 /// ## The colour rule this screen exists to keep straight
 ///
@@ -22,7 +25,7 @@
 /// | block | coloured? | why |
 /// |---|---|---|
 /// | **Your longer patterns** | yes, where polarity is known | a metric moving against the owner's own past, with a table that says which way is better (`shared/format/metric_polarity.dart`) |
-/// | **What changed together?** | never | the sign of a rank correlation is a *direction* — together or opposite — and n-of-1 observational data cannot support "good for you" |
+/// | **The pattern card** | never | the sign of a rank correlation is a *direction* — together or opposite — and n-of-1 observational data cannot support "good for you" |
 ///
 /// A neutral or unknown-polarity trend gets no colour either, which
 /// `trends_section.dart` argues is the load-bearing case rather than the
@@ -66,12 +69,10 @@ import 'package:healthee/data/models/trend_point.dart';
 import 'package:healthee/features/insights/v02/pattern_panels.dart';
 import 'package:healthee/features/insights/widgets/notable_events.dart';
 import 'package:healthee/features/insights/widgets/trends_section.dart';
-import 'package:healthee/shared/findings_section.dart';
 import 'package:healthee/shared/format/metric_polarity.dart';
 import 'package:healthee/shared/instrument_screen.dart';
 import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/section_list.dart';
-import 'package:healthee/shared/v02/context_bridge.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/dated_history.dart';
 import 'package:healthee/shared/v02/entry_card.dart';
@@ -191,20 +192,6 @@ List<PageSection> insightsSections(ScreenData data, InsightsExtras extras) {
     AgeEntryCard.contribution(snapshot?.biologicalAge.valueOrNull),
     findings,
   );
-  if (snapshot != null &&
-      EffortStressPanel.hasSomethingToDraw(
-        snapshot.hourlyHeartRate,
-        snapshot.hourlyStress,
-      )) {
-    sections.add(
-      EffortStressPanel(
-        heartRate: snapshot.hourlyHeartRate,
-        stress: snapshot.hourlyStress,
-        reveals: data.reveals,
-      ),
-    );
-    sections.add(ContextBridge.text(kJournalBridge));
-  }
   // A heading over no panels reads as breakage. The honest state is silence:
   // a trend needs two days of the same metric and the server sends the window
   // once it has one.
@@ -225,7 +212,7 @@ List<PageSection> insightsSections(ScreenData data, InsightsExtras extras) {
       ),
     );
   }
-  _changedTogether(sections, findings, extras);
+  _waysIn(sections, extras);
   sections.gap(PageSpacing.block);
   sections.add(const DataFooter());
   return sections.build();
@@ -255,19 +242,9 @@ void _entries(SectionList sections, double? age, List<Finding> findings) {
   sections.gap(PageSpacing.panel);
 }
 
-/// Findings, notable days and links to sleep history and fitness.
-/// The framing stays observational: what moved together, not what caused what.
-void _changedTogether(
-  SectionList sections,
-  List<Finding> findings,
-  InsightsExtras extras,
-) {
+/// Notable days and links to sleep history and fitness.
+void _waysIn(SectionList sections, InsightsExtras extras) {
   sections.gap(PageSpacing.block);
-  sections.add(const SectionHead(title: 'What changed together?'));
-  if (findings.isNotEmpty) {
-    sections.add(FindingsSection(findings: findings));
-    sections.gap(PageSpacing.panel);
-  }
   sections.add(const NotableEvents());
   sections.gap(PageSpacing.panel);
   sections.add(

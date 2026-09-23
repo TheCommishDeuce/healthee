@@ -18,9 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/activity/activity_screen.dart';
 import 'package:healthee/features/insights/insights_screen.dart';
-import 'package:healthee/shared/findings_section.dart';
 
-import '_citation_probe.dart';
 import '_today_host.dart';
 
 void main() {
@@ -109,32 +107,21 @@ void main() {
   });
 
   group('Insights', () {
-    testWidgets('a finding says single-subject, and never says "caused"', (
+    testWidgets('the pattern card joins two metrics, and names no cause', (
       tester,
     ) async {
       await tester.pumpWidget(todayHost(store, home: const InsightsScreen()));
       await tester.pumpAndSettle();
-      await reveal(tester, find.text('In your own data'));
 
-      expect(
-        find.textContaining(
-          'They say what moved together, never what caused what.',
-        ),
-        findsOneWidget,
-        reason: 'the framing is on the surface, where it cannot be collapsed',
-      );
-      expect(
-        find.textContaining('Single-subject and observational'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('moved opposite to'),
-        findsOneWidget,
-        reason: 'the direction is stated, and it is not a causal verb',
-      );
+      // The findings list and its framing sentence were cut (F4); what remains
+      // is the entry card, whose symmetric glyph is its non-causal wording.
+      expect(find.textContaining('↔'), findsOneWidget);
+      for (final verb in <String>['caused', 'because', 'improves', 'helps']) {
+        expect(find.textContaining(verb), findsNothing, reason: verb);
+      }
     });
 
-    testWidgets('THE STATISTIC IS BEHIND THE ⓘ, NOT ON THE SURFACE', (
+    testWidgets('THE STATISTIC IS NOT ON THE SURFACE', (
       tester,
     ) async {
       await tester.pumpWidget(todayHost(store, home: const InsightsScreen()));
@@ -145,28 +132,6 @@ void main() {
       expect(find.textContaining('Spearman('), findsNothing);
       expect(find.textContaining('rho '), findsNothing);
       expect(find.textContaining('q = '), findsNothing);
-
-      // **It moved from an inline disclosure to the card's ⓘ.** Five findings
-      // meant five collapsed `The statistic behind this` controls stacked down
-      // the card, each one a decision the reader had to make before they could
-      // read the next headline. The ⓘ is where every other surface in this app
-      // keeps its method, and that dot was already beside the row carrying the
-      // sources.
-      await reveal(tester, find.byType(FindingsSection));
-      final dot = dotIn(find.byType(FindingsSection)).first;
-      await tester.ensureVisible(dot);
-      await tester.pumpAndSettle();
-      await tester.tap(dot);
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('rho = -0.42'), findsOneWidget);
-      expect(find.textContaining('q = 0.030'), findsOneWidget);
-      expect(
-        find.textContaining('not that either one caused the other'),
-        findsOneWidget,
-        reason:
-            'opening the arithmetic must not mean leaving the caveat behind',
-      );
     });
 
     testWidgets('INSIGHTS IS NOT THE COACH, AND DOES NOT PRETEND TO BE', (

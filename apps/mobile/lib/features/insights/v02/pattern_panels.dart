@@ -1,12 +1,13 @@
-/// The panels and entry cards Insights is built from.
+/// The entry cards Insights is built from.
 ///
 /// `screens-overview.js::H.screens.insights`:
 ///
 /// ```js
 /// .relationship-grid          two cards: a personal pattern, and the age model
-/// H.panel('Effort & stress, side by side','heart', dayTogether + note,'activity')
-/// H.panel('A useful question comes next', …)   not built: the coach is removed
 /// ```
+///
+/// `Effort & stress, side by side` was here too, and was cut with the rest of
+/// the current-day material (F4); Activity carries that chart.
 ///
 /// ## The two entry cards carry no coefficient, and that is not an omission
 ///
@@ -44,119 +45,10 @@ import 'package:healthee/core/router.dart';
 import 'package:healthee/core/theme/tone.dart';
 import 'package:healthee/data/models/biological_age.dart';
 import 'package:healthee/data/models/finding.dart';
-import 'package:healthee/data/models/today_series.dart';
 import 'package:healthee/features/insights/v02/finding_detail_screen.dart';
-import 'package:healthee/shared/charts/v02/v02_linked_chart.dart';
 import 'package:healthee/shared/format/metric_names.dart';
-import 'package:healthee/shared/format/time_labels.dart';
-import 'package:healthee/shared/reveal_once.dart';
 import 'package:healthee/shared/v02/entry_card.dart';
-import 'package:healthee/shared/v02/panel.dart';
-import 'package:healthee/shared/v02/panel_head.dart';
-import 'package:healthee/shared/v02/panel_parts.dart';
 import 'package:solar_icons/solar_icons.dart';
-
-/// The prototype's own line under the linked chart.
-const String kLinkedNote =
-    'Shared time axis. Independent scales. Check the context before '
-    'interpreting a relationship.';
-
-/// `H.bridge('stress', …)` — what a sensor cannot see.
-const String kJournalBridge =
-    'Sensors cannot tell what was happening around a busy hour.';
-
-/// `Effort & stress, side by side` — two signals, one hour cursor, two scales.
-class EffortStressPanel extends StatelessWidget {
-  /// [heartRate] and [stress] are the payload's hourly series.
-  const EffortStressPanel({
-    required this.heartRate,
-    required this.stress,
-    required this.reveals,
-    super.key,
-  });
-
-  /// The prototype's title.
-  static const String title = 'Effort & stress, side by side';
-
-  /// Today's heart rate, hour by hour.
-  final List<HourPoint> heartRate;
-
-  /// Today's stress, hour by hour.
-  final List<HourPoint> stress;
-
-  /// Where "already revealed" is remembered.
-  final RevealRegistry reveals;
-
-  /// Whether either signal has enough to draw.
-  ///
-  /// **Both or neither.** A "side by side" chart with one live pane is a
-  /// different chart under a title promising a comparison the reader cannot
-  /// make, and two hours is not a day.
-  static bool hasSomethingToDraw(
-    List<HourPoint> heartRate,
-    List<HourPoint> stress,
-  ) => heartRate.length > 2 && stress.length > 2;
-
-  @override
-  Widget build(BuildContext context) {
-    final hours = heartRate.length < stress.length
-        ? heartRate.length
-        : stress.length;
-    return Panel(
-      tone: Tone.heart,
-      head: const PanelHead(
-        title: title,
-        icon: SolarIconsOutline.heart,
-        infoKey: 'stress',
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          RevealOnce(
-            id: 'insights.effort-stress',
-            registry: reveals,
-            builder: (context, t) => V02LinkedChart(
-              <LinkedPane>[
-                LinkedPane(
-                  tone: Tone.heart,
-                  label: 'Heart rate',
-                  unit: 'bpm',
-                  values: <double?>[
-                    for (var i = 0; i < hours; i++) heartRate[i].average,
-                  ],
-                ),
-                LinkedPane(
-                  tone: Tone.stress,
-                  label: 'Stress',
-                  values: <double?>[
-                    for (var i = 0; i < hours; i++) stress[i].average,
-                  ],
-                ),
-              ],
-              progress: t,
-              // `shortClock`, and not the prototype's `06:00`: Today draws this
-              // same chart from the same series, and one chart labelled two ways
-              // on two screens is the drift `shared/format/` exists to stop.
-              captions: hours < 2
-                  ? const <String>[]
-                  : <String>[
-                      shortClock(heartRate.first.hour),
-                      shortClock(heartRate[hours - 1].hour),
-                    ],
-              sampleLabels: <String>[
-                for (var i = 0; i < hours; i++) shortClock(heartRate[i].hour),
-              ],
-              semanticLabel:
-                  'Heart rate and stress through today, on a shared hour axis',
-            ),
-          ),
-          const PanelNote(kLinkedNote),
-        ],
-      ),
-    );
-  }
-}
 
 /// The first relationship card: one pattern found in the owner's own history.
 ///
