@@ -42,12 +42,6 @@ import '_prose_fixtures.dart';
 
 void main() {
   group('every prose surface hands its sources to an ⓘ', () {
-    testWidgets('Sleep’s tonight lever', (tester) async {
-      await pumpAt(tester, 390, TonightPanel(lever: kLever));
-
-      expectGrounds(tester, TonightPanel, kLever.prose);
-    });
-
     testWidgets('Sleep’s timing panel, for the server’s own action line', (
       tester,
     ) async {

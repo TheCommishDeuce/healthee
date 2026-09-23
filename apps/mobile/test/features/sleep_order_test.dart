@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/models/sleep_consistency.dart';
+import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/features/sleep/v02/checks_panel.dart';
 import 'package:healthee/features/sleep/v02/naps_panel.dart';
 import 'package:healthee/features/sleep/v02/need_panel.dart';
@@ -20,7 +21,6 @@ import 'package:healthee/features/sleep/v02/night_panels.dart';
 import 'package:healthee/features/sleep/v02/sleep_reading.dart';
 import 'package:healthee/features/sleep/v02/tail_panels.dart';
 import 'package:healthee/features/sleep/v02/timing_panel.dart';
-import 'package:healthee/features/sleep/v02/trend_panels.dart';
 import 'package:healthee/features/sleep/v02/vitals_panel.dart';
 import 'package:healthee/features/sleep/v02/week_panel.dart';
 import 'package:healthee/features/sleep/v02/withheld_night.dart';
@@ -32,20 +32,6 @@ import 'package:healthee/shared/v02/page_header.dart';
 
 import '../_sleep_stubs.dart';
 import '_sleep_host.dart';
-
-/// The nth section whose child is a [T], counting from zero.
-int _nthOf<T>(List<PageSection> list, int n) {
-  var seen = 0;
-  for (var i = 0; i < list.length; i++) {
-    if (list[i].child is T) {
-      if (seen == n) {
-        return i;
-      }
-      seen++;
-    }
-  }
-  return -1;
-}
 
 void main() {
   group("the prototype's order, entry by entry", () {
@@ -74,19 +60,11 @@ void main() {
         indexOfSection<StageWeekPanel>(list),
         // `H.panel('Sleep timing', …, '', 'clock')`.
         indexOfSection<SleepTimingPanel>(list),
-        // `H.chapter('sleep-trends','Beyond a single night','sleep','insights')`.
-        indexOfSection<ChapterHeading>(list),
-        // `['efficiency','regularity','hrv'].map(H.historyPanel)`.
-        _nthOf<SleepTrendPanel>(list, 0),
-        _nthOf<SleepTrendPanel>(list, 1),
-        _nthOf<SleepTrendPanel>(list, 2),
-        // `H.panel('Naps & your day', …, 'journal','moon')`.
+        // ⛔ **No `Beyond a single night`** and nothing the prototype put under
+        // it (F2): the owner found it all redundant with the panels above and
+        // with Sleep history. Only the day's naps survive — below.
+        // `H.panel('Naps & your day', …)` — the fixture's night has a nap.
         indexOfSection<NapsPanel>(list),
-        // ⛔ **No `H.link('Sleep recommendations','actions')`.** The prototype
-        // ends the screen with a call to action; the owner asked for it out.
-        // It sent the reader to a tab that had nothing sleep-specific waiting
-        // for them — a door labelled with a promise nothing behind it kept.
-        indexOfSection<FindingsSection>(list),
         // `H.footer()`.
         indexOfSection<DataFooter>(list),
       ];
@@ -104,26 +82,9 @@ void main() {
       }
     });
 
-    test(
-      'the three trend panels are efficiency, regularity, HRV in that order',
-      () {
-        final list = sleepList();
-        final titles = <String>[
-          for (final section in list)
-            if (section.child case final SleepTrendPanel panel)
-              panel.trend.title,
-        ];
-        expect(titles, <String>[
-          'Sleep efficiency',
-          'Sleep regularity',
-          'Heart-rate variability',
-        ]);
-      },
-    );
-
-    test('the surfaces the prototype has no box for all sit AFTER it', () {
-      // The rule the Activity rebuild set: an app-only surface is kept, and it
-      // never interrupts the prototype's own sequence.
+    test('NOTHING FROM "BEYOND A SINGLE NIGHT" DOWN IS DRAWN (F2)', () {
+      // With a tonight lever AND findings on hand, so this is not passing
+      // because there was nothing to draw.
       final withLever = SleepConsistency.fromJson(<String, Object?>{
         ...loadJson(kConsistencySnapshotPath),
         'tonight': const <String, Object?>{
@@ -133,16 +94,50 @@ void main() {
           'action': 'Start winding down at 22:15.',
         },
       });
-      final list = sleepList(consistency: withLever);
-      // `NapsPanel` is the prototype's last box now — the `Sleep
-      // recommendations` link that used to close the screen is gone.
-      final lastPrototypePanel = indexOfSection<NapsPanel>(list);
-      for (final ours in <int>[
-        indexOfSection<TonightPanel>(list),
-        indexOfSection<FindingsSection>(list),
+      expect(sleepPageFixture().findings, isNotEmpty);
+      final types = sectionTypes(sleepList(consistency: withLever));
+      for (final gone in <Type>[
+        ChapterHeading,
+        FindingsSection,
       ]) {
-        expect(ours, greaterThan(lastPrototypePanel));
+        expect(types, isNot(contains(gone)), reason: '$gone');
       }
+    });
+
+    test('NAPS ARE THE DAY’S OWN, AND ABSENT ON A DAY WITHOUT ONE', () {
+      // The fixture's one nap is on its newest night; a second, on the night
+      // before, proves each day draws its own and only its own.
+      final json = loadJson(kSleepSnapshotPath);
+      final nights = json['nights']! as List<Object?>;
+      final latest = (nights[0]! as Map<String, Object?>)['date']! as String;
+      final before = (nights[1]! as Map<String, Object?>)['date']! as String;
+      final quiet = (nights[2]! as Map<String, Object?>)['date']! as String;
+      final nap = (json['naps']! as List<Object?>).single! as Map<String, Object?>;
+      final page = SleepPage.fromJson(<String, Object?>{
+        ...json,
+        'naps': <Object?>[
+          nap,
+          <String, Object?>{...nap, 'date': before},
+        ],
+      });
+      List<String?>? napDatesOn(String day) {
+        for (final section in sleepList(page: page, day: day)) {
+          if (section.child case final NapsPanel panel) {
+            return <String?>[for (final n in panel.naps) n.date];
+          }
+        }
+        return null;
+      }
+
+      expect(napDatesOn(latest), <String>[latest]);
+      // A past day's nap is dated data like its night, so it is drawn there.
+      expect(napDatesOn(before), <String>[before]);
+      // No nap that day: no panel, rather than a panel saying so.
+      expect(napDatesOn(quiet), isNull);
+    });
+
+    test('the analysis is the stated exception to the prototype order', () {
+      final list = sleepList();
       // **`SleepAnalysisPanel` is the stated exception**, the second after the
       // stale banner: the owner asked for the night's written reading above the
       // charts rather than under them. An exception that is written down and

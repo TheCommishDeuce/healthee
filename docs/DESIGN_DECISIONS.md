@@ -98,6 +98,20 @@ used by recommendations, not only caffeine/alcohol cutoffs.
   taps are refused. *(The last sentence of the original — no durable offline outbox —
   is superseded by A8: the retry identity now lives in the outbox row.)*
 
+### First on-phone review (2026-09-23)
+
+Owner feedback from the first session with the debug build (`NEXT_SESSION.md` §2).
+
+- **F2 — Sleep trimmed below the timing panel.** Everything from the prototype's
+  *Beyond a single night* chapter down is removed: the three fortnight trends
+  (efficiency, regularity, HRV), the tonight lever and the sleep findings list.
+  Owner: redundant with the panels above, Sleep history and Insights. The widgets
+  are deleted, not hidden; `/api/sleep/consistency` still sends `tonight`, nothing
+  draws it. **Naps** stay, only on a day that has one, listing that day's naps
+  only (owner chose this over removal). Rows in *Your body overnight* open the
+  metric they name; skin temperature has no history series and is not a link.
+  Partly revises U3 ("Sleep should change minimally").
+
 ### Presentation constraints for the first slice
 
 - Sleep summary links to the full Sleep page; date older sleep explicitly.

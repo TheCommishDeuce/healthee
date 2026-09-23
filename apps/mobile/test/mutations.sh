@@ -3124,6 +3124,23 @@ mutate 'pairing does not re-run the sync that failed before it' \
   ''
 
 
+# F2, the owner: naps show only on a day that has one, and only that day's.
+mutate 'every nap in the window is drawn on every day' \
+  test/features/sleep_order_test.dart lib/features/sleep/sleep_sections.dart \
+  '      if (nap.date == night.date) nap,' \
+  '      nap,'
+mutate 'a day with no nap still draws the naps panel' \
+  test/features/sleep_order_test.dart lib/features/sleep/sleep_sections.dart \
+  '  if (naps.isNotEmpty) {
+    sections
+      ..gap(PageSpacing.panel)
+      ..add(NapsPanel(naps: naps));' \
+  '  {
+    sections
+      ..gap(PageSpacing.panel)
+      ..add(NapsPanel(naps: naps));'
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"

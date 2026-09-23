@@ -26,7 +26,7 @@
 ///
 /// ## Straight segments, never a spline
 ///
-/// One total per night. `chart_curve.dart` and `trend_panels.dart` both argue
+/// One total per night. `chart_curve.dart` argues
 /// it: a monotone curve between two nightly totals draws a duration nobody
 /// slept.
 library;

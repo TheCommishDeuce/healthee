@@ -21,7 +21,6 @@ import 'package:healthee/features/sleep/sleep_windows.dart';
 import 'package:healthee/features/sleep/v02/checks_panel.dart';
 import 'package:healthee/features/sleep/v02/need_panel.dart';
 import 'package:healthee/features/sleep/v02/sleep_reading.dart';
-import 'package:healthee/features/sleep/v02/trend_panels.dart';
 import 'package:healthee/features/sleep/v02/vitals_panel.dart';
 import 'package:healthee/shared/reveal_once.dart';
 
@@ -190,47 +189,6 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('THE MEASURED WEEK'), findsOneWidget);
-    });
-  });
-
-  group('the fortnight panels', () {
-    testWidgets('a trend with no readings says so and plots nothing', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        sleepPanelHost(
-          SleepTrendPanel(
-            trend: kSleepTrends.first,
-            recent: const [],
-            reveals: RevealRegistry(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('No night in the last fortnight carries this reading.'),
-        findsOneWidget,
-      );
-      expect(find.text('—'), findsWidgets);
-      expect(find.text('0'), findsNothing);
-    });
-
-    testWidgets('a measured fortnight says how many nights are behind it', (
-      tester,
-    ) async {
-      final windows = SleepWindows(sleepPageFixture(), kSleepNow);
-      await tester.pumpWidget(
-        sleepPanelHost(
-          SleepTrendPanel(
-            trend: kSleepTrends.first,
-            recent: windows.recent,
-            reveals: RevealRegistry(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.textContaining('nights measured through'), findsOneWidget);
     });
   });
 
