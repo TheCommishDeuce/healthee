@@ -39,6 +39,7 @@ import 'package:healthee/data/models/sleep_night.dart';
 import 'package:healthee/features/sleep/sleep_format.dart';
 import 'package:healthee/shared/charts/v02/chart_curve.dart';
 import 'package:healthee/shared/charts/v02/v02_line_chart.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/instrument/h_tap.dart';
 import 'package:healthee/shared/reveal_once.dart';
 import 'package:healthee/shared/v02/panel.dart';

@@ -75,7 +75,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(WithheldPanel), findsOneWidget);
       expect(find.textContaining('the server did not say why'), findsOneWidget);
-      expect(find.text('0h 0m'), findsNothing);
+      expect(find.text('0h 00m'), findsNothing);
     });
   }
 }

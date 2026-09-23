@@ -144,6 +144,12 @@ Owner feedback from the first session with the debug build (`NEXT_SESSION.md` §
   **R8** one fitness-contribution helper. Kept on purpose: R4 (steps day vs week),
   R6 (duration vs need vs month), R7 (the age card on Insights and Activity). R9 is a
   server change, its own PR.
+  **R10** (found later): one hoursMinutes label (`7h 05m`) everywhere; Recovery's
+  baseline row and population floor now use it instead of raw minutes.
+- **B2 carried to every server-backed screen.** With no session the app client
+  refuses `/api/*` before sending (typed `NotSignedIn`, never retried); Recovery,
+  Body, Fitness, Sleep, Sleep history and past-day history show the sign-in card
+  instead of "Couldn't reach your server".
 
 ### Presentation constraints for the first slice
 

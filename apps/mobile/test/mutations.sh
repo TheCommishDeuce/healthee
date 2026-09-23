@@ -3211,6 +3211,22 @@ mutate 'Recovery blames the server when signed out' \
   '          if (false)'
 
 
+# R10: one hoursMinutes, padded and rounded first; minute readings on Recovery
+# use it (the baseline row read "416 min" beside Sleep's "6h 56m").
+mutate 'hoursMinutes stops padding its minutes' \
+  test/shared/hours_minutes_test.dart lib/shared/format/time_labels.dart \
+  "  final rest = (whole % 60).toString().padLeft(2, '0');" \
+  "  final rest = (whole % 60).toString();"
+mutate 'hoursMinutes rounds after splitting again' \
+  test/shared/hours_minutes_test.dart lib/shared/format/time_labels.dart \
+  "  return '\${whole ~/ 60}h \${rest}m';" \
+  "  return '\${minutes ~/ 60}h \${rest}m';"
+mutate 'a Recovery minute reading goes back to raw minutes' \
+  test/features/recovery_honesty_fields_test.dart lib/features/today/v02/recovery_detail_panels.dart \
+  "  if (unit == 'min') {" \
+  "  if (unit == 'never') {"
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"

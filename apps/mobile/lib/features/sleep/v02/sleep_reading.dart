@@ -55,6 +55,7 @@ import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/honesty/reading.dart';
 import 'package:healthee/data/models/sleep_night.dart';
 import 'package:healthee/features/sleep/sleep_format.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/v02/colour_key.dart';
 
 /// What the strap's own number is, said where the number is.

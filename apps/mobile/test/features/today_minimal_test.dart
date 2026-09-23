@@ -95,7 +95,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('7h 0m'), findsOneWidget);
+      expect(find.text('7h 00m'), findsOneWidget);
       expect(find.text('6h 20m'), findsNothing);
     },
   );

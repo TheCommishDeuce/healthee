@@ -289,7 +289,7 @@ void main() {
       expect(find.text('Nothing from your strap yet'), findsOneWidget);
       expect(find.byType(WithheldPanel), findsOneWidget,
           reason: 'missing local sleep stays a refusal, not a zero duration');
-      expect(find.text('0h 0m'), findsNothing);
+      expect(find.text('0h 00m'), findsNothing);
     });
   });
 }

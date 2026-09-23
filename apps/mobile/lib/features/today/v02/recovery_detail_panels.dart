@@ -42,6 +42,7 @@ import 'package:healthee/data/models/recovery_score.dart';
 import 'package:healthee/data/models/recovery_signals.dart';
 import 'package:healthee/data/models/trend_point.dart';
 import 'package:healthee/shared/charts/v02/v02_bar_chart.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/metric_info/metric_detail.dart';
 import 'package:healthee/shared/reveal_once.dart';
 import 'package:healthee/shared/v02/panel.dart';
@@ -115,19 +116,25 @@ String? _basisLine(RecoverySignal signal) {
   };
 }
 
-/// `the population floor of 300 min`, or the unqualified phrase when none was sent.
+/// `the population floor of 5h 00m`, or the unqualified phrase when none was sent.
 String _floor(RecoverySignal signal) {
   final floor = signal.populationFloorMin;
-  if (floor == null) {
-    return 'the population floor';
+  return floor == null
+      ? 'the population floor'
+      : 'the population floor of ${_figure(floor, signal.unit)}';
+}
+
+/// A signal's number in its unit: `45 ms`, `48.8 bpm`, and minutes as
+/// `6h 56m` — the way every other screen writes a duration (the baseline row
+/// read `416 min` beside Sleep's `6h 56m` for the same night).
+String _figure(double value, String? unit) {
+  if (unit == 'min') {
+    return hoursMinutes(value);
   }
-  final figure = floor == floor.roundToDouble()
-      ? floor.round().toString()
-      : floor.toStringAsFixed(1);
-  final unit = signal.unit;
-  return unit == null
-      ? 'the population floor of $figure'
-      : 'the population floor of $figure $unit';
+  final figure = value == value.roundToDouble()
+      ? value.round().toString()
+      : value.toStringAsFixed(1);
+  return unit == null ? figure : '$figure $unit';
 }
 
 /// The prototype's own line under the capacity chart.
@@ -178,16 +185,10 @@ class BaselinePanel extends StatelessWidget {
       SignalRow(signal.name, reading(signal), z: signal.z),
   ];
 
-  /// `45 ms`, or an em dash when today's reading did not arrive.
+  /// `45 ms`, `6h 56m`, or an em dash when today's reading did not arrive.
   static String reading(RecoverySignal signal) {
     final value = signal.value;
-    if (value == null) {
-      return '—';
-    }
-    final figure = value == value.roundToDouble()
-        ? value.round().toString()
-        : value.toStringAsFixed(1);
-    return signal.unit == null ? figure : '$figure ${signal.unit}';
+    return value == null ? '—' : _figure(value, signal.unit);
   }
 
   @override

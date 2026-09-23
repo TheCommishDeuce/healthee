@@ -29,6 +29,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/shared/charts/chart_primitives.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 
 /// Nightly sleep totals against a need line.
 class HDebtBars extends StatefulWidget {

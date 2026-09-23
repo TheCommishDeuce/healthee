@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/features/today/today_labels.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 
 void main() {
   group('the figures', () {
