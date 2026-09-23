@@ -46,8 +46,9 @@ const String kStepsByHourNote =
 
 /// Under the heart-rate chart.
 const String kHeartRateDayNote =
-    'Hourly averages of the strap’s samples. Resting is the lowest 5-minute '
-    'average inside your sleep, so it sits under anything you see awake.';
+    'Hourly averages of the strap’s samples. Lowest and highest are single '
+    'samples; resting is the lowest 5-minute average inside your sleep, so a '
+    'single sample can dip below it.';
 
 /// Under the stress chart. Matches the `stress` explainer behind the ⓘ.
 const String kStressDayNote =
