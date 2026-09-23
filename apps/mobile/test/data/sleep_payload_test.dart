@@ -65,6 +65,53 @@ void main() {
       );
     });
 
+    test('R9: SpO₂ and breathing are DERIVED now — which gap depends on the night', () {
+      // Since R9 `/api/sleep` sends the canonical `spo2_overnight` /
+      // `respiratory_rate_sleep` rather than its own raw average. A night the
+      // server derived (it has other derived fields) and still has no SpO₂ had no
+      // usable readings; a night the server has not derived at all is waiting.
+      const vitals = <String>['spo2_avg', 'spo2_min', 'respiratory_rate'];
+      final derivedNight = sleepPageWithout(vitals).nights.first;
+      for (final reading in <Reading<double>>[
+        derivedNight.spo2Avg,
+        derivedNight.spo2Min,
+        derivedNight.respiratoryRate,
+      ]) {
+        expect(
+          (reading as Withheld<double>).disclosure.reason,
+          SleepGap.notSampled.reason,
+        );
+      }
+
+      final underivedNight = sleepPageWithout(<String>[
+        ...vitals,
+        'skin_temp_c',
+        'tst_min',
+        'tib_min',
+        'efficiency_pct',
+        'score',
+        'sri',
+        'rhr',
+        'hrv_sleep_avg',
+      ]).nights.first;
+      for (final reading in <Reading<double>>[
+        underivedNight.spo2Avg,
+        underivedNight.spo2Min,
+        underivedNight.respiratoryRate,
+      ]) {
+        expect(
+          (reading as Withheld<double>).disclosure.reason,
+          SleepGap.notDerived.reason,
+        );
+      }
+      // Skin temperature is still the raw window mean, so it is still a
+      // sampling gap whatever the derive state.
+      expect(
+        (underivedNight.skinTempC as Withheld<double>).disclosure.reason,
+        SleepGap.notSampled.reason,
+      );
+    });
+
     test('a point is a bool, and a missing point is neither pass nor fail', () {
       final scored = sleepPageFixture().nights.first;
       expect(scored.pointDuration, const Present<bool>(true));

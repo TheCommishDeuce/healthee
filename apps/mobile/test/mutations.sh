@@ -3050,6 +3050,14 @@ mutate 'the loopback fallback is prefilled as if it were an answer' \
 
 
 
+# R9: SpO2 and breathing are derived on /api/sleep now. A night the server has not
+# derived must say it is waiting, not that the strap took no readings.
+mutate 'an underived night blames the strap for missing SpO2' \
+  test/data/sleep_payload_test.dart lib/data/models/sleep_night.dart \
+  "      spo2Avg: sleepReading(number('spo2_avg'), vitals)," \
+  "      spo2Avg: sleepReading(number('spo2_avg'), sampled),"
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"
