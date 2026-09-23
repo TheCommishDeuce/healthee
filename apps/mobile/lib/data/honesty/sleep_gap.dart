@@ -23,6 +23,10 @@
 ///   session present, derived null     → notDerived  the server has not derived it
 /// ```
 ///
+/// SpO₂ and breathing sit between the two since R9: they are derived metrics, so
+/// their absence is `notDerived` on a night the server has derived nothing for,
+/// and `notSampled` on one it has (`sleep_night.dart` says which fields count).
+///
 /// Each carries a second-person sentence in the shape `withheld_block` uses on the
 /// server, so a Sleep card and a Today card read the same way. What is authored
 /// here is the *sentence*; the *fact* comes from the payload. If `/api/sleep` ever

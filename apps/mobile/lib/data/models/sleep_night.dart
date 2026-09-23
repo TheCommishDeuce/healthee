@@ -115,6 +115,21 @@ class SleepNight {
     final derived = hasSession ? SleepGap.notDerived : SleepGap.noSession;
     final sampled = hasSession ? SleepGap.notSampled : SleepGap.noSession;
     double? number(String key) => (json[key] as num?)?.toDouble();
+    // SpO₂ and breathing are the server's canonical derived metrics since R9, not
+    // a raw average: if the server derived this night (any derived field is here)
+    // their absence is a sampling gap; if it derived nothing, it is waiting.
+    final derivedAny = <String>[
+      'tst_min',
+      'score',
+      'sri',
+      'rhr',
+      'hrv_sleep_avg',
+    ].any((key) => json[key] != null);
+    final vitals = !hasSession
+        ? SleepGap.noSession
+        : derivedAny
+        ? SleepGap.notSampled
+        : SleepGap.notDerived;
     Reading<bool> point(String key) {
       final raw = number(key);
       return raw == null ? Withheld<bool>(derived.disclosure) : Present<bool>(raw == 1);
@@ -137,9 +152,9 @@ class SleepNight {
       sri: sleepReading(number('sri'), derived),
       restingHr: sleepReading(number('rhr'), derived),
       hrvSleepAvg: sleepReading(number('hrv_sleep_avg'), derived),
-      respiratoryRate: sleepReading(number('respiratory_rate'), sampled),
-      spo2Avg: sleepReading(number('spo2_avg'), sampled),
-      spo2Min: sleepReading(number('spo2_min'), sampled),
+      respiratoryRate: sleepReading(number('respiratory_rate'), vitals),
+      spo2Avg: sleepReading(number('spo2_avg'), vitals),
+      spo2Min: sleepReading(number('spo2_min'), vitals),
       skinTempC: sleepReading(number('skin_temp_c'), sampled),
       stages: StageMinutes.maybe(json['stages']),
       timeline: <SleepStageSpan>[

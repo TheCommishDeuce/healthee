@@ -173,18 +173,28 @@ def _blank_derived() -> dict:
     }
 
 
+# Derived metric → night field, for the ones shipped to one decimal. The last two are
+# R9's canonical overnight vitals, under the keys `/api/sleep` always used for them.
+_ONE_DECIMAL_FIELDS = {
+    "sleep_regularity_index": "sri",
+    "hrv_sleep_avg": "hrv_sleep_avg",
+    "rhr_daily": "rhr",
+    "spo2_overnight": "spo2_avg",
+    "respiratory_rate_sleep": "respiratory_rate",
+}
+
+
 def _apply_derived(row: dict, metric: str, value: float, flags: dict) -> None:
     """Fold one derived row into the per-night dict (metric → field + flag ride-along)."""
     if metric == "sleep_health_score_4dim":
         row["score"] = int(value)
     elif metric in _POINT_METRICS:
         row[_POINT_METRICS[metric]] = int(value)
-    elif metric == "sleep_regularity_index":
-        row["sri"] = round(value, 1)
-    elif metric == "hrv_sleep_avg":
-        row["hrv_sleep_avg"] = round(value, 1)
-    elif metric == "rhr_daily":
-        row["rhr"] = round(value, 1)
+    elif metric in _ONE_DECIMAL_FIELDS:
+        row[_ONE_DECIMAL_FIELDS[metric]] = round(value, 1)
+    elif metric == "spo2_overnight_min":
+        # A window MIN of whole-percent samples, and an int on the wire as it always was.
+        row["spo2_min"] = round(value)
     for k in _FLAG_FIELDS:
         if row.get(k) is None and flags.get(k) is not None:
             row[k] = flags.get(k)
