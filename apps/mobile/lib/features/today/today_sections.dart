@@ -108,7 +108,10 @@ void _head(SectionList sections, ScreenData data, TodayExtras extras) {
       ),
     );
   }
-  if (data.serverFailure case final PageSection failure) {
+  // Signed out, the data-health card above already says so and offers the way
+  // in; a second card here would say it twice (B2).
+  if (data.serverFailure case final PageSection failure
+      when extras.signedIn != false) {
     sections.addSection(failure);
     sections.gap(PageSpacing.panel);
   }

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/api/provider_retry.dart';
 
 void main() {
@@ -24,6 +25,7 @@ void main() {
         response: Response<void>(requestOptions: request, statusCode: status))), isNull);
     }
     expect(apiProviderRetry(0, const FormatException('Invalid response')), isNull);
+    expect(apiProviderRetry(0, const NotSignedIn()), isNull);
     final offline = DioException.connectionError(requestOptions: request, reason: 'Offline');
     expect(apiProviderRetry(0, offline), isNotNull);
     expect(apiProviderRetry(1, offline), isNull);

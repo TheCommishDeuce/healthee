@@ -69,6 +69,10 @@ String _$todayRepositoryHash() => r'9b715fc2421c68f4b3cae20c77255b1491fcc32a';
 /// path rather than a null-on-today special case that only the current day
 /// exercises. The server treats an explicit today and an absent day identically.
 ///
+/// **Signed out, it does not ask** and throws [NotSignedIn] instead: there is no
+/// token to send, and the request would go to the build's default address
+/// unauthenticated only to fail (B2).
+///
 /// [ProviderLogger] logs every provider failure through the one logging path, so
 /// there is deliberately no `try`/`catch` here: catching would only let us
 /// re-throw after a log entry that already happens.
@@ -89,6 +93,10 @@ final todaySnapshotProvider = TodaySnapshotProvider._();
 /// The value sent is always the selection, today included, so there is one code
 /// path rather than a null-on-today special case that only the current day
 /// exercises. The server treats an explicit today and an absent day identically.
+///
+/// **Signed out, it does not ask** and throws [NotSignedIn] instead: there is no
+/// token to send, and the request would go to the build's default address
+/// unauthenticated only to fail (B2).
 ///
 /// [ProviderLogger] logs every provider failure through the one logging path, so
 /// there is deliberately no `try`/`catch` here: catching would only let us
@@ -115,6 +123,10 @@ final class TodaySnapshotProvider
   /// The value sent is always the selection, today included, so there is one code
   /// path rather than a null-on-today special case that only the current day
   /// exercises. The server treats an explicit today and an absent day identically.
+  ///
+  /// **Signed out, it does not ask** and throws [NotSignedIn] instead: there is no
+  /// token to send, and the request would go to the build's default address
+  /// unauthenticated only to fail (B2).
   ///
   /// [ProviderLogger] logs every provider failure through the one logging path, so
   /// there is deliberately no `try`/`catch` here: catching would only let us
@@ -144,7 +156,7 @@ final class TodaySnapshotProvider
   }
 }
 
-String _$todaySnapshotHash() => r'35da001841fbe003b2c15973abd46c9a521f99a6';
+String _$todaySnapshotHash() => r'd42f14a44975d7f99c95a857bb990a5f0c4c334d';
 
 /// The last biological age this phone holds, and the day it belonged to.
 ///

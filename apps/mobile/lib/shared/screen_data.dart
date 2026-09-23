@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/device/device_day.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/models/as_of.dart';
@@ -133,8 +134,15 @@ class ScreenData {
   /// DIFFERENT day counts as no answer here too; the two accessors then tile the
   /// null case exactly, and there is no state in which the derived half is absent
   /// and nothing says why.
+  ///
+  /// A [NotSignedIn] refusal is not a failure to reach anything — no request
+  /// was made — so it draws [signInNeededCard] instead, with no retry (B2).
   PageSection? get serverFailure => snapshot == null && server.hasError
-      ? PageSection(serverErrorCard(onRetryServer))
+      ? PageSection(
+          server.error is NotSignedIn
+              ? signInNeededCard()
+              : serverErrorCard(onRetryServer),
+        )
       : null;
 
   /// The placeholder while the derived half is still in flight.
@@ -148,6 +156,21 @@ class ScreenData {
         )
       : null;
 }
+
+/// What [signInNeededCard] leads with.
+const String kSignInNeeded = 'Sign in to see what your server works out';
+
+/// The phone holds no session, so the derived half was never asked for.
+///
+/// No retry: retrying cannot sign anyone in, and a retry button is how
+/// [serverErrorCard] says "this was our failure", which this is not.
+Widget signInNeededCard() => const EmptyState(
+  message: kSignInNeeded,
+  hint:
+      'Your measurements are on this phone and are unaffected. Recovery, sleep '
+      'health, debt, VO₂max and biological age are worked out on your server; '
+      'sign in from Settings to see them.',
+);
 
 /// The derived half is unreachable. Says which half, and offers the retry.
 ///

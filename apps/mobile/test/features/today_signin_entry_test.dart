@@ -15,12 +15,17 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/theme/app_theme.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/models/data_health.dart';
+import 'package:healthee/data/models/today_view.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/today/widgets/data_health_section.dart';
+import 'package:healthee/shared/screen_data.dart';
 
+import '_screen_data.dart';
 import '_today_host.dart';
 
 /// The section on its own, with nothing else to report.
@@ -149,6 +154,23 @@ void main() {
       expect(find.text('6h 20m'), findsOneWidget);
     });
 
+    testWidgets('SIGNED OUT, THE SERVER IS NOT BLAMED (B2)', (tester) async {
+      tester.view
+        ..physicalSize = const Size(420, 3000)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        todayHost(store, signedIn: false, serverUnreachable: true),
+      );
+      await tester.pumpAndSettle();
+
+      // The data-health card already says "sign in" and offers the way in; a
+      // second card saying the server could not be reached was false — no
+      // server was ever contacted.
+      expect(find.textContaining("Couldn't reach your server"), findsNothing);
+      expect(find.text('Sign in to your server'), findsOneWidget);
+    });
+
     testWidgets('a signed-in phone is not nagged', (tester) async {
       final pending = await store.pushReader.pending();
       await store.pushReader.markPushed(pending, now);
@@ -175,5 +197,28 @@ void main() {
       expect(find.text('Nothing from your strap yet'), findsOneWidget);
       expect(find.text('Sign in to your server'), findsOneWidget);
     });
+  });
+
+  testWidgets('a typed sign-in refusal reads as "sign in", never as a fault', (
+    tester,
+  ) async {
+    final data = screenData(
+      serverState: const AsyncError<TodayView>(
+        NotSignedIn(),
+        StackTrace.empty,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(body: data.serverFailure!.child),
+      ),
+    );
+
+    expect(find.textContaining("Couldn't reach"), findsNothing);
+    expect(find.text(kSignInNeeded), findsOneWidget);
+    // No retry: retrying cannot sign anyone in.
+    expect(find.byType(OutlinedButton), findsNothing);
+    expect(find.byType(FilledButton), findsNothing);
   });
 }

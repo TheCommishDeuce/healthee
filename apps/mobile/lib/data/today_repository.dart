@@ -52,6 +52,8 @@ import 'package:healthee/core/provider_logger.dart';
 import 'package:healthee/data/api/api_client.dart';
 import 'package:healthee/data/api/cache_session.dart';
 import 'package:healthee/data/api/credentials.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
+import 'package:healthee/data/api/server_session.dart';
 import 'package:healthee/data/honesty/last_known.dart';
 import 'package:healthee/data/models/today_snapshot.dart';
 import 'package:healthee/data/models/today_view.dart';
@@ -253,12 +255,23 @@ TodayRepository todayRepository(Ref ref) => TodayRepository(
 /// path rather than a null-on-today special case that only the current day
 /// exercises. The server treats an explicit today and an absent day identically.
 ///
+/// **Signed out, it does not ask** and throws [NotSignedIn] instead: there is no
+/// token to send, and the request would go to the build's default address
+/// unauthenticated only to fail (B2).
+///
 /// [ProviderLogger] logs every provider failure through the one logging path, so
 /// there is deliberately no `try`/`catch` here: catching would only let us
 /// re-throw after a log entry that already happens.
 @riverpod
-Future<TodayView> todaySnapshot(Ref ref) =>
-    ref.watch(todayRepositoryProvider).load(day: ref.watch(viewDateProvider));
+Future<TodayView> todaySnapshot(Ref ref) async {
+  final repository = ref.watch(todayRepositoryProvider);
+  final day = ref.watch(viewDateProvider);
+  final session = await ref.watch(serverSessionProvider.future);
+  if (!session.signedIn) {
+    throw const NotSignedIn();
+  }
+  return repository.load(day: day);
+}
 
 /// The last biological age this phone holds, and the day it belonged to.
 ///

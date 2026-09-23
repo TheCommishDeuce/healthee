@@ -3077,6 +3077,31 @@ mutate 'a mirror run counts stream-months as months' \
   'fetchedMonths: fetched,'
 
 
+# B2, from the owner's phone: signed out, Today said "Couldn't reach your server
+# for today's judgements" beside "not signed in". No request may be made, the
+# refusal must read as "sign in", and Today must not say it twice.
+mutate 'signed out, /api/today is requested anyway' \
+  test/data/today_signed_out_test.dart lib/data/today_repository.dart \
+  '  if (!session.signedIn) {
+    throw const NotSignedIn();
+  }
+' \
+  ''
+mutate 'a sign-in refusal is drawn as a server fault' \
+  test/features/today_signin_entry_test.dart lib/shared/screen_data.dart \
+  'server.error is NotSignedIn' \
+  'server.error is Never'
+mutate 'signed-out Today blames the server beside the sign-in card' \
+  test/features/today_signin_entry_test.dart lib/features/today/today_sections.dart \
+  '  if (data.serverFailure case final PageSection failure
+      when extras.signedIn != false) {' \
+  '  if (data.serverFailure case final PageSection failure) {'
+mutate 'a sign-in refusal is retried with backoff' \
+  test/signin/provider_retry_test.dart lib/data/api/provider_retry.dart \
+  '  if (error is NotSignedIn) return null;' \
+  ''
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"
