@@ -15,8 +15,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:healthee/core/theme/app_theme.dart';
 import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/data/store/local_store.dart';
+import 'package:healthee/features/sleep/sleep_format.dart';
 import 'package:healthee/features/sleep/sleep_history_screen.dart';
 import 'package:healthee/features/sleep/v02/history_panels.dart';
 import 'package:healthee/shared/charts/h_stacked_sleep.dart';
@@ -126,6 +128,32 @@ void main() {
     expect(panel.series.where((value) => value == 0), isEmpty);
     expect(panel.measured, 29);
     expect(panel.note, startsWith('29 dated samples through '));
+  });
+
+  testWidgets('DURATION READS IN HOURS AND MINUTES, NEVER RAW MINUTES (B4)', (
+    tester,
+  ) async {
+    tallViewport(tester);
+    final nights = sleepPageFixture().nights.take(30).toList();
+    final latest = nights.first.tstMin.valueOrNull!;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SleepDurationPanel(nights: nights, reveals: RevealRegistry()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(hoursMinutes(latest)), findsOneWidget);
+    expect(find.text('min'), findsNothing);
+    final chart = tester.widget<V02LineChart>(find.byType(V02LineChart));
+    // The axis is in hours, so its ticks read 6 · 7 · 8 rather than 360 · 420.
+    expect(chart.values.whereType<double>().first, lessThan(24));
+    expect(chart.format!(6.5), '6h 30m');
   });
 
   testWidgets('A ROW IS A BUTTON: IT REPORTS THE NIGHT IT OPENS', (

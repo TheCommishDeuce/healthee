@@ -3050,6 +3050,20 @@ mutate 'the loopback fallback is prefilled as if it were an answer' \
 
 
 
+# B4, from the owner's phone: Sleep history drew the month in minutes (416)
+# beside rows that say 6h 56m. The panel's headline and the chart's reading must
+# both speak hours-minutes, and the chart must honour the format it is handed.
+mutate 'sleep duration headline back to raw minutes' \
+  test/features/sleep_history_screen_test.dart lib/features/sleep/v02/history_panels.dart \
+  "latest == null ? '—' : hoursMinutes(latest)," \
+  "latest == null ? '—' : latest.round().toString(),"
+mutate 'the line chart ignores the format it is handed' \
+  test/shared/v02_charts_series_test.dart lib/shared/charts/v02/v02_line_chart.dart \
+  '      format?.call(value) ??
+      ' \
+  '      '
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"

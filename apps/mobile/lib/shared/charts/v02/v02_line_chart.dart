@@ -43,6 +43,7 @@ class V02LineChart extends StatelessWidget {
     this.height = 168,
     this.unit = '',
     this.digits = 0,
+    this.format,
     this.curve = SeriesCurve.monotone,
     this.references = const <ChartReference>[],
     this.captions = const <String>[],
@@ -68,6 +69,11 @@ class V02LineChart extends StatelessWidget {
 
   /// Decimal places in the bubble and the readout.
   final int digits;
+
+  /// Writes a reading in the bubble and the readout, replacing [digits] and
+  /// [unit] there — for a value no decimal reads naturally in, like a sleep
+  /// duration (`6h 56m`, not `6.9 h`). The axis ticks stay plain numbers.
+  final String Function(double value)? format;
 
   /// [SeriesCurve.monotone] for a continuous signal — the default, because that
   /// is what this chart is usually given. A daily total or a nightly minimum
@@ -176,5 +182,6 @@ class V02LineChart extends StatelessWidget {
   }
 
   String _reading(double value) =>
+      format?.call(value) ??
       '${value.toStringAsFixed(digits)}${unit.isEmpty ? '' : ' $unit'}';
 }

@@ -80,9 +80,15 @@ class SleepDurationPanel extends StatelessWidget {
   /// Opens the sleep-duration metric history.
   final VoidCallback? onDetails;
 
-  /// Oldest first, with an unmeasured night kept as a gap.
-  List<double?> get series =>
-      <double?>[for (final night in nights.reversed) night.tstMin.valueOrNull];
+  /// Oldest first, in HOURS, with an unmeasured night kept as a gap.
+  ///
+  /// Hours so the axis reads `6 · 7 · 8`; the readout says `6h 56m`, the
+  /// same words the night rows use. Minutes (`416`) made the owner do the
+  /// division (B4).
+  List<double?> get series => <double?>[
+    for (final night in nights.reversed)
+      if (night.tstMin.valueOrNull case final minutes?) minutes / 60 else null,
+  ];
 
   /// One short date per night, oldest first.
   List<String> get dates =>
@@ -118,8 +124,7 @@ class SleepDurationPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           PanelValue(
-            latest == null ? '—' : latest.round().toString(),
-            unit: 'min',
+            latest == null ? '—' : hoursMinutes(latest),
             context_: dates.isEmpty ? null : dates.last,
           ),
           const SizedBox(height: chartGap),
@@ -130,14 +135,15 @@ class SleepDurationPanel extends StatelessWidget {
               series,
               progress: t,
               height: chartHeight,
-              unit: 'min',
+              unit: 'hours',
+              format: (hours) => hoursMinutes(hours * 60),
               // Nightly totals. See the library docstring.
               curve: SeriesCurve.straight,
               captions: dates.isEmpty
                   ? const <String>[]
                   : <String>[dates.first, dates.last],
               sampleLabels: dates,
-              semanticLabel: 'Sleep duration in minutes, night by night',
+              semanticLabel: 'Sleep duration in hours, night by night',
             ),
           ),
           PanelNote(note),
