@@ -3543,6 +3543,10 @@ mutate 'the UI isolate stops stamping its lease rows' \
   test/background/device_lease_ui_isolate_test.dart lib/data/sync/device_lease.dart \
   "      '\${_uiIsolate == null ? '' : ':\$_uiIsolate'}';" \
   "      '';"
+mutate 'a link refused the lease goes silent again' \
+  test/sync/foreground_link_lease_test.dart lib/data/sync/foreground_link.dart \
+  '        onState(Disconnected(lastCompleteSync: await lastCompleteSync()));' \
+  ''
 
 echo
 echo "caught $PASS, survived $FAIL"
