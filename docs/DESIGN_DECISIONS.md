@@ -27,8 +27,8 @@ has resource costs, so removal of commercial entitlements must not remove abuse 
 | ID | Status | Decision |
 |---|---|---|
 | I1 | Accepted direction | No email/password setup. Replace it with QR enrollment while preserving the existing owner and health history. |
-| I2 | Proposed security design | QR holds a single-use, short-lived enrollment code, exchanged over HTTPS for per-phone credentials. Enrollment issued by an authenticated administrator/CLI. |
-| I3 | Proposed security design | Revocable, least-privilege phone credentials; phones cannot enroll other phones by default. Keep administrative recovery separate. |
+| I2 | Implemented (`16707c3`, `8964163`) | QR holds a single-use, short-lived enrollment code, exchanged over HTTPS for per-phone credentials. Enrollment issued by the administrator CLI. [QR_ENROLLMENT.md](QR_ENROLLMENT.md). |
+| I3 | Implemented | Revocable `phone`-scope tokens; the app role cannot INSERT enrollment codes and device endpoints stay JWT-only, so phones cannot enroll phones. Recovery is the admin CLI. |
 | I4 | Accepted | Reuse the existing Traefik deployment path. Traefik does not establish whether the service is public or private; treat credentials as exposed-network credentials either way. |
 
 The current API requires JWTs for reads and device tokens for ingest. Removing GoTrue is
@@ -41,7 +41,7 @@ password or alter production auth as a side effect of local development.
 | ID | Status | Decision |
 |---|---|---|
 | A1 | Accepted | Server is the canonical source of full health history. |
-| A2 | Accepted capability; API design proposed | Phone may download its complete health history. Use an owner-scoped, paginated snapshot/delta API, not a raw database dump containing credentials or other users. Exact contract is not yet designed. |
+| A2 | Implemented (`cad1288`, `67b00f5`) | Phone may download its complete health history through an owner-scoped month-digest API, never a database dump. [MIRROR.md](MIRROR.md). Raw `sample` excluded; no screen reads the mirror yet. |
 | A3 | Accepted | Collect BLE data during server outages and upload pending data after recovery, without loss or duplication. Preserve local reads and clearly date cached server results. |
 | A4 | Preserve | Keep owner isolation/RLS. One user now does not justify removing safety infrastructure. |
 | A5 | Future consideration | Separate owners/devices and other BLE protocols may be useful later. No speculative device framework or blanket `strap_*` renaming now. |
@@ -83,7 +83,7 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 | U18 | Accepted with dependency check | Replace the crowded Today composition. Do not blindly delete every file under `features/today`: Sleep, Activity and pushed details share some of them. |
 | U19 | Accepted | No new gym exercise catalogue, sets/reps or progression tracker for now. Does not remove strap-recorded workouts (U16). |
 | U20 | Implementation choice for U11 | Today uses three full-width cards, without the age hero, dashboard chapters or floating coach button. Recovery keeps its factor bars; weighting/method detail remains reachable rather than duplicating the full detail page. |
-| U21 | Implementation choice for U5 | Weight entry opens the existing validated form directly. Its sheet observes credential loading/retries for its lifetime; unconfirmed saves retain the typed draft. No offline-queue claim. |
+| U21 | Superseded by A8 (`4f8bc19`) | Weight entry opens the existing validated form directly and observes credential loading/retries. An unreachable server now HOLDS the entry on the phone (form clears, says so); a server refusal keeps the form. |
 | U22 | Implementation choice for U2/A3 | Sleep timestamps are displayed in phone-local time, explicitly labelled local and including the year. The server sends timestamp instants, not necessarily owner-local dates. Missing dates are explicit. Local sleep is a fallback only when no server answer exists, never a way around a server refusal. |
 
 ### General journal removal and weight-only entry
@@ -95,8 +95,8 @@ used by recommendations, not only caffeine/alcohol cutoffs.
   weight branch of `read/logs.py::record_log` stores no notes, so a notes field would
   promise storage it does not provide. Retrying an unconfirmed save keeps its original
   timestamp, matching the existing server upsert key `(user_id, ts)`. Concurrent Save
-  taps are refused. These protections last while the form is open; closing/killing the
-  app still does not create a durable offline draft or outbox.
+  taps are refused. *(The last sentence of the original — no durable offline outbox —
+  is superseded by A8: the retry identity now lives in the outbox row.)*
 
 ### Presentation constraints for the first slice
 
@@ -120,8 +120,10 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 
 ### Offline weight and delivery order (2026-09-23)
 
-- **A8 — accepted:** manual weight entries must survive a server outage like strap
-  data: stored durably on the phone first, uploaded later, never duplicated.
+- **A8 — accepted, implemented (`4f8bc19`):** manual weight entries survive a server
+  outage like strap data: held in a local outbox (store v8) before upload, released on
+  confirmation, retried on foreground pushes, keyed by the observation instant the
+  server upserts on. Supersedes U21/U24's "retain the draft, no offline claim".
 - **X4 — accepted order:** mobile trimming → QR enrollment → offline guarantees →
   full-history mirroring → local LLM → deferred cleanup.
 - **R1 — open blocker:** the release signing key is unknown. The fork has no
@@ -129,6 +131,12 @@ used by recommendations, not only caffeine/alcohol cutoffs.
   upstream `afkcodes/healthee` v1.0.7, signed by that repository's key. Until that key
   is obtained (or a supervised one-time reinstall is chosen after draining unsent data),
   no build from this branch can be installed over the existing app.
+
+- **P2 — progress:** `LLM_BASE_URL` points completions at any OpenAI-compatible
+  endpoint (`fcce1e5`). The Gemma evaluation has not run: the endpoint was unreachable
+  from the build machine.
+- **X5 — proposed:** keep the paid-plan code and disable it by configuration
+  (`SELF_HOST_UNLOCKED=true`, `PREMIUM_COACH_QUESTIONS=0`) rather than delete ~30 modules.
 
 ## Resolved questions from the interview
 

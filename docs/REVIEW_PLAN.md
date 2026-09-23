@@ -21,12 +21,66 @@ Starting revision: `c071c15`. Working branch: `feat/mobile-simplification`.
 - `2fc4c41`: removed the general journal route/page and links. Weight entry now exposes
   only stored fields (kg/time), preserves observation identity on retry and prevents
   double submissions. Existing observations and server logging APIs remain intact.
-- Latest mobile gate: **2,054 passed, 6 skipped**, analyzer clean, debug APK built;
-  **6 targeted weight/journal mutations caught**, none survived. The preceding Today
-  slice also passed 12 targeted checks. Neither was a full mutation sweep.
-- **Next:** review remaining Actions/interactive-coach navigation and plan the QR auth
-  migration without deleting nightly analytics. Insights remains available for review.
-- QR enrollment, full-history mirroring and local-LLM integration remain later work.
+- Gate at `2fc4c41`: 2,054 passed, 6 skipped (superseded below).
+
+### 2026-09-23 — the rest of the plan, in the agreed order
+
+| Step | Commit(s) | State |
+|---|---|---|
+| Decisions recorded (P3, P5, A8, X4, R1) | `docs:` | done |
+| 1.1 Remove interactive coach + its stored conversations (store v7) | `db1c95d` | done |
+| 1.2 Remove Actions tab, screens, daily-focus/completion notifications | `8b1400c` | done |
+| 1.3 Insights keep/trim/remove | — | **blocked on a phone review** (R1) |
+| 1.4 Orphans removed with 1.1/1.2 | in `8b1400c` | done |
+| 2 QR enrollment, server | `16707c3` | done; GoTrue removal waits for phone verification |
+| 2 QR enrollment, app | `8964163` | done |
+| 3 Offline: outbox tests + durable weight outbox (store v8) | `4f8bc19` | done |
+| 4 Full-history mirror, server + app (store v9) | `cad1288`, `67b00f5` | done; no screen reads it yet |
+| 5 Configurable LLM endpoint | `fcce1e5` | done; Gemma eval **blocked** (endpoint unreachable from here) |
+| 6 Paid-plan removal | — | **not done, by recommendation** (see below) |
+| 6 Revalidate `code-review-findings.md` | this doc | C1–C3, H1–H6 fixed; MEDIUM/LOW not rechecked |
+
+Designs: [QR_ENROLLMENT.md](QR_ENROLLMENT.md), [MIRROR.md](MIRROR.md). Verification:
+[LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md).
+
+**Blocked, needs the owner:**
+
+- **R1 signing key.** Nothing from this branch can be installed over the current app
+  without the upstream release key (or a supervised reinstall after draining unsent
+  data). This blocks the Insights review, real-phone BLE/outage checks, enrollment on
+  the phone and therefore GoTrue removal.
+- **Gemma evaluation.** `https://alpaca.homelab-nn.com/v1/models` answers 404 from this
+  machine (with and without the key). Run from the home network:
+  `LLM_BASE_URL=<url>/v1 OPENROUTER_API_KEY=<key> DEFAULT_MODEL=<id> COACH_MODEL=<id>
+  uv run python ../../scripts/model_eval.py` (plus the POSTGRES_* test vars). Watch for
+  a chat template that rejects the system role; the pipeline sends system prompts.
+- **Deploy.** Migrations 0023 (enrollment) must run before the new image serves; the
+  Traefik template gained a `healthee-enroll` router that must be re-rendered.
+
+**Step 6 recommendation — keep the paid-plan code, switch it off by config.** Set
+`SELF_HOST_UNLOCKED=true` and `PREMIUM_COACH_QUESTIONS=0`: every owner gets the AI layer
+and no cap. Deleting the entitlement layer touches ~30 modules and 19 test files for no
+functional gain; the per-day generation limits (`core/rate_limit`) stay either way.
+
+**Known limits carried forward:** switching a phone to a *different* owner uploads its
+unsent strap rows and held weigh-ins to that owner; weigh-ins retry on foreground
+pushes only (not the background task); the mirror has no reader screen yet. Four tests
+(`auto_sync_wiring` ×2, `today_minimal`, `today_withheld`) failed once under a loaded
+machine and passed on isolation and on a full rerun — watch for flakiness in CI.
+
+### Revalidated review findings (`code-review-findings.md`, 2026-09-06)
+
+| Finding | Evidence it is fixed |
+|---|---|
+| C1 cross-tenant cutoff write | `jobs/correlate.py` threads `user_id` (recorded earlier) |
+| C2 refusal-substring bypass | `validator.is_refusal` is whole-answer equality; `test_validator_refusal.py` |
+| C3 directives not in code | `guard_directives`/`output_guard` block the exact mortality sentence (executed); illness override in `read/recovery.py` |
+| H1 missed "should/aim for" | executed example now fails validation; `test_validator_hardening.py` |
+| H2 action line never warmed | `insights/morning.py` + `coaching.warm_daily_action` callers |
+| H3 unbounded intraday scans | `read/today_series.py` binds `ts >= %s AND ts < %s` |
+| H4 pool self-deadlock | `compute_baselines_cur(cur, …)` used by read services (`read/common.py`) |
+| H5 grouped `max(ts)` | `read/data_health.py` per-metric probes |
+| H6 bio-age math unpinned | `test_biological_age_math.py` imports the production functions |
 
 ## Outcome
 

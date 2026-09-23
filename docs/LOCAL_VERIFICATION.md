@@ -2,8 +2,35 @@
 
 Branch: `feat/mobile-simplification`, starting at `c071c15`.
 The baseline and GPS removal are recorded below, followed by the simplified Today
-slice. QR auth, historical mirroring and nightly local LLM integration remain pending.
+slice and (first section) the 2026-09-23 work: coach/Actions removal, QR enrollment,
+the weigh-in outbox, the history mirror and the configurable LLM endpoint.
 No production credentials, services or database changed.
+
+## 2026-09-23 — `db1c95d` … `fcce1e5`
+
+| Check | Result |
+|---|---|
+| Flutter analyzer (`--fatal-warnings --fatal-infos`) | No issues |
+| Full mobile tests | **1,895 passed, 0 skipped** (the 6 former skips were opt-in coach renders, deleted with the coach) |
+| Server pytest, isolated DB, UTC and Asia/Kolkata | **3,278 passed, 5 skipped in each** (baseline 3,235) |
+| Server ruff / format / pyright | Passed / 570 files formatted / zero errors |
+| Repository 400-line gate | Passed (1,263 files) |
+| Android debug APK | Built, 214,852,738 bytes (mobile_scanner/ML Kit is the growth) |
+| Targeted mutations added this session | mobile: 1 coach, 2 Actions, 4 enrollment, 5 weigh-in outbox, 3 mirror, 3 retargeted dating — all caught; server (manual): 10 enrollment, 6 mirror, 1 claim-sentinel — all caught after two tests were added for survivors |
+
+Full mobile mutation sweep (`bash test/mutations.sh`, 290 mutations): **285 caught** on
+the first run. Two survivors were coverage lost in the earlier Today rewrite and three
+patches were stale; all five were repaired in the following test-only commit and each
+was re-run and caught, so all 290 are caught. Log: `/tmp/healthee-trim/mutations-full.log`.
+
+One full mobile run on a loaded machine failed four tests (`auto_sync_wiring` ×2,
+`today_minimal`, `today_withheld`); they passed in isolation and on a full rerun. They
+are recorded as possibly flaky, not as fixed.
+
+Still **not** verified: anything on a physical phone (BLE, background collection,
+outage replay, QR camera scan, upgrade over the installed app — blocked on the signing
+key, R1), the Gemma evaluation (endpoint unreachable), and real multi-year mirror size.
+The debug APK is signed with the local debug key.
 
 Changes: `0ea9902` (portable lease test), `b3c4e47` (GPS removal). The latter deletes
 27 mobile GPS/map source files and removes nine resolved dependencies; it is not the
