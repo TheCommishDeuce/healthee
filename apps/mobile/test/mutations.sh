@@ -3225,6 +3225,12 @@ mutate 'a Recovery minute reading goes back to raw minutes' \
   test/features/recovery_honesty_fields_test.dart lib/features/today/v02/recovery_detail_panels.dart \
   "  if (unit == 'min') {" \
   "  if (unit == 'never') {"
+# R9: SpO2 and breathing are derived on /api/sleep now. A night the server has not
+# derived must say it is waiting, not that the strap took no readings.
+mutate 'an underived night blames the strap for missing SpO2' \
+  test/data/sleep_payload_test.dart lib/data/models/sleep_night.dart \
+  "      spo2Avg: sleepReading(number('spo2_avg'), vitals)," \
+  "      spo2Avg: sleepReading(number('spo2_avg'), sampled),"
 
 
 echo

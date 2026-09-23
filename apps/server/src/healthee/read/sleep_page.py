@@ -43,6 +43,12 @@ _SLEEP_PAGE_METRICS = (
     "sleep_regularity_index",
     "hrv_sleep_avg",
     "rhr_daily",
+    # R9: the canonical overnight vitals, the same rows `/api/today` serves. This page
+    # averaged the raw samples itself — unbounded, so one sensor dropout pulled its SpO2
+    # below the derived figure — which made two definitions of one number.
+    "spo2_overnight",
+    "spo2_overnight_min",
+    "respiratory_rate_sleep",
 )
 # Health-score list uses only the score + dims + SRI (legacy shape has no HRV/RHR).
 _HEALTH_SCORE_METRICS = (
@@ -139,6 +145,9 @@ _DERIVED_NIGHT_FIELDS = (
     "sri",
     "hrv_sleep_avg",
     "rhr",
+    "spo2_avg",
+    "spo2_min",
+    "respiratory_rate",
     "tst_min",
     "tib_min",
     "efficiency_pct",
@@ -218,6 +227,11 @@ def _stub_night(date_iso: str) -> dict:
 
 # The raw `sample` metrics the night-physiology join reads, named ONCE.
 #
+# **Skin temperature only, since R9.** SpO2 and breathing come from their canonical
+# derived metrics through `derived_night_pivot` (see `_SLEEP_PAGE_METRICS`); averaging
+# the raw samples here as well was a second definition of each. Skin temperature has no
+# derived metric, so its window mean is still this join's.
+#
 # They appear TWICE in `_PHYSIOLOGY_SQL` — in the `CASE WHEN s.metric=…` expressions that
 # pick each one out, and in the `s.metric = ANY(%s)` predicate that stops the join reading
 # everything else. A list that disagreed with the CASE names would silently average
@@ -226,13 +240,10 @@ def _stub_night(date_iso: str) -> dict:
 # `tests/read/test_sleep_physiology.py` derives the CASE names back out of the SQL text
 # and asserts the two agree, so the pair cannot drift (HOW_WE_VERIFY.md section 4: a
 # derived check beats a listed one).
-PHYSIOLOGY_METRICS = ("spo2", "respiratory_rate", "skin_temp_c")
+PHYSIOLOGY_METRICS = ("skin_temp_c",)
 
 _PHYSIOLOGY_SQL = (
     "SELECT w.date_iso, "
-    "  ROUND(AVG(CASE WHEN s.metric='spo2' THEN s.value END)::numeric,1), "
-    "  MIN(CASE WHEN s.metric='spo2' THEN s.value END), "
-    "  ROUND(AVG(CASE WHEN s.metric='respiratory_rate' THEN s.value END)::numeric,1), "
     "  ROUND(AVG(CASE WHEN s.metric='skin_temp_c' AND s.value>25 THEN s.value END)::numeric,1) "
     "FROM unnest(%s::text[], %s::timestamptz[], %s::timestamptz[]) "
     "     AS w(date_iso, start_ts, end_ts) "
@@ -254,8 +265,9 @@ _PHYSIOLOGY_SQL = (
 def _apply_physiology(
     cur: Cur, user_id: UUID, nights: dict[str, dict], sessions: list[tuple]
 ) -> None:
-    """Average SpO2 / breathing / skin-temp inside each main-session window (v2 raw
-    ``sample`` metrics: spo2, respiratory_rate, skin_temp_c).
+    """Average skin temperature inside each main-session window (v2 raw ``sample``
+    metric ``skin_temp_c``). SpO2 and breathing used to be averaged here too; since R9
+    they are the canonical derived metrics (see ``PHYSIOLOGY_METRICS``).
 
     ONE query for every night. This ran a query PER NIGHT, so `/api/sleep` issued
     `nights + 7` statements — 372 on a year of data, growing with the owner's history
@@ -317,12 +329,8 @@ def _apply_physiology(
         (dates, starts, ends, user_id, list(PHYSIOLOGY_METRICS), min(starts), max(ends)),
         prepare=False,
     )
-    for date_iso, spo2_avg, spo2_min, resp, temp in cur.fetchall():
-        row = nights[date_iso]
-        row["spo2_avg"] = float(spo2_avg) if spo2_avg is not None else None
-        row["spo2_min"] = int(spo2_min) if spo2_min is not None else None
-        row["respiratory_rate"] = float(resp) if resp is not None else None
-        row["skin_temp_c"] = float(temp) if temp is not None else None
+    for date_iso, temp in cur.fetchall():
+        nights[date_iso]["skin_temp_c"] = float(temp) if temp is not None else None
 
 
 def _naps(cur: Cur, user_id: UUID, tz: str, days: int, as_of: date) -> list[dict]:
