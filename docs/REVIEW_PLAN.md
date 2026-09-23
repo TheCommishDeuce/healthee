@@ -8,6 +8,9 @@ Starting revision: `c071c15`. Working branch: `feat/mobile-simplification`.
 
 ## Current progress
 
+> **Resume from [NEXT_SESSION.md](NEXT_SESSION.md)** — owner feedback from the first
+> on-phone session (F1–F5), bugs B1–B5, device/server state and remaining setup.
+
 - Local Android debug builds work; verification commands/results are in
   [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md).
 - `0ea9902`: corrected a Linux-only lease-test expectation for macOS, without changing
