@@ -3102,6 +3102,19 @@ mutate 'a sign-in refusal is retried with backoff' \
   ''
 
 
+# F2, from the owner's phone: every row of "Your body overnight" opened HRV. The
+# rows must carry canonical history ids, and a row with no history series must
+# not be a link (the history screen falls back to HRV for an unknown id).
+mutate 'an overnight row reports the sleep payload key, not the history id' \
+  test/features/overnight_links_test.dart lib/features/sleep/v02/vitals_panel.dart \
+  '      metric: HistoryMetric.oxygen.id,' \
+  "      metric: 'spo2_avg',"
+mutate 'a vital with no history series is still a link' \
+  test/features/overnight_links_test.dart lib/shared/v02/vitals_table.dart \
+  'onOpen: onOpenMetric == null || !_hasHistory(vitals[i].metric)' \
+  'onOpen: onOpenMetric == null'
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"
