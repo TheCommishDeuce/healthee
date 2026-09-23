@@ -45,6 +45,8 @@ _ENDPOINTS = [
     "challenges",
     "challenge_outcomes",
     "challenge_adopt",
+    "mirror_manifest",
+    "mirror_month",
 ]
 
 

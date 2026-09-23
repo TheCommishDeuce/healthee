@@ -1,0 +1,39 @@
+{
+  "streams": {
+    "derived_daily": [
+      {
+        "digest": "9768d6b12f68b38a53e956062989461a",
+        "month": "2026-08",
+        "rows": 154
+      },
+      {
+        "digest": "bb91871f6a44c0fb1f0c0521658042c2",
+        "month": "2026-09",
+        "rows": 507
+      }
+    ],
+    "device_daily_total": [],
+    "sleep_session": [
+      {
+        "digest": "b818153edb75d583fb00ee61fd8fa8d4",
+        "month": "2026-09",
+        "rows": 8
+      }
+    ],
+    "weight_log": [
+      {
+        "digest": "6be873e501975f2e608f99223903f76f",
+        "month": "2026-09",
+        "rows": 1
+      }
+    ],
+    "workout": [
+      {
+        "digest": "1806e01369bdb39f5b1f531cfabf8bb6",
+        "month": "2026-09",
+        "rows": 1
+      }
+    ]
+  },
+  "version": 1
+}

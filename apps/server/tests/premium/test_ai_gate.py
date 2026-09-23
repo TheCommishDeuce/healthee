@@ -99,6 +99,8 @@ FREE_PATHS: dict[str, str] = {
     "/api/activity/workout": "free tier — workout detail",
     "/api/history/logs": "free tier — owner-authored history markers",
     "/api/history": "free tier — full history is deliberately never paywalled",
+    "/api/mirror/manifest": "free tier — the owner's own history, mirrored to the phone",
+    "/api/mirror/{stream}": "free tier — the owner's own history, mirrored to the phone",
     "/api/profile": "free tier — the owner's own demographics",
     "/api/account": "authenticated identity for durable local data ownership",
     "/api/log": "free tier — manual logging",

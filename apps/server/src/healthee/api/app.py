@@ -32,6 +32,7 @@ from healthee.api.routers import (
     insights,
     logs,
     map_tiles,
+    mirror,
     programs,
     readiness,
     recommendations,
@@ -138,7 +139,7 @@ def create_app() -> FastAPI:
     # frozen ingest/ router is intentionally left untouched for now.
     app.include_router(ingest.router)
     # WP7 read routers (today / sleep / activity / workouts / history+profile / logs / gps).
-    for read_router in (today, sleep, activity, workouts, history, logs, gps):
+    for read_router in (today, sleep, activity, workouts, history, logs, gps, mirror):
         app.include_router(read_router.router)
     # WP5 grounded insight surfaces (sleep/activity/metric/workout/notable) + coach.
     app.include_router(insights.router)

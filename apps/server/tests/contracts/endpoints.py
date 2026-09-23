@@ -44,6 +44,9 @@ STATIC_ENDPOINTS: list[tuple[str, str, str, dict | None, dict | None]] = [
     ("challenge_outcomes", "GET", "/api/challenges/outcomes", {"limit": 20}, None),
     ("programs", "GET", "/api/programs", None, None),
     ("log_post", "POST", "/api/log", None, {"type": "caffeine", "amount": 50, "unit": "mg"}),
+    # The full-history mirror (docs/MIRROR.md): the phone decides what to download
+    # from this manifest, so a renamed key is a phone that silently stops mirroring.
+    ("mirror_manifest", "GET", "/api/mirror/manifest", None, None),
 ]
 
 
@@ -56,6 +59,7 @@ def call_all(client: Any, headers: dict) -> dict[str, Any]:
         out[name] = resp.json()
     out["workout"] = _workout(client, headers, out["activity"])
     out["gps_detail"] = _gps_detail(client, headers, out["gps_list"])
+    out["mirror_month"] = _mirror_month(client, headers, out["mirror_manifest"])
     # LAST, because it mutates: adopting turns the seeded suggestion into an active
     # challenge, which would change the `challenges` feed above if it ran first.
     out["challenge_adopt"] = _adopt(client, headers, out["challenges"])
@@ -94,4 +98,16 @@ def _gps_detail(client: Any, headers: dict, gps_list: dict) -> Any:
         return None
     resp = client.get(f"/api/workout/gps/{tracks[0]['track_id']}", headers=headers)
     assert resp.status_code == 200, f"gps_detail: {resp.status_code} {resp.text[:200]}"
+    return resp.json()
+
+
+def _mirror_month(client: Any, headers: dict, manifest: dict) -> Any:
+    """The first month of `derived_daily` the manifest lists, as the phone fetches it."""
+    months = manifest["streams"]["derived_daily"]
+    if not months:
+        return None
+    resp = client.get(
+        "/api/mirror/derived_daily", params={"month": months[0]["month"]}, headers=headers
+    )
+    assert resp.status_code == 200, f"mirror_month: {resp.status_code} {resp.text[:200]}"
     return resp.json()
