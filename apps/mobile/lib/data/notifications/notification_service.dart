@@ -10,6 +10,11 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 /// All scheduling is serialized, including session-change cancellation.
+///
+/// Only the wind-down and bedtime reminders remain. The daily-focus reminder
+/// and challenge-completed notices went with the Actions tab
+/// (DESIGN_DECISIONS P5); every reschedule starts with `cancelAll`, so a daily
+/// reminder an older build scheduled is cancelled on the first restore.
 class NotificationService {
   NotificationService(this.plugin, this.store);
   final FlutterLocalNotificationsPlugin plugin;
@@ -17,7 +22,6 @@ class NotificationService {
   final destinations = StreamController<String>.broadcast();
   Future<void>? _initialized;
   Future<void> _queue = Future<void>.value();
-  static const dailyId = 1001;
   static const windDownId = 1002;
   static const bedtimeId = 1003;
   static const windDownMinutes = 45;
@@ -25,7 +29,7 @@ class NotificationService {
     android: AndroidNotificationDetails(
       'healthee_reminders',
       'Reminders',
-      channelDescription: 'Your chosen reminders and challenge milestones',
+      channelDescription: 'Your chosen reminders',
       visibility: NotificationVisibility.private,
     ),
     iOS: DarwinNotificationDetails(),
@@ -58,7 +62,8 @@ class NotificationService {
   }
 
   void _open(String? payload) {
-    if (payload == 'actions' || payload == 'sleep') destinations.add(payload!);
+    // An older build's 'actions' payload has nowhere to go and is ignored.
+    if (payload == 'sleep') destinations.add(payload!);
   }
 
   Future<ReminderPreferences> preferences() async =>
@@ -68,7 +73,7 @@ class NotificationService {
       _serialize(() async {
         await initialize();
         await api.ensureCurrent();
-        if (value.daily || value.bedtime || value.completions) {
+        if (value.bedtime) {
           await _permission();
         }
         await api.ensureCurrent();
@@ -109,15 +114,6 @@ class NotificationService {
     tz.setLocalLocation(
       tz.getLocation((await FlutterTimezone.getLocalTimezone()).identifier),
     );
-    if (value.daily) {
-      await _daily(
-        dailyId,
-        value.dailyMinute,
-        'Your daily focus',
-        'Open Healthee to review your actions.',
-        'actions',
-      );
-    }
     if (value.bedtime) {
       await _daily(
         windDownId,
@@ -174,20 +170,6 @@ class NotificationService {
     }
     return next;
   }
-
-  Future<void> completion(int id, AccountApi api) => _serialize(() async {
-    await initialize();
-    await api.ensureCurrent();
-    final value = await preferences();
-    if (value.scope != api.sessionScope || !value.completions) return;
-    await plugin.show(
-      id: 3000 + id % 1000,
-      title: 'Challenge completed',
-      body: 'Open Healthee to review the result and its data coverage.',
-      notificationDetails: details,
-      payload: 'actions',
-    );
-  });
 
   Future<void> _serialize(Future<void> Function() action) {
     final result = _queue.then((_) => action());

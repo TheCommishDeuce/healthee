@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/store/local_store.dart';
+import 'package:healthee/features/today/body_screen.dart';
 import 'package:healthee/shared/v02/instruments/bio_halo.dart';
 
 import '_today_host.dart';
@@ -69,7 +70,7 @@ Future<void> pumpHeroAt(
     ..devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    todayHost(store, reducedMotion: reducedMotion, themeOverride: theme),
+    todayHost(store, home: const BodyScreen(), reducedMotion: reducedMotion, themeOverride: theme),
   );
   if (reducedMotion) {
     await tester.pumpAndSettle();

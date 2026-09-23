@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
-/// Durable phone sessions. Status: recording, interrupted, ready, uploaded.
+/// Legacy GPS sessions, retained so removing the recorder does not erase data.
+/// No new recordings are made. Keep this schema until an explicit export/migration.
 @DataClassName('GpsRecordingRow')
 class GpsRecordings extends Table {
   TextColumn get id => text()();
@@ -13,7 +14,7 @@ class GpsRecordings extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-/// Each accepted fix is committed independently; a crash cannot lose the route.
+/// Legacy fixes preserved alongside their recordings.
 @DataClassName('GpsFixRow')
 class GpsFixes extends Table {
   TextColumn get recordingId => text()();

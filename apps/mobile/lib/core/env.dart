@@ -132,59 +132,6 @@ abstract final class Env {
     seconds: int.fromEnvironment('HELIO_PUSH_TIMEOUT_S', defaultValue: 180),
   );
 
-  /// How long one `POST /api/coach` may take.
-  ///
-  /// The coach is the one call in this app that pays for its own latency. The
-  /// server's gate charges one of the owner's twenty included questions **before
-  /// the handler starts**, deliberately, so it cannot be raced — which means a
-  /// client that hangs up early does not cancel anything. It leaves the server
-  /// producing an answer, charging for it, matching none of the four refund
-  /// branches (a *delivered* answer is neither refused, nor unvalidated, nor an
-  /// exception, nor a greeting), and returning 200 to a socket nobody is reading.
-  /// The owner pays $0.179 and one of twenty, and sees a failure.
-  ///
-  /// [requestTimeout] is therefore the wrong budget for it, and not by a little:
-  /// ten seconds is derived from a p95 < 100 ms *read* target, while one coach
-  /// turn is bounded at `insights.coach.GATHERING_ROUNDS` (20) tool rounds plus
-  /// the pipeline's reserved answer attempts, each at the server's own 60 s
-  /// `llm_timeout_s`.
-  ///
-  /// ## 180 s was measured against the wrong questions
-  ///
-  /// It was sized on "narrow questions were measured converging in two rounds",
-  /// which is true and was the wrong sample. Timed against the owner's own broad
-  /// question — *"What should I notice about my sleep?"* — on the live coach tier:
-  ///
-  ///     80.1s  82.4s  131.7s  169.3s  276.7s  304.1s
-  ///     median 169.3 s · max 304.1 s
-  ///
-  /// **Two of six exceeded 180 s and the median sat on the line.** A broad question
-  /// fans out into more gathering rounds than a narrow one, so the old budget threw
-  /// away roughly a third of the answers it had already paid for — the failure this
-  /// docstring's first paragraph describes, arriving through the number meant to
-  /// prevent it.
-  ///
-  /// Those numbers are history. The server was re-measured on 2026-09-19 after
-  /// routing its coach model to fast providers, streaming every completion under a
-  /// 120 s wall-clock deadline, and sending passages instead of whole notes: coach
-  /// mean 27 s, p95 48 s, worst 62 s over 90 questions; two live production
-  /// questions took 53 s and 76 s. 180 s clears all of that with headroom.
-  ///
-  /// With the streamed endpoint this is the gap the client tolerates BETWEEN bytes,
-  /// and the server sends a keepalive every 10 s while it works, so a healthy turn
-  /// never approaches it; it bounds the non-streaming fallback and a genuinely dead
-  /// stream. Making the wait *legible* is the composer's job (it shows the server's
-  /// own stages); this constant's only duty is to not discard work that was charged
-  /// for.
-  ///
-  /// It is its OWN knob rather than a reuse of [pushTimeout] because the two
-  /// numbers answer different questions — a multi-day sync backlog and a model
-  /// thinking — and a shared constant would make one of them silently follow the
-  /// other's next revision, even when the two happen to agree, as they do today.
-  static const Duration coachTimeout = Duration(
-    seconds: int.fromEnvironment('HELIO_COACH_TIMEOUT_S', defaultValue: 180),
-  );
-
   /// Whether to log every HTTP request/response body.
   ///
   /// Off unless asked for, in every build type. Response bodies here are somebody's

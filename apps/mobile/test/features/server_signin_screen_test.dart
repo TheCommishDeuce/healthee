@@ -19,6 +19,7 @@ import 'package:healthee/data/api/credentials.dart';
 import 'package:healthee/data/api/server_session.dart';
 import 'package:healthee/data/auth/identity_providers.dart';
 import 'package:healthee/features/signin/server_signin_screen.dart';
+import 'package:healthee/features/signin/widgets/token_signin_form.dart';
 import 'package:healthee/shared/states/state_scaffold.dart';
 
 import '../pairing/_pairing_fakes.dart';
@@ -67,14 +68,20 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
   await tester.pumpWidget(app);
 }
 
+/// The token form's own fields — the enrollment card above it has one too.
+Finder get _formFields => find.descendant(
+  of: find.byType(TokenSignInForm),
+  matching: find.byType(TextField),
+);
+
 /// Fills both fields and submits.
 Future<void> _submit(
   WidgetTester tester, {
   String url = _url,
   String token = kSentinelToken,
 }) async {
-  await tester.enterText(find.byType(TextField).first, url);
-  await tester.enterText(find.byType(TextField).last, token);
+  await tester.enterText(_formFields.first, url);
+  await tester.enterText(_formFields.last, token);
   await tester.tap(find.text('Check and sign in'));
   await tester.pumpAndSettle();
 }
@@ -121,7 +128,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Sign in with an API token'), findsOneWidget);
-      expect(find.byType(TextField), findsNWidgets(2));
+      expect(_formFields, findsNWidgets(2));
       expect(find.text('Check and sign in'), findsOneWidget);
     });
   });
@@ -140,7 +147,7 @@ void main() {
       await _pump(tester, _host(FakeSecretStore(), ScriptedServer()));
       await tester.pumpAndSettle();
 
-      final url = tester.widget<TextField>(find.byType(TextField).first);
+      final url = tester.widget<TextField>(_formFields.first);
       expect(url.controller!.text, isEmpty);
       expect(find.textContaining('healthee.example.com'), findsOneWidget);
     });
@@ -152,7 +159,7 @@ void main() {
       await tester.pumpAndSettle();
 
       TextField token() =>
-          tester.widget<TextField>(find.byType(TextField).last);
+          tester.widget<TextField>(_formFields.last);
       expect(token().obscureText, isTrue);
 
       await tester.tap(find.byTooltip('Show the token'));
@@ -324,7 +331,7 @@ void main() {
 
       expect(store.values.containsKey('helio_token'), isFalse);
       expect(store.values.containsKey('helio_base_url'), isFalse);
-      expect(find.byType(TextField), findsNWidgets(2));
+      expect(_formFields, findsNWidgets(2));
     });
 
     testWidgets('sign-out says what it does and does not take away', (
@@ -345,7 +352,7 @@ void main() {
       await tester.tap(find.text('Use a different server'));
       await tester.pumpAndSettle();
 
-      final url = tester.widget<TextField>(find.byType(TextField).first);
+      final url = tester.widget<TextField>(_formFields.first);
       expect(url.controller!.text, _url);
     });
   });

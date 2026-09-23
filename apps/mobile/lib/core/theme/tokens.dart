@@ -68,7 +68,6 @@ class HealtheeColors extends ThemeExtension<HealtheeColors> {
     required this.bioGlow,
     required this.bioLine,
     required this.haloWarm,
-    required this.mapLand,
   });
 
   /// The approved design, light — the default theme.
@@ -103,8 +102,7 @@ class HealtheeColors extends ThemeExtension<HealtheeColors> {
       bioInk = LightPalette.bioInk,
       bioGlow = LightPalette.bioGlow,
       bioLine = LightPalette.bioLine,
-      haloWarm = LightPalette.haloWarm,
-      mapLand = LightPalette.mapLand;
+      haloWarm = LightPalette.haloWarm;
 
   /// The approved design, dark — authored, not derived from light.
   const HealtheeColors.dark()
@@ -138,8 +136,7 @@ class HealtheeColors extends ThemeExtension<HealtheeColors> {
       bioInk = DarkPalette.bioInk,
       bioGlow = DarkPalette.bioGlow,
       bioLine = DarkPalette.bioLine,
-      haloWarm = DarkPalette.haloWarm,
-      mapLand = DarkPalette.mapLand;
+      haloWarm = DarkPalette.haloWarm;
 
   /// The ground the app shell sits on, behind [bg]. `--canvas`, new in v02.
   final Color canvas;
@@ -259,11 +256,6 @@ class HealtheeColors extends ThemeExtension<HealtheeColors> {
   /// biological-age card. See `shared/v02/instruments/halo_painter.dart`.
   final Color haloWarm;
 
-  /// The ground a recorded track is drawn on. `--map-land`. A role of its own
-  /// for the same reason [haloWarm] is one — it belongs to one drawing rather
-  /// than to a category. `features/gps/route_map.dart` draws **no basemap**.
-  final Color mapLand;
-
   @override
   HealtheeColors copyWith({
     Color? canvas, Color? bg, Color? surface, Color? surface2, Color? chrome,
@@ -274,7 +266,6 @@ class HealtheeColors extends ThemeExtension<HealtheeColors> {
     Color? alert, Color? alertSoft, Color? hole, Color? overlay, Color? shadow,
     Color? bioBackground, Color? bioInk, Color? bioGlow, Color? bioLine,
     Color? haloWarm,
-    Color? mapLand,
   }) {
     return HealtheeColors(
       canvas: canvas ?? this.canvas,
@@ -308,7 +299,6 @@ class HealtheeColors extends ThemeExtension<HealtheeColors> {
       bioGlow: bioGlow ?? this.bioGlow,
       bioLine: bioLine ?? this.bioLine,
       haloWarm: haloWarm ?? this.haloWarm,
-      mapLand: mapLand ?? this.mapLand,
     );
   }
 
@@ -349,7 +339,6 @@ class HealtheeColors extends ThemeExtension<HealtheeColors> {
       bioGlow: Color.lerp(bioGlow, other.bioGlow, t)!,
       bioLine: Color.lerp(bioLine, other.bioLine, t)!,
       haloWarm: Color.lerp(haloWarm, other.haloWarm, t)!,
-      mapLand: Color.lerp(mapLand, other.mapLand, t)!,
     );
   }
 
@@ -363,7 +352,7 @@ class HealtheeColors extends ThemeExtension<HealtheeColors> {
     accent, accent2, accentSoft, onAccent,
     fav, favSoft, unf, unfSoft,
     alert, alertSoft, hole, overlay, shadow,
-    bioBackground, bioInk, bioGlow, bioLine, haloWarm, mapLand,
+    bioBackground, bioInk, bioGlow, bioLine, haloWarm,
   ];
 
   @override

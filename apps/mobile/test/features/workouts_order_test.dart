@@ -16,7 +16,6 @@ import 'package:healthee/features/workouts/v02/effort_cards.dart';
 import 'package:healthee/features/workouts/v02/session_cards.dart';
 import 'package:healthee/features/workouts/v02/session_rows.dart';
 import 'package:healthee/features/workouts/workout_detail_screen.dart';
-import 'package:healthee/features/workouts/workout_detail_sections.dart';
 import 'package:healthee/features/workouts/workout_history_screen.dart';
 import 'package:healthee/shared/format/date_labels.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
@@ -59,14 +58,13 @@ void main() {
   useRealFonts();
 
   group('the session list is H.screens.workouts', () {
-    testWidgets('BUTTON · BOUNDS · DAY · SESSIONS · STRENGTH · FOOTER', (
+    testWidgets('BOUNDS · DAY · SESSIONS · STRENGTH · FOOTER', (
       tester,
     ) async {
       await _pump(tester, const WorkoutHistoryScreen(), withToday: true);
 
       _inOrder(textsOn(tester), <String>[
         'Your workouts.', // the detail head's h1
-        kRecordLabel, // H.link('Record a workout', …, 'button full')
         'The latest 100 uploaded sessions', // what the list leaves out
         // Derived for the same reason the detail header's is: the caption is
         // `prettyDate` over the session's LOCAL day, so a literal is only true
@@ -128,7 +126,7 @@ void main() {
   });
 
   group('the workout screen is H.screens.workout', () {
-    testWidgets('SUMMARY · EFFORT · ZONES · DETAILS · COACH · FOOTER', (
+    testWidgets('SUMMARY · EFFORT · ZONES · DETAILS · ANALYSIS · FOOTER', (
       tester,
     ) async {
       await _pump(tester, const WorkoutDetailScreen(start: kWorkoutStart));
@@ -158,10 +156,10 @@ void main() {
         'TRIMP load',
         'Average speed',
         'Heart-rate drift',
-        kDiscussLabel, // H.link(…, 'button secondary full section')
-        'Workout analysis', // this app's own, after the prototype's last control
+        'Workout analysis', // this app's own; the prototype's coach link is gone
         DataFooter.line, // H.footer()
       ]);
+      expect(find.text('Discuss this workout'), findsNothing);
     });
 
     testWidgets('the figures are the payload’s, in the prototype’s units', (

@@ -2809,840 +2809,6 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetaRow> {
   }
 }
 
-class $StoredCoachThreadsTable extends StoredCoachThreads
-    with TableInfo<$StoredCoachThreadsTable, StoredCoachThread> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $StoredCoachThreadsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
-  @override
-  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
-    'scope',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
-  );
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _startedAtMeta = const VerificationMeta(
-    'startedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
-    'started_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _lastAtMeta = const VerificationMeta('lastAt');
-  @override
-  late final GeneratedColumn<DateTime> lastAt = GeneratedColumn<DateTime>(
-    'last_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _openingMeta = const VerificationMeta(
-    'opening',
-  );
-  @override
-  late final GeneratedColumn<String> opening = GeneratedColumn<String>(
-    'opening',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _turnsMeta = const VerificationMeta('turns');
-  @override
-  late final GeneratedColumn<int> turns = GeneratedColumn<int>(
-    'turns',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    scope,
-    id,
-    startedAt,
-    lastAt,
-    opening,
-    turns,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'stored_coach_threads';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<StoredCoachThread> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('scope')) {
-      context.handle(
-        _scopeMeta,
-        scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta),
-      );
-    }
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('started_at')) {
-      context.handle(
-        _startedAtMeta,
-        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_startedAtMeta);
-    }
-    if (data.containsKey('last_at')) {
-      context.handle(
-        _lastAtMeta,
-        lastAt.isAcceptableOrUnknown(data['last_at']!, _lastAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_lastAtMeta);
-    }
-    if (data.containsKey('opening')) {
-      context.handle(
-        _openingMeta,
-        opening.isAcceptableOrUnknown(data['opening']!, _openingMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_openingMeta);
-    }
-    if (data.containsKey('turns')) {
-      context.handle(
-        _turnsMeta,
-        turns.isAcceptableOrUnknown(data['turns']!, _turnsMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {scope, id};
-  @override
-  StoredCoachThread map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return StoredCoachThread(
-      scope: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}scope'],
-      )!,
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      startedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}started_at'],
-      )!,
-      lastAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}last_at'],
-      )!,
-      opening: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}opening'],
-      )!,
-      turns: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}turns'],
-      )!,
-    );
-  }
-
-  @override
-  $StoredCoachThreadsTable createAlias(String alias) {
-    return $StoredCoachThreadsTable(attachedDatabase, alias);
-  }
-}
-
-class StoredCoachThread extends DataClass
-    implements Insertable<StoredCoachThread> {
-  /// Opaque sign-in namespace. No token or personal identifier is stored here.
-  final String scope;
-
-  /// This thread's id — a UUID minted when the first question is asked.
-  final String id;
-
-  /// When it began, and when it last moved. Both instants, stored as ISO-8601
-  /// text by the database's `storeDateTimeAsText`, so a thread does not shift by
-  /// a timezone when the owner travels.
-  final DateTime startedAt;
-
-  /// The last time a turn was added.
-  final DateTime lastAt;
-
-  /// The first question asked, verbatim — what the history list shows. Kept on
-  /// the thread rather than re-read from the turns because a list of forty
-  /// conversations should not have to load forty conversations to draw itself.
-  final String opening;
-
-  /// How many turns it holds, for the same reason.
-  final int turns;
-  const StoredCoachThread({
-    required this.scope,
-    required this.id,
-    required this.startedAt,
-    required this.lastAt,
-    required this.opening,
-    required this.turns,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['scope'] = Variable<String>(scope);
-    map['id'] = Variable<String>(id);
-    map['started_at'] = Variable<DateTime>(startedAt);
-    map['last_at'] = Variable<DateTime>(lastAt);
-    map['opening'] = Variable<String>(opening);
-    map['turns'] = Variable<int>(turns);
-    return map;
-  }
-
-  StoredCoachThreadsCompanion toCompanion(bool nullToAbsent) {
-    return StoredCoachThreadsCompanion(
-      scope: Value(scope),
-      id: Value(id),
-      startedAt: Value(startedAt),
-      lastAt: Value(lastAt),
-      opening: Value(opening),
-      turns: Value(turns),
-    );
-  }
-
-  factory StoredCoachThread.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return StoredCoachThread(
-      scope: serializer.fromJson<String>(json['scope']),
-      id: serializer.fromJson<String>(json['id']),
-      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
-      lastAt: serializer.fromJson<DateTime>(json['lastAt']),
-      opening: serializer.fromJson<String>(json['opening']),
-      turns: serializer.fromJson<int>(json['turns']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'scope': serializer.toJson<String>(scope),
-      'id': serializer.toJson<String>(id),
-      'startedAt': serializer.toJson<DateTime>(startedAt),
-      'lastAt': serializer.toJson<DateTime>(lastAt),
-      'opening': serializer.toJson<String>(opening),
-      'turns': serializer.toJson<int>(turns),
-    };
-  }
-
-  StoredCoachThread copyWith({
-    String? scope,
-    String? id,
-    DateTime? startedAt,
-    DateTime? lastAt,
-    String? opening,
-    int? turns,
-  }) => StoredCoachThread(
-    scope: scope ?? this.scope,
-    id: id ?? this.id,
-    startedAt: startedAt ?? this.startedAt,
-    lastAt: lastAt ?? this.lastAt,
-    opening: opening ?? this.opening,
-    turns: turns ?? this.turns,
-  );
-  StoredCoachThread copyWithCompanion(StoredCoachThreadsCompanion data) {
-    return StoredCoachThread(
-      scope: data.scope.present ? data.scope.value : this.scope,
-      id: data.id.present ? data.id.value : this.id,
-      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
-      lastAt: data.lastAt.present ? data.lastAt.value : this.lastAt,
-      opening: data.opening.present ? data.opening.value : this.opening,
-      turns: data.turns.present ? data.turns.value : this.turns,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StoredCoachThread(')
-          ..write('scope: $scope, ')
-          ..write('id: $id, ')
-          ..write('startedAt: $startedAt, ')
-          ..write('lastAt: $lastAt, ')
-          ..write('opening: $opening, ')
-          ..write('turns: $turns')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(scope, id, startedAt, lastAt, opening, turns);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is StoredCoachThread &&
-          other.scope == this.scope &&
-          other.id == this.id &&
-          other.startedAt == this.startedAt &&
-          other.lastAt == this.lastAt &&
-          other.opening == this.opening &&
-          other.turns == this.turns);
-}
-
-class StoredCoachThreadsCompanion extends UpdateCompanion<StoredCoachThread> {
-  final Value<String> scope;
-  final Value<String> id;
-  final Value<DateTime> startedAt;
-  final Value<DateTime> lastAt;
-  final Value<String> opening;
-  final Value<int> turns;
-  final Value<int> rowid;
-  const StoredCoachThreadsCompanion({
-    this.scope = const Value.absent(),
-    this.id = const Value.absent(),
-    this.startedAt = const Value.absent(),
-    this.lastAt = const Value.absent(),
-    this.opening = const Value.absent(),
-    this.turns = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  StoredCoachThreadsCompanion.insert({
-    this.scope = const Value.absent(),
-    required String id,
-    required DateTime startedAt,
-    required DateTime lastAt,
-    required String opening,
-    this.turns = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       startedAt = Value(startedAt),
-       lastAt = Value(lastAt),
-       opening = Value(opening);
-  static Insertable<StoredCoachThread> custom({
-    Expression<String>? scope,
-    Expression<String>? id,
-    Expression<DateTime>? startedAt,
-    Expression<DateTime>? lastAt,
-    Expression<String>? opening,
-    Expression<int>? turns,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (scope != null) 'scope': scope,
-      if (id != null) 'id': id,
-      if (startedAt != null) 'started_at': startedAt,
-      if (lastAt != null) 'last_at': lastAt,
-      if (opening != null) 'opening': opening,
-      if (turns != null) 'turns': turns,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  StoredCoachThreadsCompanion copyWith({
-    Value<String>? scope,
-    Value<String>? id,
-    Value<DateTime>? startedAt,
-    Value<DateTime>? lastAt,
-    Value<String>? opening,
-    Value<int>? turns,
-    Value<int>? rowid,
-  }) {
-    return StoredCoachThreadsCompanion(
-      scope: scope ?? this.scope,
-      id: id ?? this.id,
-      startedAt: startedAt ?? this.startedAt,
-      lastAt: lastAt ?? this.lastAt,
-      opening: opening ?? this.opening,
-      turns: turns ?? this.turns,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (scope.present) {
-      map['scope'] = Variable<String>(scope.value);
-    }
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (startedAt.present) {
-      map['started_at'] = Variable<DateTime>(startedAt.value);
-    }
-    if (lastAt.present) {
-      map['last_at'] = Variable<DateTime>(lastAt.value);
-    }
-    if (opening.present) {
-      map['opening'] = Variable<String>(opening.value);
-    }
-    if (turns.present) {
-      map['turns'] = Variable<int>(turns.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StoredCoachThreadsCompanion(')
-          ..write('scope: $scope, ')
-          ..write('id: $id, ')
-          ..write('startedAt: $startedAt, ')
-          ..write('lastAt: $lastAt, ')
-          ..write('opening: $opening, ')
-          ..write('turns: $turns, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $StoredCoachTurnsTable extends StoredCoachTurns
-    with TableInfo<$StoredCoachTurnsTable, StoredCoachTurn> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $StoredCoachTurnsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
-  @override
-  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
-    'scope',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
-  );
-  static const VerificationMeta _threadIdMeta = const VerificationMeta(
-    'threadId',
-  );
-  @override
-  late final GeneratedColumn<String> threadId = GeneratedColumn<String>(
-    'thread_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _seqMeta = const VerificationMeta('seq');
-  @override
-  late final GeneratedColumn<int> seq = GeneratedColumn<int>(
-    'seq',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
-  @override
-  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
-    'kind',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _payloadMeta = const VerificationMeta(
-    'payload',
-  );
-  @override
-  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
-    'payload',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _atMeta = const VerificationMeta('at');
-  @override
-  late final GeneratedColumn<DateTime> at = GeneratedColumn<DateTime>(
-    'at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    scope,
-    threadId,
-    seq,
-    kind,
-    payload,
-    at,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'stored_coach_turns';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<StoredCoachTurn> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('scope')) {
-      context.handle(
-        _scopeMeta,
-        scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta),
-      );
-    }
-    if (data.containsKey('thread_id')) {
-      context.handle(
-        _threadIdMeta,
-        threadId.isAcceptableOrUnknown(data['thread_id']!, _threadIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_threadIdMeta);
-    }
-    if (data.containsKey('seq')) {
-      context.handle(
-        _seqMeta,
-        seq.isAcceptableOrUnknown(data['seq']!, _seqMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_seqMeta);
-    }
-    if (data.containsKey('kind')) {
-      context.handle(
-        _kindMeta,
-        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_kindMeta);
-    }
-    if (data.containsKey('payload')) {
-      context.handle(
-        _payloadMeta,
-        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_payloadMeta);
-    }
-    if (data.containsKey('at')) {
-      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
-    } else if (isInserting) {
-      context.missing(_atMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {scope, threadId, seq};
-  @override
-  StoredCoachTurn map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return StoredCoachTurn(
-      scope: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}scope'],
-      )!,
-      threadId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}thread_id'],
-      )!,
-      seq: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}seq'],
-      )!,
-      kind: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}kind'],
-      )!,
-      payload: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}payload'],
-      )!,
-      at: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}at'],
-      )!,
-    );
-  }
-
-  @override
-  $StoredCoachTurnsTable createAlias(String alias) {
-    return $StoredCoachTurnsTable(attachedDatabase, alias);
-  }
-}
-
-class StoredCoachTurn extends DataClass implements Insertable<StoredCoachTurn> {
-  /// The sign-in that owns it.
-  final String scope;
-
-  /// Which thread it belongs to.
-  final String threadId;
-
-  /// Its position in that thread, from zero. Part of the key, so a turn cannot
-  /// be stored twice and the order is the storage rather than a sort over it.
-  final int seq;
-
-  /// `question` | `reply` | `trouble` — the three cases of `CoachEntry`.
-  ///
-  /// Stored as text rather than an index: a sealed union that gains a fourth
-  /// case must not silently renumber every row already written, and a name that
-  /// no longer resolves is a loud failure instead of a quiet mis-read.
-  final String kind;
-
-  /// The entry, as JSON. A reply carries its citations, its grade floor and its
-  /// refund flags — everything `CoachAnswer` holds — because an answer stripped
-  /// of what qualifies it is exactly the thing this app must not store.
-  final String payload;
-
-  /// When it was added.
-  final DateTime at;
-  const StoredCoachTurn({
-    required this.scope,
-    required this.threadId,
-    required this.seq,
-    required this.kind,
-    required this.payload,
-    required this.at,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['scope'] = Variable<String>(scope);
-    map['thread_id'] = Variable<String>(threadId);
-    map['seq'] = Variable<int>(seq);
-    map['kind'] = Variable<String>(kind);
-    map['payload'] = Variable<String>(payload);
-    map['at'] = Variable<DateTime>(at);
-    return map;
-  }
-
-  StoredCoachTurnsCompanion toCompanion(bool nullToAbsent) {
-    return StoredCoachTurnsCompanion(
-      scope: Value(scope),
-      threadId: Value(threadId),
-      seq: Value(seq),
-      kind: Value(kind),
-      payload: Value(payload),
-      at: Value(at),
-    );
-  }
-
-  factory StoredCoachTurn.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return StoredCoachTurn(
-      scope: serializer.fromJson<String>(json['scope']),
-      threadId: serializer.fromJson<String>(json['threadId']),
-      seq: serializer.fromJson<int>(json['seq']),
-      kind: serializer.fromJson<String>(json['kind']),
-      payload: serializer.fromJson<String>(json['payload']),
-      at: serializer.fromJson<DateTime>(json['at']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'scope': serializer.toJson<String>(scope),
-      'threadId': serializer.toJson<String>(threadId),
-      'seq': serializer.toJson<int>(seq),
-      'kind': serializer.toJson<String>(kind),
-      'payload': serializer.toJson<String>(payload),
-      'at': serializer.toJson<DateTime>(at),
-    };
-  }
-
-  StoredCoachTurn copyWith({
-    String? scope,
-    String? threadId,
-    int? seq,
-    String? kind,
-    String? payload,
-    DateTime? at,
-  }) => StoredCoachTurn(
-    scope: scope ?? this.scope,
-    threadId: threadId ?? this.threadId,
-    seq: seq ?? this.seq,
-    kind: kind ?? this.kind,
-    payload: payload ?? this.payload,
-    at: at ?? this.at,
-  );
-  StoredCoachTurn copyWithCompanion(StoredCoachTurnsCompanion data) {
-    return StoredCoachTurn(
-      scope: data.scope.present ? data.scope.value : this.scope,
-      threadId: data.threadId.present ? data.threadId.value : this.threadId,
-      seq: data.seq.present ? data.seq.value : this.seq,
-      kind: data.kind.present ? data.kind.value : this.kind,
-      payload: data.payload.present ? data.payload.value : this.payload,
-      at: data.at.present ? data.at.value : this.at,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StoredCoachTurn(')
-          ..write('scope: $scope, ')
-          ..write('threadId: $threadId, ')
-          ..write('seq: $seq, ')
-          ..write('kind: $kind, ')
-          ..write('payload: $payload, ')
-          ..write('at: $at')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(scope, threadId, seq, kind, payload, at);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is StoredCoachTurn &&
-          other.scope == this.scope &&
-          other.threadId == this.threadId &&
-          other.seq == this.seq &&
-          other.kind == this.kind &&
-          other.payload == this.payload &&
-          other.at == this.at);
-}
-
-class StoredCoachTurnsCompanion extends UpdateCompanion<StoredCoachTurn> {
-  final Value<String> scope;
-  final Value<String> threadId;
-  final Value<int> seq;
-  final Value<String> kind;
-  final Value<String> payload;
-  final Value<DateTime> at;
-  final Value<int> rowid;
-  const StoredCoachTurnsCompanion({
-    this.scope = const Value.absent(),
-    this.threadId = const Value.absent(),
-    this.seq = const Value.absent(),
-    this.kind = const Value.absent(),
-    this.payload = const Value.absent(),
-    this.at = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  StoredCoachTurnsCompanion.insert({
-    this.scope = const Value.absent(),
-    required String threadId,
-    required int seq,
-    required String kind,
-    required String payload,
-    required DateTime at,
-    this.rowid = const Value.absent(),
-  }) : threadId = Value(threadId),
-       seq = Value(seq),
-       kind = Value(kind),
-       payload = Value(payload),
-       at = Value(at);
-  static Insertable<StoredCoachTurn> custom({
-    Expression<String>? scope,
-    Expression<String>? threadId,
-    Expression<int>? seq,
-    Expression<String>? kind,
-    Expression<String>? payload,
-    Expression<DateTime>? at,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (scope != null) 'scope': scope,
-      if (threadId != null) 'thread_id': threadId,
-      if (seq != null) 'seq': seq,
-      if (kind != null) 'kind': kind,
-      if (payload != null) 'payload': payload,
-      if (at != null) 'at': at,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  StoredCoachTurnsCompanion copyWith({
-    Value<String>? scope,
-    Value<String>? threadId,
-    Value<int>? seq,
-    Value<String>? kind,
-    Value<String>? payload,
-    Value<DateTime>? at,
-    Value<int>? rowid,
-  }) {
-    return StoredCoachTurnsCompanion(
-      scope: scope ?? this.scope,
-      threadId: threadId ?? this.threadId,
-      seq: seq ?? this.seq,
-      kind: kind ?? this.kind,
-      payload: payload ?? this.payload,
-      at: at ?? this.at,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (scope.present) {
-      map['scope'] = Variable<String>(scope.value);
-    }
-    if (threadId.present) {
-      map['thread_id'] = Variable<String>(threadId.value);
-    }
-    if (seq.present) {
-      map['seq'] = Variable<int>(seq.value);
-    }
-    if (kind.present) {
-      map['kind'] = Variable<String>(kind.value);
-    }
-    if (payload.present) {
-      map['payload'] = Variable<String>(payload.value);
-    }
-    if (at.present) {
-      map['at'] = Variable<DateTime>(at.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StoredCoachTurnsCompanion(')
-          ..write('scope: $scope, ')
-          ..write('threadId: $threadId, ')
-          ..write('seq: $seq, ')
-          ..write('kind: $kind, ')
-          ..write('payload: $payload, ')
-          ..write('at: $at, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $GpsRecordingsTable extends GpsRecordings
     with TableInfo<$GpsRecordingsTable, GpsRecordingRow> {
   @override
@@ -4464,6 +3630,785 @@ class GpsFixesCompanion extends UpdateCompanion<GpsFixRow> {
   }
 }
 
+class $PendingWeightsTable extends PendingWeights
+    with TableInfo<$PendingWeightsTable, PendingWeightRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingWeightsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _atMsMeta = const VerificationMeta('atMs');
+  @override
+  late final GeneratedColumn<int> atMs = GeneratedColumn<int>(
+    'at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kgMeta = const VerificationMeta('kg');
+  @override
+  late final GeneratedColumn<double> kg = GeneratedColumn<double>(
+    'kg',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _heldAtMsMeta = const VerificationMeta(
+    'heldAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> heldAtMs = GeneratedColumn<int>(
+    'held_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [atMs, kg, heldAtMs];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_weights';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingWeightRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('at_ms')) {
+      context.handle(
+        _atMsMeta,
+        atMs.isAcceptableOrUnknown(data['at_ms']!, _atMsMeta),
+      );
+    }
+    if (data.containsKey('kg')) {
+      context.handle(_kgMeta, kg.isAcceptableOrUnknown(data['kg']!, _kgMeta));
+    } else if (isInserting) {
+      context.missing(_kgMeta);
+    }
+    if (data.containsKey('held_at_ms')) {
+      context.handle(
+        _heldAtMsMeta,
+        heldAtMs.isAcceptableOrUnknown(data['held_at_ms']!, _heldAtMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_heldAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {atMs};
+  @override
+  PendingWeightRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingWeightRow(
+      atMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}at_ms'],
+      )!,
+      kg: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}kg'],
+      )!,
+      heldAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}held_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingWeightsTable createAlias(String alias) {
+    return $PendingWeightsTable(attachedDatabase, alias);
+  }
+}
+
+class PendingWeightRow extends DataClass
+    implements Insertable<PendingWeightRow> {
+  /// When the weight was observed, Unix milliseconds. The identity.
+  final int atMs;
+
+  /// Kilograms, as entered and validated.
+  final double kg;
+
+  /// When it was stored on this phone, Unix milliseconds.
+  final int heldAtMs;
+  const PendingWeightRow({
+    required this.atMs,
+    required this.kg,
+    required this.heldAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['at_ms'] = Variable<int>(atMs);
+    map['kg'] = Variable<double>(kg);
+    map['held_at_ms'] = Variable<int>(heldAtMs);
+    return map;
+  }
+
+  PendingWeightsCompanion toCompanion(bool nullToAbsent) {
+    return PendingWeightsCompanion(
+      atMs: Value(atMs),
+      kg: Value(kg),
+      heldAtMs: Value(heldAtMs),
+    );
+  }
+
+  factory PendingWeightRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingWeightRow(
+      atMs: serializer.fromJson<int>(json['atMs']),
+      kg: serializer.fromJson<double>(json['kg']),
+      heldAtMs: serializer.fromJson<int>(json['heldAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'atMs': serializer.toJson<int>(atMs),
+      'kg': serializer.toJson<double>(kg),
+      'heldAtMs': serializer.toJson<int>(heldAtMs),
+    };
+  }
+
+  PendingWeightRow copyWith({int? atMs, double? kg, int? heldAtMs}) =>
+      PendingWeightRow(
+        atMs: atMs ?? this.atMs,
+        kg: kg ?? this.kg,
+        heldAtMs: heldAtMs ?? this.heldAtMs,
+      );
+  PendingWeightRow copyWithCompanion(PendingWeightsCompanion data) {
+    return PendingWeightRow(
+      atMs: data.atMs.present ? data.atMs.value : this.atMs,
+      kg: data.kg.present ? data.kg.value : this.kg,
+      heldAtMs: data.heldAtMs.present ? data.heldAtMs.value : this.heldAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingWeightRow(')
+          ..write('atMs: $atMs, ')
+          ..write('kg: $kg, ')
+          ..write('heldAtMs: $heldAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(atMs, kg, heldAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingWeightRow &&
+          other.atMs == this.atMs &&
+          other.kg == this.kg &&
+          other.heldAtMs == this.heldAtMs);
+}
+
+class PendingWeightsCompanion extends UpdateCompanion<PendingWeightRow> {
+  final Value<int> atMs;
+  final Value<double> kg;
+  final Value<int> heldAtMs;
+  const PendingWeightsCompanion({
+    this.atMs = const Value.absent(),
+    this.kg = const Value.absent(),
+    this.heldAtMs = const Value.absent(),
+  });
+  PendingWeightsCompanion.insert({
+    this.atMs = const Value.absent(),
+    required double kg,
+    required int heldAtMs,
+  }) : kg = Value(kg),
+       heldAtMs = Value(heldAtMs);
+  static Insertable<PendingWeightRow> custom({
+    Expression<int>? atMs,
+    Expression<double>? kg,
+    Expression<int>? heldAtMs,
+  }) {
+    return RawValuesInsertable({
+      if (atMs != null) 'at_ms': atMs,
+      if (kg != null) 'kg': kg,
+      if (heldAtMs != null) 'held_at_ms': heldAtMs,
+    });
+  }
+
+  PendingWeightsCompanion copyWith({
+    Value<int>? atMs,
+    Value<double>? kg,
+    Value<int>? heldAtMs,
+  }) {
+    return PendingWeightsCompanion(
+      atMs: atMs ?? this.atMs,
+      kg: kg ?? this.kg,
+      heldAtMs: heldAtMs ?? this.heldAtMs,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (atMs.present) {
+      map['at_ms'] = Variable<int>(atMs.value);
+    }
+    if (kg.present) {
+      map['kg'] = Variable<double>(kg.value);
+    }
+    if (heldAtMs.present) {
+      map['held_at_ms'] = Variable<int>(heldAtMs.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingWeightsCompanion(')
+          ..write('atMs: $atMs, ')
+          ..write('kg: $kg, ')
+          ..write('heldAtMs: $heldAtMs')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MirrorMonthsTable extends MirrorMonths
+    with TableInfo<$MirrorMonthsTable, MirrorMonthRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MirrorMonthsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _ownerMeta = const VerificationMeta('owner');
+  @override
+  late final GeneratedColumn<String> owner = GeneratedColumn<String>(
+    'owner',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _streamMeta = const VerificationMeta('stream');
+  @override
+  late final GeneratedColumn<String> stream = GeneratedColumn<String>(
+    'stream',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _monthMeta = const VerificationMeta('month');
+  @override
+  late final GeneratedColumn<String> month = GeneratedColumn<String>(
+    'month',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _digestMeta = const VerificationMeta('digest');
+  @override
+  late final GeneratedColumn<String> digest = GeneratedColumn<String>(
+    'digest',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rowsMeta = const VerificationMeta('rows');
+  @override
+  late final GeneratedColumn<int> rows = GeneratedColumn<int>(
+    'rows',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncedAtMsMeta = const VerificationMeta(
+    'syncedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> syncedAtMs = GeneratedColumn<int>(
+    'synced_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    owner,
+    stream,
+    month,
+    digest,
+    rows,
+    version,
+    payload,
+    syncedAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'mirror_months';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MirrorMonthRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('owner')) {
+      context.handle(
+        _ownerMeta,
+        owner.isAcceptableOrUnknown(data['owner']!, _ownerMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerMeta);
+    }
+    if (data.containsKey('stream')) {
+      context.handle(
+        _streamMeta,
+        stream.isAcceptableOrUnknown(data['stream']!, _streamMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_streamMeta);
+    }
+    if (data.containsKey('month')) {
+      context.handle(
+        _monthMeta,
+        month.isAcceptableOrUnknown(data['month']!, _monthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_monthMeta);
+    }
+    if (data.containsKey('digest')) {
+      context.handle(
+        _digestMeta,
+        digest.isAcceptableOrUnknown(data['digest']!, _digestMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_digestMeta);
+    }
+    if (data.containsKey('rows')) {
+      context.handle(
+        _rowsMeta,
+        rows.isAcceptableOrUnknown(data['rows']!, _rowsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rowsMeta);
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_versionMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('synced_at_ms')) {
+      context.handle(
+        _syncedAtMsMeta,
+        syncedAtMs.isAcceptableOrUnknown(
+          data['synced_at_ms']!,
+          _syncedAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_syncedAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {owner, stream, month};
+  @override
+  MirrorMonthRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MirrorMonthRow(
+      owner: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner'],
+      )!,
+      stream: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stream'],
+      )!,
+      month: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}month'],
+      )!,
+      digest: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}digest'],
+      )!,
+      rows: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rows'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      syncedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}synced_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $MirrorMonthsTable createAlias(String alias) {
+    return $MirrorMonthsTable(attachedDatabase, alias);
+  }
+}
+
+class MirrorMonthRow extends DataClass implements Insertable<MirrorMonthRow> {
+  /// The owner's server UUID (`/api/account`), not a sign-in scope: re-enrolling
+  /// the same owner keeps the mirror, and a different owner never sees it.
+  final String owner;
+
+  /// `derived_daily`, `sleep_session`, … — the server's stream name.
+  final String stream;
+
+  /// `YYYY-MM`.
+  final String month;
+
+  /// The digest the server served these rows under.
+  final String digest;
+
+  /// How many rows [payload] holds.
+  final int rows;
+
+  /// The mirror contract version the month was fetched under.
+  final int version;
+
+  /// The month's rows, as the JSON array the server sent.
+  final String payload;
+
+  /// When this month was last written, Unix milliseconds.
+  final int syncedAtMs;
+  const MirrorMonthRow({
+    required this.owner,
+    required this.stream,
+    required this.month,
+    required this.digest,
+    required this.rows,
+    required this.version,
+    required this.payload,
+    required this.syncedAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['owner'] = Variable<String>(owner);
+    map['stream'] = Variable<String>(stream);
+    map['month'] = Variable<String>(month);
+    map['digest'] = Variable<String>(digest);
+    map['rows'] = Variable<int>(rows);
+    map['version'] = Variable<int>(version);
+    map['payload'] = Variable<String>(payload);
+    map['synced_at_ms'] = Variable<int>(syncedAtMs);
+    return map;
+  }
+
+  MirrorMonthsCompanion toCompanion(bool nullToAbsent) {
+    return MirrorMonthsCompanion(
+      owner: Value(owner),
+      stream: Value(stream),
+      month: Value(month),
+      digest: Value(digest),
+      rows: Value(rows),
+      version: Value(version),
+      payload: Value(payload),
+      syncedAtMs: Value(syncedAtMs),
+    );
+  }
+
+  factory MirrorMonthRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MirrorMonthRow(
+      owner: serializer.fromJson<String>(json['owner']),
+      stream: serializer.fromJson<String>(json['stream']),
+      month: serializer.fromJson<String>(json['month']),
+      digest: serializer.fromJson<String>(json['digest']),
+      rows: serializer.fromJson<int>(json['rows']),
+      version: serializer.fromJson<int>(json['version']),
+      payload: serializer.fromJson<String>(json['payload']),
+      syncedAtMs: serializer.fromJson<int>(json['syncedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'owner': serializer.toJson<String>(owner),
+      'stream': serializer.toJson<String>(stream),
+      'month': serializer.toJson<String>(month),
+      'digest': serializer.toJson<String>(digest),
+      'rows': serializer.toJson<int>(rows),
+      'version': serializer.toJson<int>(version),
+      'payload': serializer.toJson<String>(payload),
+      'syncedAtMs': serializer.toJson<int>(syncedAtMs),
+    };
+  }
+
+  MirrorMonthRow copyWith({
+    String? owner,
+    String? stream,
+    String? month,
+    String? digest,
+    int? rows,
+    int? version,
+    String? payload,
+    int? syncedAtMs,
+  }) => MirrorMonthRow(
+    owner: owner ?? this.owner,
+    stream: stream ?? this.stream,
+    month: month ?? this.month,
+    digest: digest ?? this.digest,
+    rows: rows ?? this.rows,
+    version: version ?? this.version,
+    payload: payload ?? this.payload,
+    syncedAtMs: syncedAtMs ?? this.syncedAtMs,
+  );
+  MirrorMonthRow copyWithCompanion(MirrorMonthsCompanion data) {
+    return MirrorMonthRow(
+      owner: data.owner.present ? data.owner.value : this.owner,
+      stream: data.stream.present ? data.stream.value : this.stream,
+      month: data.month.present ? data.month.value : this.month,
+      digest: data.digest.present ? data.digest.value : this.digest,
+      rows: data.rows.present ? data.rows.value : this.rows,
+      version: data.version.present ? data.version.value : this.version,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      syncedAtMs: data.syncedAtMs.present
+          ? data.syncedAtMs.value
+          : this.syncedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MirrorMonthRow(')
+          ..write('owner: $owner, ')
+          ..write('stream: $stream, ')
+          ..write('month: $month, ')
+          ..write('digest: $digest, ')
+          ..write('rows: $rows, ')
+          ..write('version: $version, ')
+          ..write('payload: $payload, ')
+          ..write('syncedAtMs: $syncedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    owner,
+    stream,
+    month,
+    digest,
+    rows,
+    version,
+    payload,
+    syncedAtMs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MirrorMonthRow &&
+          other.owner == this.owner &&
+          other.stream == this.stream &&
+          other.month == this.month &&
+          other.digest == this.digest &&
+          other.rows == this.rows &&
+          other.version == this.version &&
+          other.payload == this.payload &&
+          other.syncedAtMs == this.syncedAtMs);
+}
+
+class MirrorMonthsCompanion extends UpdateCompanion<MirrorMonthRow> {
+  final Value<String> owner;
+  final Value<String> stream;
+  final Value<String> month;
+  final Value<String> digest;
+  final Value<int> rows;
+  final Value<int> version;
+  final Value<String> payload;
+  final Value<int> syncedAtMs;
+  final Value<int> rowid;
+  const MirrorMonthsCompanion({
+    this.owner = const Value.absent(),
+    this.stream = const Value.absent(),
+    this.month = const Value.absent(),
+    this.digest = const Value.absent(),
+    this.rows = const Value.absent(),
+    this.version = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.syncedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MirrorMonthsCompanion.insert({
+    required String owner,
+    required String stream,
+    required String month,
+    required String digest,
+    required int rows,
+    required int version,
+    required String payload,
+    required int syncedAtMs,
+    this.rowid = const Value.absent(),
+  }) : owner = Value(owner),
+       stream = Value(stream),
+       month = Value(month),
+       digest = Value(digest),
+       rows = Value(rows),
+       version = Value(version),
+       payload = Value(payload),
+       syncedAtMs = Value(syncedAtMs);
+  static Insertable<MirrorMonthRow> custom({
+    Expression<String>? owner,
+    Expression<String>? stream,
+    Expression<String>? month,
+    Expression<String>? digest,
+    Expression<int>? rows,
+    Expression<int>? version,
+    Expression<String>? payload,
+    Expression<int>? syncedAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (owner != null) 'owner': owner,
+      if (stream != null) 'stream': stream,
+      if (month != null) 'month': month,
+      if (digest != null) 'digest': digest,
+      if (rows != null) 'rows': rows,
+      if (version != null) 'version': version,
+      if (payload != null) 'payload': payload,
+      if (syncedAtMs != null) 'synced_at_ms': syncedAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MirrorMonthsCompanion copyWith({
+    Value<String>? owner,
+    Value<String>? stream,
+    Value<String>? month,
+    Value<String>? digest,
+    Value<int>? rows,
+    Value<int>? version,
+    Value<String>? payload,
+    Value<int>? syncedAtMs,
+    Value<int>? rowid,
+  }) {
+    return MirrorMonthsCompanion(
+      owner: owner ?? this.owner,
+      stream: stream ?? this.stream,
+      month: month ?? this.month,
+      digest: digest ?? this.digest,
+      rows: rows ?? this.rows,
+      version: version ?? this.version,
+      payload: payload ?? this.payload,
+      syncedAtMs: syncedAtMs ?? this.syncedAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (owner.present) {
+      map['owner'] = Variable<String>(owner.value);
+    }
+    if (stream.present) {
+      map['stream'] = Variable<String>(stream.value);
+    }
+    if (month.present) {
+      map['month'] = Variable<String>(month.value);
+    }
+    if (digest.present) {
+      map['digest'] = Variable<String>(digest.value);
+    }
+    if (rows.present) {
+      map['rows'] = Variable<int>(rows.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (syncedAtMs.present) {
+      map['synced_at_ms'] = Variable<int>(syncedAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MirrorMonthsCompanion(')
+          ..write('owner: $owner, ')
+          ..write('stream: $stream, ')
+          ..write('month: $month, ')
+          ..write('digest: $digest, ')
+          ..write('rows: $rows, ')
+          ..write('version: $version, ')
+          ..write('payload: $payload, ')
+          ..write('syncedAtMs: $syncedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalStore extends GeneratedDatabase {
   _$LocalStore(QueryExecutor e) : super(e);
   $LocalStoreManager get managers => $LocalStoreManager(this);
@@ -4473,13 +4418,10 @@ abstract class _$LocalStore extends GeneratedDatabase {
   late final $StoredWorkoutsTable storedWorkouts = $StoredWorkoutsTable(this);
   late final $DeviceTotalsTable deviceTotals = $DeviceTotalsTable(this);
   late final $SyncMetaTable syncMeta = $SyncMetaTable(this);
-  late final $StoredCoachThreadsTable storedCoachThreads =
-      $StoredCoachThreadsTable(this);
-  late final $StoredCoachTurnsTable storedCoachTurns = $StoredCoachTurnsTable(
-    this,
-  );
   late final $GpsRecordingsTable gpsRecordings = $GpsRecordingsTable(this);
   late final $GpsFixesTable gpsFixes = $GpsFixesTable(this);
+  late final $PendingWeightsTable pendingWeights = $PendingWeightsTable(this);
+  late final $MirrorMonthsTable mirrorMonths = $MirrorMonthsTable(this);
   late final StrapWriter strapWriter = StrapWriter(this as LocalStore);
   late final StrapReader strapReader = StrapReader(this as LocalStore);
   late final PushReader pushReader = PushReader(this as LocalStore);
@@ -4495,10 +4437,10 @@ abstract class _$LocalStore extends GeneratedDatabase {
     storedWorkouts,
     deviceTotals,
     syncMeta,
-    storedCoachThreads,
-    storedCoachTurns,
     gpsRecordings,
     gpsFixes,
+    pendingWeights,
+    mirrorMonths,
   ];
 }
 
@@ -5897,463 +5839,6 @@ typedef $$SyncMetaTableProcessedTableManager =
       SyncMetaRow,
       PrefetchHooks Function()
     >;
-typedef $$StoredCoachThreadsTableCreateCompanionBuilder =
-    StoredCoachThreadsCompanion Function({
-      Value<String> scope,
-      required String id,
-      required DateTime startedAt,
-      required DateTime lastAt,
-      required String opening,
-      Value<int> turns,
-      Value<int> rowid,
-    });
-typedef $$StoredCoachThreadsTableUpdateCompanionBuilder =
-    StoredCoachThreadsCompanion Function({
-      Value<String> scope,
-      Value<String> id,
-      Value<DateTime> startedAt,
-      Value<DateTime> lastAt,
-      Value<String> opening,
-      Value<int> turns,
-      Value<int> rowid,
-    });
-
-class $$StoredCoachThreadsTableFilterComposer
-    extends Composer<_$LocalStore, $StoredCoachThreadsTable> {
-  $$StoredCoachThreadsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get scope => $composableBuilder(
-    column: $table.scope,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get startedAt => $composableBuilder(
-    column: $table.startedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get lastAt => $composableBuilder(
-    column: $table.lastAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get opening => $composableBuilder(
-    column: $table.opening,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get turns => $composableBuilder(
-    column: $table.turns,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$StoredCoachThreadsTableOrderingComposer
-    extends Composer<_$LocalStore, $StoredCoachThreadsTable> {
-  $$StoredCoachThreadsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get scope => $composableBuilder(
-    column: $table.scope,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
-    column: $table.startedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get lastAt => $composableBuilder(
-    column: $table.lastAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get opening => $composableBuilder(
-    column: $table.opening,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get turns => $composableBuilder(
-    column: $table.turns,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$StoredCoachThreadsTableAnnotationComposer
-    extends Composer<_$LocalStore, $StoredCoachThreadsTable> {
-  $$StoredCoachThreadsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get scope =>
-      $composableBuilder(column: $table.scope, builder: (column) => column);
-
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get startedAt =>
-      $composableBuilder(column: $table.startedAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get lastAt =>
-      $composableBuilder(column: $table.lastAt, builder: (column) => column);
-
-  GeneratedColumn<String> get opening =>
-      $composableBuilder(column: $table.opening, builder: (column) => column);
-
-  GeneratedColumn<int> get turns =>
-      $composableBuilder(column: $table.turns, builder: (column) => column);
-}
-
-class $$StoredCoachThreadsTableTableManager
-    extends
-        RootTableManager<
-          _$LocalStore,
-          $StoredCoachThreadsTable,
-          StoredCoachThread,
-          $$StoredCoachThreadsTableFilterComposer,
-          $$StoredCoachThreadsTableOrderingComposer,
-          $$StoredCoachThreadsTableAnnotationComposer,
-          $$StoredCoachThreadsTableCreateCompanionBuilder,
-          $$StoredCoachThreadsTableUpdateCompanionBuilder,
-          (
-            StoredCoachThread,
-            BaseReferences<
-              _$LocalStore,
-              $StoredCoachThreadsTable,
-              StoredCoachThread
-            >,
-          ),
-          StoredCoachThread,
-          PrefetchHooks Function()
-        > {
-  $$StoredCoachThreadsTableTableManager(
-    _$LocalStore db,
-    $StoredCoachThreadsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$StoredCoachThreadsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$StoredCoachThreadsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$StoredCoachThreadsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> scope = const Value.absent(),
-                Value<String> id = const Value.absent(),
-                Value<DateTime> startedAt = const Value.absent(),
-                Value<DateTime> lastAt = const Value.absent(),
-                Value<String> opening = const Value.absent(),
-                Value<int> turns = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => StoredCoachThreadsCompanion(
-                scope: scope,
-                id: id,
-                startedAt: startedAt,
-                lastAt: lastAt,
-                opening: opening,
-                turns: turns,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                Value<String> scope = const Value.absent(),
-                required String id,
-                required DateTime startedAt,
-                required DateTime lastAt,
-                required String opening,
-                Value<int> turns = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => StoredCoachThreadsCompanion.insert(
-                scope: scope,
-                id: id,
-                startedAt: startedAt,
-                lastAt: lastAt,
-                opening: opening,
-                turns: turns,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$StoredCoachThreadsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$LocalStore,
-      $StoredCoachThreadsTable,
-      StoredCoachThread,
-      $$StoredCoachThreadsTableFilterComposer,
-      $$StoredCoachThreadsTableOrderingComposer,
-      $$StoredCoachThreadsTableAnnotationComposer,
-      $$StoredCoachThreadsTableCreateCompanionBuilder,
-      $$StoredCoachThreadsTableUpdateCompanionBuilder,
-      (
-        StoredCoachThread,
-        BaseReferences<
-          _$LocalStore,
-          $StoredCoachThreadsTable,
-          StoredCoachThread
-        >,
-      ),
-      StoredCoachThread,
-      PrefetchHooks Function()
-    >;
-typedef $$StoredCoachTurnsTableCreateCompanionBuilder =
-    StoredCoachTurnsCompanion Function({
-      Value<String> scope,
-      required String threadId,
-      required int seq,
-      required String kind,
-      required String payload,
-      required DateTime at,
-      Value<int> rowid,
-    });
-typedef $$StoredCoachTurnsTableUpdateCompanionBuilder =
-    StoredCoachTurnsCompanion Function({
-      Value<String> scope,
-      Value<String> threadId,
-      Value<int> seq,
-      Value<String> kind,
-      Value<String> payload,
-      Value<DateTime> at,
-      Value<int> rowid,
-    });
-
-class $$StoredCoachTurnsTableFilterComposer
-    extends Composer<_$LocalStore, $StoredCoachTurnsTable> {
-  $$StoredCoachTurnsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get scope => $composableBuilder(
-    column: $table.scope,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get threadId => $composableBuilder(
-    column: $table.threadId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get seq => $composableBuilder(
-    column: $table.seq,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get payload => $composableBuilder(
-    column: $table.payload,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get at => $composableBuilder(
-    column: $table.at,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$StoredCoachTurnsTableOrderingComposer
-    extends Composer<_$LocalStore, $StoredCoachTurnsTable> {
-  $$StoredCoachTurnsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get scope => $composableBuilder(
-    column: $table.scope,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get threadId => $composableBuilder(
-    column: $table.threadId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get seq => $composableBuilder(
-    column: $table.seq,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get payload => $composableBuilder(
-    column: $table.payload,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get at => $composableBuilder(
-    column: $table.at,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$StoredCoachTurnsTableAnnotationComposer
-    extends Composer<_$LocalStore, $StoredCoachTurnsTable> {
-  $$StoredCoachTurnsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get scope =>
-      $composableBuilder(column: $table.scope, builder: (column) => column);
-
-  GeneratedColumn<String> get threadId =>
-      $composableBuilder(column: $table.threadId, builder: (column) => column);
-
-  GeneratedColumn<int> get seq =>
-      $composableBuilder(column: $table.seq, builder: (column) => column);
-
-  GeneratedColumn<String> get kind =>
-      $composableBuilder(column: $table.kind, builder: (column) => column);
-
-  GeneratedColumn<String> get payload =>
-      $composableBuilder(column: $table.payload, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get at =>
-      $composableBuilder(column: $table.at, builder: (column) => column);
-}
-
-class $$StoredCoachTurnsTableTableManager
-    extends
-        RootTableManager<
-          _$LocalStore,
-          $StoredCoachTurnsTable,
-          StoredCoachTurn,
-          $$StoredCoachTurnsTableFilterComposer,
-          $$StoredCoachTurnsTableOrderingComposer,
-          $$StoredCoachTurnsTableAnnotationComposer,
-          $$StoredCoachTurnsTableCreateCompanionBuilder,
-          $$StoredCoachTurnsTableUpdateCompanionBuilder,
-          (
-            StoredCoachTurn,
-            BaseReferences<
-              _$LocalStore,
-              $StoredCoachTurnsTable,
-              StoredCoachTurn
-            >,
-          ),
-          StoredCoachTurn,
-          PrefetchHooks Function()
-        > {
-  $$StoredCoachTurnsTableTableManager(
-    _$LocalStore db,
-    $StoredCoachTurnsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$StoredCoachTurnsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$StoredCoachTurnsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$StoredCoachTurnsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> scope = const Value.absent(),
-                Value<String> threadId = const Value.absent(),
-                Value<int> seq = const Value.absent(),
-                Value<String> kind = const Value.absent(),
-                Value<String> payload = const Value.absent(),
-                Value<DateTime> at = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => StoredCoachTurnsCompanion(
-                scope: scope,
-                threadId: threadId,
-                seq: seq,
-                kind: kind,
-                payload: payload,
-                at: at,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                Value<String> scope = const Value.absent(),
-                required String threadId,
-                required int seq,
-                required String kind,
-                required String payload,
-                required DateTime at,
-                Value<int> rowid = const Value.absent(),
-              }) => StoredCoachTurnsCompanion.insert(
-                scope: scope,
-                threadId: threadId,
-                seq: seq,
-                kind: kind,
-                payload: payload,
-                at: at,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$StoredCoachTurnsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$LocalStore,
-      $StoredCoachTurnsTable,
-      StoredCoachTurn,
-      $$StoredCoachTurnsTableFilterComposer,
-      $$StoredCoachTurnsTableOrderingComposer,
-      $$StoredCoachTurnsTableAnnotationComposer,
-      $$StoredCoachTurnsTableCreateCompanionBuilder,
-      $$StoredCoachTurnsTableUpdateCompanionBuilder,
-      (
-        StoredCoachTurn,
-        BaseReferences<_$LocalStore, $StoredCoachTurnsTable, StoredCoachTurn>,
-      ),
-      StoredCoachTurn,
-      PrefetchHooks Function()
-    >;
 typedef $$GpsRecordingsTableCreateCompanionBuilder =
     GpsRecordingsCompanion Function({
       required String id,
@@ -6788,6 +6273,425 @@ typedef $$GpsFixesTableProcessedTableManager =
       GpsFixRow,
       PrefetchHooks Function()
     >;
+typedef $$PendingWeightsTableCreateCompanionBuilder =
+    PendingWeightsCompanion Function({
+      Value<int> atMs,
+      required double kg,
+      required int heldAtMs,
+    });
+typedef $$PendingWeightsTableUpdateCompanionBuilder =
+    PendingWeightsCompanion Function({
+      Value<int> atMs,
+      Value<double> kg,
+      Value<int> heldAtMs,
+    });
+
+class $$PendingWeightsTableFilterComposer
+    extends Composer<_$LocalStore, $PendingWeightsTable> {
+  $$PendingWeightsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get atMs => $composableBuilder(
+    column: $table.atMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get kg => $composableBuilder(
+    column: $table.kg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get heldAtMs => $composableBuilder(
+    column: $table.heldAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PendingWeightsTableOrderingComposer
+    extends Composer<_$LocalStore, $PendingWeightsTable> {
+  $$PendingWeightsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get atMs => $composableBuilder(
+    column: $table.atMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get kg => $composableBuilder(
+    column: $table.kg,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get heldAtMs => $composableBuilder(
+    column: $table.heldAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PendingWeightsTableAnnotationComposer
+    extends Composer<_$LocalStore, $PendingWeightsTable> {
+  $$PendingWeightsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get atMs =>
+      $composableBuilder(column: $table.atMs, builder: (column) => column);
+
+  GeneratedColumn<double> get kg =>
+      $composableBuilder(column: $table.kg, builder: (column) => column);
+
+  GeneratedColumn<int> get heldAtMs =>
+      $composableBuilder(column: $table.heldAtMs, builder: (column) => column);
+}
+
+class $$PendingWeightsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalStore,
+          $PendingWeightsTable,
+          PendingWeightRow,
+          $$PendingWeightsTableFilterComposer,
+          $$PendingWeightsTableOrderingComposer,
+          $$PendingWeightsTableAnnotationComposer,
+          $$PendingWeightsTableCreateCompanionBuilder,
+          $$PendingWeightsTableUpdateCompanionBuilder,
+          (
+            PendingWeightRow,
+            BaseReferences<
+              _$LocalStore,
+              $PendingWeightsTable,
+              PendingWeightRow
+            >,
+          ),
+          PendingWeightRow,
+          PrefetchHooks Function()
+        > {
+  $$PendingWeightsTableTableManager(_$LocalStore db, $PendingWeightsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingWeightsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PendingWeightsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PendingWeightsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> atMs = const Value.absent(),
+                Value<double> kg = const Value.absent(),
+                Value<int> heldAtMs = const Value.absent(),
+              }) => PendingWeightsCompanion(
+                atMs: atMs,
+                kg: kg,
+                heldAtMs: heldAtMs,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> atMs = const Value.absent(),
+                required double kg,
+                required int heldAtMs,
+              }) => PendingWeightsCompanion.insert(
+                atMs: atMs,
+                kg: kg,
+                heldAtMs: heldAtMs,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PendingWeightsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalStore,
+      $PendingWeightsTable,
+      PendingWeightRow,
+      $$PendingWeightsTableFilterComposer,
+      $$PendingWeightsTableOrderingComposer,
+      $$PendingWeightsTableAnnotationComposer,
+      $$PendingWeightsTableCreateCompanionBuilder,
+      $$PendingWeightsTableUpdateCompanionBuilder,
+      (
+        PendingWeightRow,
+        BaseReferences<_$LocalStore, $PendingWeightsTable, PendingWeightRow>,
+      ),
+      PendingWeightRow,
+      PrefetchHooks Function()
+    >;
+typedef $$MirrorMonthsTableCreateCompanionBuilder =
+    MirrorMonthsCompanion Function({
+      required String owner,
+      required String stream,
+      required String month,
+      required String digest,
+      required int rows,
+      required int version,
+      required String payload,
+      required int syncedAtMs,
+      Value<int> rowid,
+    });
+typedef $$MirrorMonthsTableUpdateCompanionBuilder =
+    MirrorMonthsCompanion Function({
+      Value<String> owner,
+      Value<String> stream,
+      Value<String> month,
+      Value<String> digest,
+      Value<int> rows,
+      Value<int> version,
+      Value<String> payload,
+      Value<int> syncedAtMs,
+      Value<int> rowid,
+    });
+
+class $$MirrorMonthsTableFilterComposer
+    extends Composer<_$LocalStore, $MirrorMonthsTable> {
+  $$MirrorMonthsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stream => $composableBuilder(
+    column: $table.stream,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get digest => $composableBuilder(
+    column: $table.digest,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rows => $composableBuilder(
+    column: $table.rows,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncedAtMs => $composableBuilder(
+    column: $table.syncedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MirrorMonthsTableOrderingComposer
+    extends Composer<_$LocalStore, $MirrorMonthsTable> {
+  $$MirrorMonthsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stream => $composableBuilder(
+    column: $table.stream,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get digest => $composableBuilder(
+    column: $table.digest,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rows => $composableBuilder(
+    column: $table.rows,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncedAtMs => $composableBuilder(
+    column: $table.syncedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MirrorMonthsTableAnnotationComposer
+    extends Composer<_$LocalStore, $MirrorMonthsTable> {
+  $$MirrorMonthsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get owner =>
+      $composableBuilder(column: $table.owner, builder: (column) => column);
+
+  GeneratedColumn<String> get stream =>
+      $composableBuilder(column: $table.stream, builder: (column) => column);
+
+  GeneratedColumn<String> get month =>
+      $composableBuilder(column: $table.month, builder: (column) => column);
+
+  GeneratedColumn<String> get digest =>
+      $composableBuilder(column: $table.digest, builder: (column) => column);
+
+  GeneratedColumn<int> get rows =>
+      $composableBuilder(column: $table.rows, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<int> get syncedAtMs => $composableBuilder(
+    column: $table.syncedAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$MirrorMonthsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalStore,
+          $MirrorMonthsTable,
+          MirrorMonthRow,
+          $$MirrorMonthsTableFilterComposer,
+          $$MirrorMonthsTableOrderingComposer,
+          $$MirrorMonthsTableAnnotationComposer,
+          $$MirrorMonthsTableCreateCompanionBuilder,
+          $$MirrorMonthsTableUpdateCompanionBuilder,
+          (
+            MirrorMonthRow,
+            BaseReferences<_$LocalStore, $MirrorMonthsTable, MirrorMonthRow>,
+          ),
+          MirrorMonthRow,
+          PrefetchHooks Function()
+        > {
+  $$MirrorMonthsTableTableManager(_$LocalStore db, $MirrorMonthsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MirrorMonthsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MirrorMonthsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MirrorMonthsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> owner = const Value.absent(),
+                Value<String> stream = const Value.absent(),
+                Value<String> month = const Value.absent(),
+                Value<String> digest = const Value.absent(),
+                Value<int> rows = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<int> syncedAtMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MirrorMonthsCompanion(
+                owner: owner,
+                stream: stream,
+                month: month,
+                digest: digest,
+                rows: rows,
+                version: version,
+                payload: payload,
+                syncedAtMs: syncedAtMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String owner,
+                required String stream,
+                required String month,
+                required String digest,
+                required int rows,
+                required int version,
+                required String payload,
+                required int syncedAtMs,
+                Value<int> rowid = const Value.absent(),
+              }) => MirrorMonthsCompanion.insert(
+                owner: owner,
+                stream: stream,
+                month: month,
+                digest: digest,
+                rows: rows,
+                version: version,
+                payload: payload,
+                syncedAtMs: syncedAtMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MirrorMonthsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalStore,
+      $MirrorMonthsTable,
+      MirrorMonthRow,
+      $$MirrorMonthsTableFilterComposer,
+      $$MirrorMonthsTableOrderingComposer,
+      $$MirrorMonthsTableAnnotationComposer,
+      $$MirrorMonthsTableCreateCompanionBuilder,
+      $$MirrorMonthsTableUpdateCompanionBuilder,
+      (
+        MirrorMonthRow,
+        BaseReferences<_$LocalStore, $MirrorMonthsTable, MirrorMonthRow>,
+      ),
+      MirrorMonthRow,
+      PrefetchHooks Function()
+    >;
 
 class $LocalStoreManager {
   final _$LocalStore _db;
@@ -6804,12 +6708,12 @@ class $LocalStoreManager {
       $$DeviceTotalsTableTableManager(_db, _db.deviceTotals);
   $$SyncMetaTableTableManager get syncMeta =>
       $$SyncMetaTableTableManager(_db, _db.syncMeta);
-  $$StoredCoachThreadsTableTableManager get storedCoachThreads =>
-      $$StoredCoachThreadsTableTableManager(_db, _db.storedCoachThreads);
-  $$StoredCoachTurnsTableTableManager get storedCoachTurns =>
-      $$StoredCoachTurnsTableTableManager(_db, _db.storedCoachTurns);
   $$GpsRecordingsTableTableManager get gpsRecordings =>
       $$GpsRecordingsTableTableManager(_db, _db.gpsRecordings);
   $$GpsFixesTableTableManager get gpsFixes =>
       $$GpsFixesTableTableManager(_db, _db.gpsFixes);
+  $$PendingWeightsTableTableManager get pendingWeights =>
+      $$PendingWeightsTableTableManager(_db, _db.pendingWeights);
+  $$MirrorMonthsTableTableManager get mirrorMonths =>
+      $$MirrorMonthsTableTableManager(_db, _db.mirrorMonths);
 }

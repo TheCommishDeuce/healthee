@@ -14,30 +14,19 @@
 /// a switch over routes needs an unreachable default, and an unreachable default
 /// is a runtime error where a missing field would have been a compile error.
 ///
-/// ## Five tabs — legacy's five, verbatim
+/// ## Four tabs — legacy's five, minus Actions
 ///
-/// `~/projects/healthee-legacy/app/lib/ui/nav.dart` lists them: **Today · Sleep ·
-/// Activity · Insights · Actions**. `docs/APP_DESIGN.md` §2 names the same five.
-/// This list drew four, and both of the differences were mistakes with reasons:
-///
-///   * **Coach was a tab.** It is not one in legacy — `main.dart:399` puts a
-///     `CoachFab` on Today alone and opens a chat sheet from it — and it is not
-///     one here any more (`features/coach/coach_sheet.dart`). The findings that
-///     were parked on that tab have gone to **Insights**, which is what §2 called
-///     the fourth tab all along and which is where they belong: a correlation is
-///     the *evidence* a coach question would be answered from, not the coach.
-///   * **Actions was removed for being inert**, and the reasoning was right: a tab
-///     is a promise of a destination and there is no wording available inside a
-///     10 pt label to qualify one that does not exist, so a dimmed control in the
-///     primary navigation was worse than four tabs. The answer to that was never
-///     a dimmed tab; it was a screen. `features/actions/actions_screen.dart` is
-///     it, and the tab comes back with it — which is exactly the one entry and one
-///     branch this docstring said it would be.
+/// `~/projects/healthee-legacy/app/lib/ui/nav.dart` lists **Today · Sleep ·
+/// Activity · Insights · Actions**. The personal-use rebuild removed Actions
+/// with its challenge, program and recommendation screens (DESIGN_DECISIONS
+/// P5), and the interactive coach that was once a button on Today (P3). The
+/// nightly recommendation and correlation jobs still run on the server; their
+/// findings stay readable on **Insights**, which is where a correlation belongs
+/// — it is evidence read back from the owner's own history.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:healthee/core/router.dart';
-import 'package:healthee/features/actions/actions_screen.dart';
 import 'package:healthee/features/activity/activity_screen.dart';
 import 'package:healthee/features/insights/insights_screen.dart';
 import 'package:healthee/features/sleep/sleep_screen.dart';
@@ -108,19 +97,12 @@ const List<AppTab> kAppTabs = <AppTab>[
     route: Routes.insights,
     screen: InsightsScreen.new,
   ),
-  AppTab(
-    label: 'Actions',
-    icon: SolarIconsOutline.checklist,
-    activeIcon: SolarIconsBold.checklist,
-    route: Routes.actions,
-    screen: ActionsScreen.new,
-  ),
 ];
 
 /// Today's branch index — the one the back button falls home to.
 ///
-/// A named constant rather than a literal `0` at the three call sites that need
-/// it: `shared/app_shell.dart`'s back rule, its Coach FAB and the router's
-/// initial location all mean *the home tab*, and a reordering of [kAppTabs]
+/// A named constant rather than a literal `0` at the call sites that need it:
+/// `shared/app_shell.dart`'s back rule and the router's initial location both
+/// mean *the home tab*, and a reordering of [kAppTabs]
 /// should move all three together or none.
 const int kHomeTabIndex = 0;

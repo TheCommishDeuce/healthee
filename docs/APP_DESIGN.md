@@ -1,5 +1,10 @@
 # Healthee App — design & build tracker (Phase 2)
 
+> **Personal-use rebuild (2026-09-22):** screen scope and placement now follow
+> [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md), not the historical layout below.
+> Today is sleep, overnight recovery and weight entry; HR/stress belongs to Activity.
+> Evidence, safety and data-confidence requirements remain in force.
+
 > **What this is.** The single living doc for the Phase-2 mobile app: the design law,
 > every data point the backend serves, how each one becomes *health understanding*
 > (not a number on a grid), the screen-by-screen plan, and a build checklist. Edit it

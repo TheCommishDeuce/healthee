@@ -445,11 +445,33 @@ CREATE TABLE IF NOT EXISTS device_token (
   -- NULL means live (0020). A revoked token keeps its row so `last_seen` can
   -- answer "was it used after I revoked it?" — see the migration.
   revoked_at  TIMESTAMPTZ,
-  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  -- 'ingest' (POST /api/device; /ingest/* only) or 'phone' (QR enrollment;
+  -- /api/* and /ingest/*). 0023; docs/QR_ENROLLMENT.md.
+  scope       TEXT         NOT NULL DEFAULT 'ingest'
+                             CONSTRAINT device_token_scope_check
+                             CHECK (scope IN ('ingest', 'phone'))
 );
 -- Whole-table on purpose: uniqueness here is about SECRETS, not live credentials.
 -- Narrowed to un-revoked rows it would let a revoked hash be re-minted.
 CREATE UNIQUE INDEX IF NOT EXISTS device_token_hash_idx ON device_token (token_hash);
+
+-- ── enrollment_code (0023) ─────────────────────────────────────────────────
+-- One-time QR enrollment code, SHA-256 only. Created by the admin CLI; the app
+-- role may SELECT/UPDATE (redeem) and has INSERT revoked. Not policied: the owner
+-- is found FROM the code. docs/QR_ENROLLMENT.md.
+CREATE TABLE IF NOT EXISTS enrollment_code (
+  id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID         NOT NULL REFERENCES app_user(id)
+                                  ON UPDATE CASCADE ON DELETE CASCADE,
+  code_hash        TEXT         NOT NULL,
+  label            TEXT,
+  created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  expires_at       TIMESTAMPTZ  NOT NULL,
+  used_at          TIMESTAMPTZ,
+  device_token_id  UUID         REFERENCES device_token(id) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS enrollment_code_hash_idx ON enrollment_code (code_hash);
 
 -- ── coach_commitment (0021) ────────────────────────────────────────────────
 -- What the owner told the coach they would do, so the next conversation is not a
@@ -532,7 +554,7 @@ CREATE TABLE IF NOT EXISTS subscription (
 --
 -- `sample`'s chunks inherit the parent hypertable's policy — nothing extra needed.
 --
--- NOT policied, deliberately: `app_user` and `device_token` (identity — the app has
--- to resolve WHO you are before it knows an owner to scope to, and the scheduler's
--- active_users() sweep must see every owner), and `schema_migrations` (admin-only,
--- not even granted to the app role).
+-- NOT policied, deliberately: `app_user`, `device_token` and `enrollment_code`
+-- (identity — the app has to resolve WHO you are before it knows an owner to scope
+-- to, and the scheduler's active_users() sweep must see every owner), and
+-- `schema_migrations` (admin-only, not even granted to the app role).

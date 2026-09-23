@@ -31,13 +31,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/activity/activity_screen.dart';
 import 'package:healthee/features/sleep/sleep_screen.dart';
-import 'package:healthee/shared/instrument_module.dart';
+import 'package:healthee/features/today/body_screen.dart';
+import 'package:healthee/features/today/v02/recovery_panel.dart';
 import 'package:healthee/shared/metric_info/metric_info_sheet.dart';
 import 'package:healthee/shared/states/state_scaffold.dart';
 import 'package:healthee/shared/v02/bio_hero.dart';
 import 'package:healthee/shared/v02/panel.dart';
 
 import '../_sleep_stubs.dart';
+import '../_today_stubs.dart';
 import '_today_host.dart';
 
 /// Whether [text] is a lone footnote glyph with no word attached.
@@ -79,7 +81,6 @@ List<Rect> _carriers(WidgetTester tester) {
 List<Rect> _cards(WidgetTester tester) => <Rect>[
   for (final type in <Finder>[
     find.byType(StateCard),
-    find.byType(InstrumentModule),
     // v02's two carriers. `Panel` and `BioHero` read the same `CaveatScope`
     // that `InstrumentModule` does, so a Today card is measured the same way a
     // Sleep card is.
@@ -104,12 +105,18 @@ void main() {
   /// A `ListView.builder` never builds a card it has not scrolled to, and a card
   /// that was never built cannot be measured — which would make this suite pass
   /// by seeing nothing.
-  Future<void> pump(WidgetTester tester, Widget? home) async {
+  Future<void> pump(WidgetTester tester, Widget? home, {bool recoveryCaveat = false}) async {
     tester.view
       ..physicalSize = const Size(420, 14000)
       ..devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(todayHost(store, home: home));
+    await tester.pumpWidget(todayHost(store, home: home, server: todayView(mutate: (json) => {
+      ...json,
+      if (recoveryCaveat) 'recovery_score': {
+        ...json['recovery_score']! as Map<String, Object?>,
+        'caveats': [{'reason': 'test', 'message': 'Recovery has limited coverage.'}],
+      },
+    })));
     await tester.pumpAndSettle();
   }
 
@@ -126,7 +133,8 @@ void main() {
   /// fixture. It is still pumped, because the geometry check is what catches a
   /// carrier landing in the gutter the day one appears.
   final screens = <String, ({Widget? home, bool carries})>{
-    'Today': (home: null, carries: true),
+    'Today': (home: null, carries: false),
+    'Body': (home: const BodyScreen(), carries: true),
     'Sleep': (home: SleepScreen(now: kSleepNow), carries: false),
     'Activity': (home: const ActivityScreen(), carries: true),
   };
@@ -196,7 +204,7 @@ void main() {
     // Without this the two assertions above pass on a screen that has no
     // disclosures to place, which is the shape of a vacuous suite. The
     // biological-age block of the committed snapshot carries four.
-    await pump(tester, null);
+    await pump(tester, null, recoveryCaveat: true);
     expect(_carriers(tester), isNotEmpty);
     // The hero's own four are no longer a note on the card — they are the ⓘ's
     // payload — so the premise is read off the dot the hero built rather than
@@ -204,10 +212,10 @@ void main() {
     // `today_caveat_surface_test.dart` opens it and reads them in full.
     final dot = tester.widget<MetricInfoDot>(
       find.descendant(
-        of: find.byType(BioHero),
+        of: find.byType(RecoveryPanel),
         matching: find.byType(MetricInfoDot),
       ),
     );
-    expect(dot.detail.disclosures, hasLength(4));
+    expect(dot.detail.disclosures, hasLength(1));
   });
 }

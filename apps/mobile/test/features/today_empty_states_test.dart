@@ -34,7 +34,6 @@ import 'package:healthee/features/sleep/v02/night_panels.dart';
 import 'package:healthee/features/sleep/v02/sleep_reading.dart';
 import 'package:healthee/features/sleep/v02/timing_panel.dart';
 import 'package:healthee/features/sleep/v02/week_panel.dart';
-import 'package:healthee/features/today/widgets/actions_section.dart';
 import 'package:healthee/shared/connection/sync_ring.dart';
 import 'package:healthee/shared/reveal_once.dart';
 import 'package:healthee/shared/v02/view_day.dart';
@@ -128,7 +127,7 @@ void main() {
       // redesign, so the old text finder would now be asking about the title
       // rather than about the card that is meant to be absent.
       expect(
-        find.byType(ActionsSection),
+        find.text('Suggested actions'),
         findsNothing,
         reason: 'no action card at all',
       );

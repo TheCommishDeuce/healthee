@@ -29,6 +29,8 @@
 /// stack, and otherwise land on the tab the screen belongs under.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -366,8 +368,7 @@ void main() {
       _tallViewport(tester);
       await tester.pumpWidget(routedApp(store));
       await tester.pumpAndSettle();
-      await reveal(tester, find.text('See the contributors'));
-      await tester.tap(find.text('See the contributors'));
+      unawaited(GoRouter.of(tester.element(find.byType(TodayScreen))).push(Routes.body));
       await tester.pumpAndSettle();
       expect(find.byType(BodyScreen), findsOneWidget);
 

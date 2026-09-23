@@ -97,9 +97,6 @@ void main() {
         'Mean', // .three
         'Range', // H.note
         'See dated readings', // <details>
-        'Put this in context', // H.section
-        'Your journal', // the two rows
-        'Ask about this trend',
         kEvidenceLabel, // H.evidence
         'Your data. A little better understood.', // the footer
       ];
@@ -109,6 +106,9 @@ void main() {
         expect(at, greaterThan(previous), reason: '"$line" is out of order');
         previous = at;
       }
+      // The prototype's coach section is gone with the interactive coach.
+      expect(find.text('Put this in context'), findsNothing);
+      expect(find.text('Ask about this trend'), findsNothing);
     });
 
     testWidgets('the head names the day and whether it is the latest', (

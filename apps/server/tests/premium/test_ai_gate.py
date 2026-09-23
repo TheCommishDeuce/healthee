@@ -99,6 +99,8 @@ FREE_PATHS: dict[str, str] = {
     "/api/activity/workout": "free tier — workout detail",
     "/api/history/logs": "free tier — owner-authored history markers",
     "/api/history": "free tier — full history is deliberately never paywalled",
+    "/api/mirror/manifest": "free tier — the owner's own history, mirrored to the phone",
+    "/api/mirror/{stream}": "free tier — the owner's own history, mirrored to the phone",
     "/api/profile": "free tier — the owner's own demographics",
     "/api/account": "authenticated identity for durable local data ownership",
     "/api/log": "free tier — manual logging",
@@ -118,6 +120,11 @@ FREE_PATHS: dict[str, str] = {
         "lost phone is worse off than one who never signed up."
     ),
     "/api/entitlement": "the paywall's own status; a locked-out owner must be able to read it",
+    "/api/enroll": (
+        "identity — redeeming an administrator's one-time QR code for this phone's "
+        "credential (docs/QR_ENROLLMENT.md). UNAUTHENTICATED by necessity: the code is "
+        "the credential. Serves no AI output and no owner data beyond the new token."
+    ),
     "/api/auth-config": (
         "which identity provider to sign in against. UNAUTHENTICATED, and it cannot be "
         "otherwise: it is the call a client makes in order to learn how to authenticate, "

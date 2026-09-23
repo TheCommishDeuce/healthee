@@ -25,7 +25,6 @@ import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/states/reading_view.dart';
 import 'package:healthee/shared/v02/context_bridge.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
-import 'package:healthee/shared/v02/full_button.dart';
 import 'package:healthee/shared/v02/list_rows.dart';
 import 'package:healthee/shared/v02/page_header.dart';
 import 'package:healthee/shared/v02/section_head.dart';
@@ -95,10 +94,6 @@ void main() {
         _nthOf<ReadingView<CardioLoad>>(list, 1),
         // `H.section('The sessions behind it', …, 'workouts')`.
         _indexOf<SectionHead>(list),
-        // The `.card.flush` of `.list-row`s under it.
-        _indexOf<FlushCard>(list),
-        // `H.link('Record an outdoor workout','record','button full section')`.
-        _indexOf<V02FullButton>(list),
         // `H.footer()`.
         _indexOf<DataFooter>(list),
       ];
@@ -208,7 +203,7 @@ void main() {
       expect(_indexOf<ReadingView<Vo2max>>(list), isNonNegative);
       // And the screen after them is unchanged: a refusal is not a truncation.
       expect(_indexOf<DataFooter>(list), isNonNegative);
-      expect(_indexOf<V02FullButton>(list), isNonNegative);
+      expect(_indexOf<SectionHead>(list), isNonNegative);
     });
   });
 
@@ -228,11 +223,16 @@ void main() {
       expect(_nthOf<ContextBridge>(none, 1), -1);
     });
 
-    test('the saved-routes row is there whether or not a session was', () {
-      // A day with no recorded session still has a route list to open, and the
-      // section is still a true list rather than an empty card.
-      final list = sections();
-      expect(_indexOf<FlushCard>(list), isNonNegative);
+    test('a day without workouts keeps history accessible without GPS clutter', () {
+      var opened = false;
+      final list = sections(
+        extras: ActivityExtras(onOpenWorkouts: () => opened = true),
+      );
+      expect(_indexOf<FlushCard>(list), -1);
+      final heading = list[_indexOf<SectionHead>(list)].child as SectionHead;
+      expect(heading.actionLabel, 'See all');
+      heading.onAction!();
+      expect(opened, isTrue);
     });
   });
 }

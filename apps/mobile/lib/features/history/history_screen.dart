@@ -8,7 +8,7 @@
 ///   .metric-hero           Latest · 31 July / 45 ms
 ///   .segment.section       30 days · 90 days · 1 year · 5 years
 ///   .card.section          the chart, Mean/Median/Change, the readings
-///   section                Put this in context → journal, coach
+///   section                Put this in context   (removed with journal and coach)
 ///   evidence               Source & limitations
 ///   footer
 /// ```
@@ -45,19 +45,13 @@
 /// ticks nobody could read a date off.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:healthee/core/router.dart';
-import 'package:healthee/core/theme/tone.dart';
 import 'package:healthee/data/history/history_marker.dart';
 import 'package:healthee/data/history/history_metric.dart';
 import 'package:healthee/data/history/history_repository.dart';
 import 'package:healthee/data/history/history_window.dart';
 import 'package:healthee/data/models/trend_point.dart';
-import 'package:healthee/features/coach/coach_topics.dart';
 import 'package:healthee/features/history/v02/dated_readings.dart';
 import 'package:healthee/features/history/v02/history_panel.dart';
 import 'package:healthee/features/history/v02/metric_hero.dart';
@@ -75,8 +69,6 @@ import 'package:healthee/shared/v02/choices.dart';
 import 'package:healthee/shared/v02/controls.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/detail_page.dart';
-import 'package:healthee/shared/v02/list_rows.dart';
-import 'package:healthee/shared/v02/section_head.dart';
 import 'package:healthee/shared/v02/view_day.dart';
 import 'package:solar_icons/solar_icons.dart';
 
@@ -172,31 +164,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             builder: (context, points) =>
                 _body(HistoryWindow(points).through(viewDate), past, viewDate),
           ),
-        ),
-        const SizedBox(height: HistoryPanel.sectionGap),
-        const SectionHead(title: 'Put this in context'),
-        FlushCard(
-          rows: <Widget>[
-            V02ListRow(
-              icon: SolarIconsOutline.book,
-              title: 'Your journal',
-              detail: 'See what was happening alongside the data',
-              tone: Tone.sleep,
-              onOpen: () => unawaited(context.push(Routes.journal)),
-            ),
-            V02ListRow(
-              icon: SolarIconsOutline.chatRound,
-              title: 'Ask about this trend',
-              detail: 'Explore the reading with your coach',
-              tone: Tone.fitness,
-              // The trend is the subject, so the trend's own name opens
-              // the conversation. `coach_screen.dart` says why a topic is
-              // written into the input rather than sent on arrival.
-              onOpen: () => unawaited(
-                context.push(coachLocation(trendTopic(_metric.id))),
-              ),
-            ),
-          ],
         ),
         // Drawn only when there is something behind it. `showMetricInfo` is a
         // no-op for a metric with neither an explainer nor payload provenance,

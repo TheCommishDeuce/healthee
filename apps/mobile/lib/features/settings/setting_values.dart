@@ -65,17 +65,12 @@ String? appearanceValue(ThemeMode? mode, AppearanceVariant? variant) {
   return '$theme · ${AppearanceVariant.accentNames[variant.accent]}';
 }
 
-/// `Daily · Bedtime`, or `Off` when none of the three is on.
+/// `Bedtime`, or `Off` when the wind-down reminder is off.
 String? remindersValue(ReminderPreferences? prefs) {
   if (prefs == null) {
     return null;
   }
-  final on = <String>[
-    if (prefs.daily) 'Daily',
-    if (prefs.bedtime) 'Bedtime',
-    if (prefs.completions) 'Completions',
-  ];
-  return on.isEmpty ? 'Off' : on.join(' · ');
+  return prefs.bedtime ? 'Bedtime' : 'Off';
 }
 
 /// `On · Wi-Fi only`, or `Off`.

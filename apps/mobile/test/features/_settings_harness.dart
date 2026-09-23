@@ -32,6 +32,7 @@ import 'package:healthee/data/background/background_preferences.dart';
 import 'package:healthee/data/background/background_scheduler.dart';
 import 'package:healthee/data/device/device_day.dart';
 import 'package:healthee/data/device/device_repository.dart';
+import 'package:healthee/data/mirror/mirror_sync.dart';
 import 'package:healthee/data/notifications/notification_providers.dart';
 import 'package:healthee/data/notifications/reminder_preferences.dart';
 import 'package:healthee/data/pairing/paired_strap.dart';
@@ -110,6 +111,9 @@ Widget settingsApp({
     // inferred rather than annotated — the same note `_today_stubs.dart` makes.
     overrides: [
       credentialsProvider.overrideWithValue(Credentials(secrets)),
+      // The data & sync screen's mirror card reads the local store; nothing
+      // mirrored is its honest state in a harness with no store.
+      mirrorStatsProvider.overrideWith((ref) async => MirrorStats.empty),
       pairingSummaryProvider.overrideWith(
         (ref) async => (strap: strap, zeppRemembered: false),
       ),

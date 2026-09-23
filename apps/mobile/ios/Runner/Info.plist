@@ -33,14 +33,10 @@
 	     reporting their strap as out of range. -->
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Healthee uses Bluetooth to find and sync with your strap. Your health data stays on your phone and your own server.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Healthee records your outdoor workout route when you start a GPS recording.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Healthee keeps recording your workout route with the screen off until you stop recording.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array><string>codes.afk.healthee.pull</string><string>codes.afk.healthee.push</string></array>
 	<key>UIBackgroundModes</key>
-	<array><string>location</string><string>bluetooth-central</string><string>fetch</string></array>
+	<array><string>bluetooth-central</string><string>fetch</string></array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

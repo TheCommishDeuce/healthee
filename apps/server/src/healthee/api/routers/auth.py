@@ -1,20 +1,20 @@
 """Identity HTTP layer — who this deployment is, and who you are on it.
 
-`GET /api/auth-config` is the one **unauthenticated** endpoint here, and it has to
-be: a client needs to know which identity provider to sign in against BEFORE it can
-present a credential. Everything else takes a Supabase JWT.
+`GET /api/auth-config` and `POST /api/enroll` are the **unauthenticated** endpoints
+here, and they have to be: a client needs to know which identity provider to sign in
+against, or to redeem a one-time enrollment code, BEFORE it holds a credential.
+`GET /api/me` takes either `/api/*` credential; the device endpoints take a JWT.
 
 Thin by design (standards §2): the `current_user` dependency verifies the Supabase
 access JWT and resolves the tenant, the handler shapes one typed response. No SQL
 and no business logic here — provisioning + token minting live in
 `healthee.core.supabase_auth`.
 
-These two endpoints stay **Supabase-JWT only** — deliberately NOT the dual-auth
-`core.request_auth.CurrentUser` the rest of `/api/*` uses since 6.4b. Minting a device
-token is minting a long-lived credential, so accepting the transitional shared secret
-here would let anyone holding it forge a permanent per-user ingest token for the
-sentinel — a real escalation beyond what that secret already grants, and one that
-would outlive the shared token's removal.
+The device endpoints stay **Supabase-JWT only** — deliberately NOT
+`core.request_auth.CurrentUser`, which also accepts an enrolled phone's token. Minting a
+device token is minting a long-lived credential, and a phone that could mint more could
+enroll phones; that stays with a signed-in identity or the administrator's CLI
+(`docs/QR_ENROLLMENT.md`).
 """
 
 from __future__ import annotations
@@ -32,6 +32,8 @@ from healthee.core.device_token import (
     mint_device_token,
     revoke_device_token,
 )
+from healthee.core.enrollment import redeem_enrollment_code
+from healthee.core.request_auth import CurrentUser
 from healthee.core.supabase_auth import RequestUser, current_user
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -125,14 +127,54 @@ def auth_config() -> AuthConfigResponse:
 
 
 @router.get("/me", response_model=MeResponse)
-def get_me(user: SupabaseUser) -> MeResponse:
-    """Return the authenticated user's id + timezone (JIT-provisioned on first hit)."""
+def get_me(user: CurrentUser) -> MeResponse:
+    """Return the authenticated user's id + timezone (JIT-provisioned on first hit).
+
+    Either `/api/*` credential: "who am I" grants nothing, and an enrolled phone
+    uses it to confirm which owner its token belongs to.
+    """
     return MeResponse(id=user.id, timezone=user.timezone)
 
 
 # A device name, not a document. Long enough for "Ashish's Pixel 8 Pro" and short
 # enough that the column is not somewhere to put a payload.
 _LABEL_MAX = 80
+
+
+class EnrollRequest(BaseModel):
+    """A one-time code from the administrator's QR, and this phone's name."""
+
+    code: str
+    label: str | None = None
+
+
+class EnrollResponse(BaseModel):
+    """The phone's own credential, returned exactly once. `id` is the TOKEN's id."""
+
+    device_token: str
+    id: UUID
+    user_id: UUID
+
+
+@router.post("/enroll", response_model=EnrollResponse)
+def post_enroll(body: EnrollRequest) -> EnrollResponse:
+    """Redeem a one-time enrollment code for a `phone`-scope device token.
+
+    Unauthenticated by necessity; the code is the credential (256 bits, single use,
+    short-lived, stored hashed). Unknown, used and expired codes share ONE 401 so the
+    response never confirms that a code exists. The edge rate-limits this path like
+    sign-in. 409 when the owner already holds the maximum live tokens.
+    """
+    label = body.label.strip()[:_LABEL_MAX] if body.label and body.label.strip() else None
+    enrolled = redeem_enrollment_code(body.code.strip(), label)
+    if enrolled is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This enrollment code is not valid. Ask for a new one.",
+        )
+    return EnrollResponse(
+        device_token=enrolled.token, id=enrolled.token_id, user_id=enrolled.user_id
+    )
 
 
 class DeviceTokenRequest(BaseModel):

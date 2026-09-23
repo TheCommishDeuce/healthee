@@ -73,6 +73,25 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # ── QR enrollment redemption, on the API service ─────────────────────
+    # `POST /api/enroll` is unauthenticated: the one-time code IS the credential.
+    # 256-bit single-use codes are not guessable online, and this puts the sign-in
+    # limit in front anyway (docs/QR_ENROLLMENT.md). Same backend as the catch-all;
+    # an explicit priority so it wins however either rule is edited later.
+    healthee-enroll:
+      rule: "Host(`${PUBLIC_HOST}`) && Path(`/api/enroll`)"
+      priority: 100
+      entryPoints:
+        - websecure
+      service: healthee
+      middlewares:
+        - healthee-authlimit
+        - healthee-inflight
+        - healthee-body
+        - healthee-headers
+      tls:
+        certResolver: letsencrypt
+
   services:
     healthee:
       loadBalancer:

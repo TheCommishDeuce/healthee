@@ -141,7 +141,18 @@ Tone recoveryFactorTone(String name) {
 /// The recovery model, opened up.
 class RecoveryPanel extends StatelessWidget {
   /// [score] is the payload's block; nothing here is computed from raw samples.
-  const RecoveryPanel({required this.score, this.onDetails, super.key});
+  const RecoveryPanel({required this.score, this.onDetails, super.key})
+    : overviewDate = null;
+
+  /// Today's stable overnight view; live readiness stays on the detail page.
+  const RecoveryPanel.overview({
+    required this.score,
+    required String date,
+    this.onDetails,
+    super.key,
+  }) : overviewDate = date;
+
+  final String? overviewDate;
 
   /// The prototype's title for this card.
   static const String title = 'Recovery, explained';
@@ -170,28 +181,32 @@ class RecoveryPanel extends StatelessWidget {
     return Panel(
       tone: Tone.recovery,
       label: 'Recovery',
+      onOpen: overviewDate == null ? null : onDetails,
       head: PanelHead(
-        title: title,
+        title: overviewDate == null ? title : 'Recovery',
         icon: SolarIconsOutline.heartPulse,
         infoKey: 'recovery_score',
         detail: MetricDetail(
-          method: const <String>[
+          method: <String>[
             kRecoveryComponentsNote,
-            kRecoveryWeightsNote,
+            if (overviewDate == null) kRecoveryWeightsNote,
             kRecoveryScalesNote,
             kRecoverySleepScaleNote,
           ],
           notes: <String>[if (score.noteId case final String id) id],
         ),
-        actionLabel: onDetails == null ? null : 'Details',
-        onAction: onDetails,
+        actionLabel: onDetails == null || overviewDate != null ? null : 'Details',
+        onAction: overviewDate == null ? onDetails : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          PanelValue('${score.recovery}', unit: '/100', context_: _side(score)),
-          if (weighted.isNotEmpty) ...<Widget>[
+          PanelValue('${score.recovery}', unit: '/100', context_: overviewDate == null
+              ? _side(score) : 'Overnight estimate'),
+          if (overviewDate case final String date)
+            PanelNote('For ${score.date ?? date}'),
+          if (overviewDate == null && weighted.isNotEmpty) ...<Widget>[
             const SizedBox(height: stackGap),
             const TinyLabel(kRecoveryWeightsLabel),
             const SizedBox(height: labelGap),
@@ -232,7 +247,8 @@ class RecoveryPanel extends StatelessWidget {
                 ),
             ]),
           ],
-          if (score.guidance case final String guidance) PanelNote(guidance),
+          if (overviewDate == null && score.guidance != null)
+            PanelNote(score.guidance!),
           const PanelNote(kRecoveryPriorityNote),
         ],
       ),

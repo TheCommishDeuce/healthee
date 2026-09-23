@@ -169,12 +169,6 @@ class SettingsScreen extends ConsumerWidget {
               value: backgroundValue(background),
               onTap: () => unawaited(context.push(Routes.background)),
             ),
-            ListRow(
-              icon: SolarIconsOutline.notes,
-              title: 'Health journal',
-              subtitle: 'The moments beyond your measurements',
-              onTap: () => unawaited(context.push(Routes.journal)),
-            ),
           ],
         ),
         const SectionGap(),

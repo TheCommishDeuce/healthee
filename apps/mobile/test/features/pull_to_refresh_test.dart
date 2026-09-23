@@ -26,7 +26,6 @@ import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/data/sync/connection_state.dart';
 import 'package:healthee/data/sync/sync_controller.dart';
 import 'package:healthee/data/sync/sync_outcome.dart';
-import 'package:healthee/features/actions/actions_screen.dart';
 import 'package:healthee/features/insights/insights_screen.dart';
 import 'package:healthee/features/sleep/sleep_screen.dart';
 import 'package:healthee/features/today/today_screen.dart';
@@ -112,7 +111,6 @@ void main() {
   for (final screen in <Widget>[
     const SleepScreen(),
     const InsightsScreen(),
-    const ActionsScreen(),
   ]) {
     testWidgets('${screen.runtimeType} refreshes the same way', (tester) async {
       final recorder = _RecordingSync();

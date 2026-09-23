@@ -92,9 +92,6 @@ class InsightsExtras {
     this.onOpenProfile,
     this.onOpenMetric,
     this.onOpenHistory,
-    this.onOpenOutcomes,
-    this.onOpenJournal,
-    this.onOpenCoach,
     this.onOpenSleepHistory,
     this.onOpenFitness,
   });
@@ -107,15 +104,6 @@ class InsightsExtras {
 
   /// Opens the metric explorer. The section head's `All metrics`.
   final VoidCallback? onOpenHistory;
-
-  /// Opens the challenge outcomes.
-  final VoidCallback? onOpenOutcomes;
-
-  /// Opens the journal.
-  final VoidCallback? onOpenJournal;
-
-  /// Opens the coach sheet.
-  final VoidCallback? onOpenCoach;
 
   /// Opens the sleep history — every night in the window.
   final VoidCallback? onOpenSleepHistory;
@@ -239,8 +227,6 @@ List<PageSection> insightsSections(ScreenData data, InsightsExtras extras) {
   }
   _changedTogether(sections, findings, extras);
   sections.gap(PageSpacing.block);
-  sections.add(CoachQuestionPanel(onOpenCoach: extras.onOpenCoach));
-  sections.gap(PageSpacing.block);
   sections.add(const DataFooter());
   return sections.build();
 }
@@ -269,12 +255,8 @@ void _entries(SectionList sections, double? age, List<Finding> findings) {
   sections.gap(PageSpacing.panel);
 }
 
-/// `What changed together?` — the findings, the notable days, and two ways in.
-///
-/// The heading is the prototype's and it is also the findings' own framing: what
-/// moved together, never what caused what. The two rows are the prototype's
-/// (`H.row('flag', …, 'outcomes')` and `H.row('journal', …, 'journal')`), pointed
-/// at the screens this app actually has.
+/// Findings, notable days and links to sleep history and fitness.
+/// The framing stays observational: what moved together, not what caused what.
 void _changedTogether(
   SectionList sections,
   List<Finding> findings,
@@ -291,20 +273,6 @@ void _changedTogether(
   sections.add(
     FlushCard(
       rows: <Widget>[
-        V02ListRow(
-          icon: SolarIconsOutline.flag,
-          title: 'Challenge outcomes',
-          detail: 'Progress, data coverage and what changed together',
-          tone: Tone.movement,
-          onOpen: extras.onOpenOutcomes,
-        ),
-        V02ListRow(
-          icon: SolarIconsOutline.book,
-          title: 'Notable moments',
-          detail: 'Your caffeine, meditation and fasting context',
-          tone: Tone.stress,
-          onOpen: extras.onOpenJournal,
-        ),
         V02ListRow(
           icon: SolarIconsOutline.moonSleep,
           title: 'Sleep history',

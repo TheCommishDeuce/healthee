@@ -53,8 +53,6 @@ class ActivityScreen extends ConsumerWidget {
               '${Uri.encodeComponent(workout.start.toUtc().toIso8601String())}',
             ),
           ),
-          onOpenRoutes: () => unawaited(context.push(Routes.routes)),
-          onRecord: () => unawaited(context.push(Routes.gps)),
           onOpenMetric: (metric) => openMetricHistory(context, metric),
           onOpenRecovery: () => unawaited(context.push(Routes.recovery)),
           onOpenFitness: () => unawaited(context.push(Routes.fitness)),

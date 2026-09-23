@@ -948,20 +948,34 @@ recovery ladder's caption either.
 The implemented parity flows and physical acceptance checklist are maintained in
 [Legacy feature migration](../../docs/LEGACY_FEATURE_PARITY.md).
 
-Actions now includes challenges, programs, outcome review, recommendation history
-and the journal. Activity adds workout history/details, durable GPS recording and
-saved route maps. Insights adds notable events and 20-metric history with
+Actions includes challenges, programs, outcome review and recommendation history. Activity retains workout history/details. Built-in GPS recording
+and saved-route maps were removed in the personal-use cleanup (2026-09-22); location
+tracking is handled separately in Dawarich. Insights adds notable events and 20-metric history with
 30/90/365/1825-day ranges, log markers and detail analysis. Settings adds profile
 editing, separate scheduled collection/upload controls, opt-in reminders and
-persisted appearance variants. Today restores active commitments and Tonight.
+persisted appearance variants.
 
-GPS uses Drift schema v5 with owner-scoped recordings/fixes and immutable upload
-IDs. The earlier schema v4 account-cache migration remains intact. Feed caches
-show saved timestamps and refresh failures. Journal drafts remain editor-local;
-uncertain non-idempotent saves are not automatically retried.
+The personal-use rebuild (2026-09-22) simplifies **Today** to a dated sleep summary,
+overnight recovery with factor breakdown, and **Log weight**. The full Sleep page stays
+unchanged. Heart rate/stress now belongs to Activity. The Today age hero, chapters,
+recommendation/journal dashboard and floating coach button are removed; shared detail
+pages remain reachable elsewhere. The general journal page and its links are gone.
+Weight entry is now a weight-only form: kilograms and observation time, with no notes
+field that the server would discard. It retains unconfirmed input, preserves the original
+timestamp across retries and rejects concurrent Save taps. It is still online-only,
+not a durable offline queue. See
+[Design decisions](../../docs/DESIGN_DECISIONS.md) for scope and
+[Local verification](../../docs/LOCAL_VERIFICATION.md) for test/build results.
+
+Legacy GPS recordings/fixes remain in Drift for data preservation; this build no
+longer records, displays or uploads routes. The schema and earlier account-cache
+migration remain intact. Feed caches
+show saved timestamps and refresh failures. Weight drafts remain editor-local;
+unconfirmed saves are not automatically retried. Historical manual observations and
+server logging endpoints remain intact.
 
 The matching server changes are required for profile edits, account identity,
-recommendation history, expanded history and retry-safe GPS uploads. They are
-implemented locally; this work does not deploy production. Background execution,
-GPS and notification delivery also require physical acceptance, as recorded in
-the checklist. Android native builds include desugaring 2.1.5; iOS requires 14+.
+recommendation history and expanded history. Existing server GPS endpoints remain
+for older clients; no server or production data is removed with the mobile UI.
+Background execution and notification delivery still require physical acceptance,
+as recorded in the checklist. Android native builds include desugaring 2.1.5; iOS requires 14+.

@@ -171,13 +171,28 @@ uuid GoTrue owns.
 cd /opt/stacks/healthee
 GOTRUE_PW=$(openssl rand -base64 48 | tr -d '/+=' | head -c 32); echo "$GOTRUE_PW"
 
-docker compose exec -T db psql -U healthee -d healthee <<SQL
+docker compose exec -T db psql -U healthee -d healthee -v ON_ERROR_STOP=1 <<SQL
 CREATE ROLE gotrue LOGIN PASSWORD '$GOTRUE_PW';
 GRANT CONNECT ON DATABASE healthee TO gotrue;
 CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION gotrue;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- ⛔ The four role NAMES Supabase's own migrations grant to. Without them GoTrue
+-- dies on its first start with:
+--     running db migrations: ... ERROR: role "postgres" does not exist (SQLSTATE 42704)
+-- because this database was initialised as POSTGRES_USER=healthee, so there is no
+-- `postgres` role for `20240612123726_enable_rls_update_grants` to GRANT to.
+-- NOLOGIN on purpose: the migration only needs the names to EXIST so it can grant
+-- to them. None of them gets a password or any way to connect.
+CREATE ROLE postgres NOLOGIN;
+CREATE ROLE anon NOLOGIN;
+CREATE ROLE authenticated NOLOGIN;
+CREATE ROLE service_role NOLOGIN;
 SQL
 ```
+
+> Already hit the error? The failed migration is a `DO $$ … $$` block, so it rolled
+> back whole. Create the roles, then `docker compose up -d auth` — GoTrue resumes
+> from `auth.schema_migrations` and its statements are idempotent.
 
 The extension is created **as the admin** because GoTrue's migrations may need
 `uuid_generate_v4()` and the `gotrue` role is deliberately not a superuser.

@@ -9,7 +9,6 @@
 ///   Your effort through the run  the average, the peak, the minute trace
 ///   Time in heart-rate zones     five buckets, and what they are cut against
 ///   Session details              energy · load · speed · drift
-///   .button.secondary.full       Discuss this workout
 ///   workout analysis             this app's own — the prototype has no surface
 ///   footer
 /// ```
@@ -45,26 +44,19 @@ import 'package:healthee/features/workouts/v02/effort_cards.dart';
 import 'package:healthee/features/workouts/v02/session_cards.dart';
 import 'package:healthee/shared/insight_card.dart';
 import 'package:healthee/shared/reveal_once.dart';
-import 'package:healthee/shared/v02/controls.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/section_head.dart';
 
 /// `.section { margin-top: 24px }`.
 const double kWorkoutSectionGap = 24;
 
-/// `H.link('Discuss this workout','coach','button secondary full section')`.
-const String kDiscussLabel = 'Discuss this workout';
-
-/// The screen's body, in the prototype's order.
-///
-/// [onDiscuss] of null draws the control disabled rather than absent: the coach
-/// is a permanent surface of this app, and a screen that hid it would be saying
-/// this session cannot be discussed.
+/// The screen's body, in the prototype's order, without the prototype's
+/// "Discuss this workout" control: the interactive coach was removed
+/// (DESIGN_DECISIONS P3).
 List<Widget> workoutDetailSections(
   WorkoutDetail detail,
-  RevealRegistry reveals, {
-  VoidCallback? onDiscuss,
-}) {
+  RevealRegistry reveals,
+) {
   final readings = WorkoutReadings(detail);
   return <Widget>[
     SessionSummaryCard(readings: readings),
@@ -77,13 +69,6 @@ List<Widget> workoutDetailSections(
     const SizedBox(height: kWorkoutSectionGap),
     const SectionHead(title: SessionDetailsCard.title),
     SessionDetailsCard(readings: readings),
-    const SizedBox(height: kWorkoutSectionGap),
-    ActionButton(
-      label: kDiscussLabel,
-      onPressed: onDiscuss,
-      secondary: true,
-      full: true,
-    ),
     const SizedBox(height: kWorkoutSectionGap),
     InsightCard(
       scope: 'workout',

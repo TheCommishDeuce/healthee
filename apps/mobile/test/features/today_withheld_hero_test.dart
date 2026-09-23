@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/honesty/disclosure.dart';
 import 'package:healthee/data/honesty/last_known.dart';
 import 'package:healthee/data/store/local_store.dart';
+import 'package:healthee/features/today/body_screen.dart';
 import 'package:healthee/features/today/v02/today_hero.dart';
 import 'package:healthee/features/today/v02/today_hero_withheld.dart';
 import 'package:healthee/shared/metric_info/metric_info_sheet.dart';
@@ -109,6 +110,7 @@ void main() {
       todayHost(
         store,
         server: todayView(mutate: withheldAge),
+        home: const BodyScreen(),
         lastKnownBioAge: held,
       ),
     );
@@ -122,7 +124,7 @@ void main() {
       // The live hero first, so the comparison is against what this screen
       // actually draws rather than against numbers copied into the test.
       phone(tester);
-      await tester.pumpWidget(todayHost(store));
+      await tester.pumpWidget(todayHost(store, home: const BodyScreen()));
       await tester.pumpAndSettle();
       final live = tester.getRect(find.byType(BioHero));
       final liveGround = _ground(tester);
@@ -160,7 +162,7 @@ void main() {
       await pump(tester);
 
       // The defect, asserted as an absence.
-      expect(find.textContaining('70,000 people'), findsNothing);
+      expect(find.descendant(of: find.byType(BioHero), matching: find.textContaining('70,000 people')), findsNothing);
       expect(find.textContaining('Left out: regularity'), findsNothing);
       expect(find.textContaining('silently assert you sit'), findsNothing);
 
@@ -214,6 +216,7 @@ void main() {
         todayHost(
           store,
           server: todayView(mutate: withheldAge),
+          home: const BodyScreen(),
           reducedMotion: false,
         ),
       );
@@ -306,7 +309,7 @@ void main() {
       // what is painted, not only in the caption beside it.
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
-      await tester.pumpWidget(todayHost(store));
+      await tester.pumpWidget(todayHost(store, home: const BodyScreen()));
       await tester.pumpAndSettle();
       expect(find.byType(BioWithheldFigure), findsNothing);
       expect(
@@ -357,7 +360,7 @@ void main() {
         find.textContaining('Log a weight and it returns.'),
         findsOneWidget,
       );
-      expect(find.textContaining('70,000 people'), findsOneWidget);
+      expect(find.descendant(of: find.byType(BottomSheet), matching: find.textContaining('70,000 people')), findsOneWidget);
     });
   });
 }

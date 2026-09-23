@@ -281,6 +281,10 @@ def admin_connection() -> Iterator[Connection[TupleRow]]:
       This entry was missing while the list said "complete" — a list that claims
       completeness and is not is exactly the artefact a future reader trusts instead
       of grepping.
+    * `db/enroll.py` — issues QR enrollment codes, and lists/revokes phone tokens
+      across owners for recovery. The app role has INSERT on `enrollment_code`
+      revoked BY DESIGN (`_REDEEM_ONLY_TABLES`: phones cannot enroll phones), so the
+      administrator's CLI has to be here. `docs/QR_ENROLLMENT.md`.
     * `tests/contracts/seed.py::reset` — `apply_migrations()` + `TRUNCATE`, which
       the app role deliberately cannot do.
 

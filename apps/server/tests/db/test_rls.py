@@ -46,7 +46,7 @@ _METRIC = "_rls_probe_hr"
 # The identity tables carry NO policy, by decision (§3.3): the app must resolve WHO you
 # are before it can know the owner to scope to, and `active_users()` must see every
 # owner to sweep them.
-_IDENTITY_TABLES = ("app_user", "device_token")
+_IDENTITY_TABLES = ("app_user", "device_token", "enrollment_code")
 
 
 @pytest.fixture

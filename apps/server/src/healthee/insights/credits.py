@@ -53,6 +53,7 @@ from datetime import UTC, datetime
 import httpx
 
 from healthee.core.config import get_settings
+from healthee.core.llm_endpoint import is_openrouter
 from healthee.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -71,6 +72,9 @@ _TTL_S = 300.0
 OK = "ok"
 ERROR = "error"
 UNCONFIGURED = "unconfigured"
+# `LLM_BASE_URL` names a server that is not OpenRouter (a local model): there is no
+# account balance to read, which is neither a failure nor "no AI layer".
+NO_BALANCE = "no_balance"
 
 # Balance states, derived from a reading plus the configured threshold.
 BALANCE_OK = "ok"
@@ -146,9 +150,12 @@ def read_balance(*, force: bool = False) -> CreditsReading:
 
 def _fetch() -> CreditsReading:
     """One real call to the credits endpoint. Never raises; every failure is a reading."""
-    key = get_settings().openrouter_api_key.strip()
+    settings = get_settings()
+    key = settings.openrouter_api_key.strip()
     if not key:
         return CreditsReading(status=UNCONFIGURED, checked_at=datetime.now(tz=UTC))
+    if not is_openrouter(settings.llm_base_url):
+        return CreditsReading(status=NO_BALANCE, checked_at=datetime.now(tz=UTC))
     try:
         response = httpx.get(
             _CREDITS_URL,

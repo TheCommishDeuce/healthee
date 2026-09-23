@@ -7,9 +7,9 @@
 ///   `${naps.length
 ///       ? naps.map(n => H.note(`${localTime(n.start_iso)}–${localTime(n.end_iso)}`
 ///                              + ` · ${H.duration(n.duration_min)}`)).join('')
-///       : H.note('No nap record included for this day.')}
-///    ${H.link('Journal for this day','journal')}`,
-///   'journal','moon')
+///       : H.note('No nap record included for this day.')}`,
+///   null, 'moon')
+/// // The general-journal link is removed in the personal-use build.
 /// ```
 ///
 /// ## `naps[].stages` USED TO BE STRUCTURALLY EMPTY. IT NO LONGER IS.
@@ -57,7 +57,6 @@ import 'package:healthee/core/theme/tone.dart';
 import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/features/sleep/sleep_format.dart';
-import 'package:healthee/shared/v02/buttons.dart';
 import 'package:healthee/shared/v02/panel.dart';
 import 'package:healthee/shared/v02/panel_head.dart';
 import 'package:healthee/shared/v02/panel_parts.dart';
@@ -86,7 +85,7 @@ const String kNapsUnstagedNote =
 /// `Naps & your day`.
 class NapsPanel extends StatelessWidget {
   /// [naps] is what `/api/sleep` returned, newest first.
-  const NapsPanel({required this.naps, this.onOpenJournal, super.key});
+  const NapsPanel({required this.naps, super.key});
 
   /// The prototype's title.
   static const String title = 'Naps & your day';
@@ -109,14 +108,8 @@ class NapsPanel extends StatelessWidget {
   /// The gap above the header row.
   static const double tableTop = 6;
 
-  /// The gap above the journal link.
-  static const double linkGap = 6;
-
   /// The recorded naps.
   final List<SleepNap> naps;
-
-  /// Opens the journal.
-  final VoidCallback? onOpenJournal;
 
   /// Total minutes napped across [naps].
   double get totalMin =>
@@ -135,12 +128,10 @@ class NapsPanel extends StatelessWidget {
     return Panel(
       tone: Tone.sleep,
       label: 'Naps',
-      head: PanelHead(
+      head: const PanelHead(
         title: title,
         icon: SolarIconsOutline.moonSleep,
         infoKey: 'sleep',
-        actionLabel: onOpenJournal == null ? null : 'Journal',
-        onAction: onOpenJournal,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,13 +148,6 @@ class NapsPanel extends StatelessWidget {
             const _NapHead(),
             for (final nap in naps.take(shown)) _NapRow(nap: nap),
             if (noneStaged) const PanelNote(kNapsUnstagedNote),
-          ],
-          if (onOpenJournal != null) ...<Widget>[
-            const SizedBox(height: linkGap),
-            HLinkButton(
-              label: 'Journal for this day',
-              onPressed: onOpenJournal,
-            ),
           ],
         ],
       ),

@@ -53,7 +53,7 @@ final class IdentityClientProvider
   }
 }
 
-String _$identityClientHash() => r'19b1b3e6e363c3307c9f66c13ed9bc6aae10ea7a';
+String _$identityClientHash() => r'e930c2903f8f9f190342eb64b023e15b07061ca1';
 
 /// Whether this build can sign in with an email and a password.
 ///

@@ -16,22 +16,12 @@ library;
 /// constants and the reasoning is the same here: a typo'd path fails at
 /// runtime, a typo'd constant fails at compile time.
 abstract final class Routes {
-  static const recommendations = '/recommendations';
-  static const gps = '/gps';
-  static const routes = '/routes';
-  static const route = '/route';
-  static const String challenge = '/challenge';
-  static const String program = '/program';
-  static const String outcomes = '/outcomes';
   static const String workouts = '/workouts';
   static const String workout = '/workout';
   static const String profile = '/profile';
 
   /// Daily metric observations over selectable periods.
   static const String history = '/history';
-
-  /// Manual observations and recent entries.
-  static const String journal = '/journal';
 
   /// The daily snapshot. The app's home.
   static const String today = '/';
@@ -44,25 +34,6 @@ abstract final class Routes {
 
   /// The owner's own history — trends, and the patterns found in it.
   static const String insights = '/insights';
-
-  /// The coach conversation, on the frame the prototype draws it on.
-  ///
-  /// **It was a sheet and is now a route.** `screens-actions.js::H.screens.coach`
-  /// is a full screen with a back control, and five surfaces link to it — two of
-  /// them (*Discuss this workout*, *Talk this through*) asking about something
-  /// specific. A sheet cannot be deep linked, does not survive a rotation, and
-  /// cannot carry the subject it was opened about; those two links lost theirs.
-  ///
-  /// The subject rides in `?topic=`, and `coach_screen.dart` says why that is
-  /// the opening message rather than anything the server is told separately.
-  static const String coach = '/coach';
-
-  /// Conversations already had, read back from this device.
-  ///
-  /// A child of [coach] rather than a sibling: it is reached from the coach's
-  /// own head and returns to it, and reopening a thread pops straight back into
-  /// the conversation it belongs to.
-  static const String coachHistory = '/coach/history';
 
   /// The biological-age estimate, opened up: the ladder, its two terms, and
   /// the lever it does not price.
@@ -90,9 +61,6 @@ abstract final class Routes {
   /// id — see `features/insights/v02/finding_detail_screen.dart`.
   static const String insight = '/insight';
 
-  /// Every cited action the server raised for today.
-  static const String actions = '/actions';
-
   /// Appearance, the server session, the strap, diagnostics and the licences.
   ///
   /// **Outside the tab shell**, and reached from the Today header's avatar —
@@ -116,7 +84,7 @@ abstract final class Routes {
   /// same rule `leaveSetup` keeps for the two setup flows.
   static const String appearance = '/settings/appearance';
 
-  /// The three optional nudges, and the times they arrive at.
+  /// The optional wind-down reminder, and the time it arrives at.
   static const String reminders = '/settings/reminders';
 
   /// Whether the phone collects and uploads on its own, and under what limits.
@@ -168,35 +136,6 @@ abstract final class Routes {
   static const String devFoundation = '/dev/foundation';
 }
 
-/// The coach's location, carrying [topic] as the message to open with.
-///
-/// One builder rather than five call sites composing a query string: the
-/// encoding is easy to get almost right, and a topic that arrived
-/// double-escaped would put `%20` in the middle of the owner's own first
-/// sentence. A blank or whitespace-only topic yields the plain coach, which is
-/// the same decision the route makes when it reads the query back.
-String coachLocation([String? topic]) {
-  final String subject = topic?.trim() ?? '';
-  return subject.isEmpty
-      ? Routes.coach
-      : '${Routes.coach}?topic=${Uri.encodeQueryComponent(subject)}';
-}
-
-/// [coachLocation] read back — the topic in [uri], or null for the plain coach.
-///
-/// The other half of the round trip, and it lives beside the half that writes
-/// it. It was five lines inside the route's own builder, where nothing could
-/// ask it anything: a topic dropped THERE looks exactly like a caller that
-/// passed none, and the coach opens with an empty box either way.
-///
-/// A blank or whitespace-only `topic=` is no topic, the same answer
-/// [coachLocation] gives — a caller that built the query from a label it did
-/// not have must not produce a coach claiming to hold a question.
-String? coachTopicOf(Uri uri) {
-  final String subject = uri.queryParameters['topic']?.trim() ?? '';
-  return subject.isEmpty ? null : subject;
-}
-
 /// The query parameter the selected day rides in — `?date=2026-07-29`.
 ///
 /// The prototype's own name for it (`history-data.js`), kept so a URL read off
@@ -207,24 +146,21 @@ const String kDateParameter = 'date';
 ///
 /// `design/mobile-preview/history-data.js:10` lists **fourteen** date-aware
 /// routes: `today, sleep, activity, insights, actions, recovery, body, fitness,
-/// metrics, metric, sleep-history, workouts, journal, action-history`. Thirteen
-/// paths carry them here because `metrics` and `metric` are one route in this
-/// app — [Routes.history] with and without a `metric=` — which the router
-/// records as a deliberate collapse rather than a gap.
+/// metrics, metric, sleep-history, workouts, journal, action-history`. Ten
+/// paths carry them here: `metrics` and `metric` are one route in this app —
+/// [Routes.history] with and without a `metric=` — and `actions`, `journal`
+/// and `action-history` were removed with their screens.
 const Set<String> kDateAwareRoutes = <String>{
   Routes.today,
   Routes.sleep,
   Routes.activity,
   Routes.insights,
-  Routes.actions,
   Routes.recovery,
   Routes.body,
   Routes.fitness,
   Routes.history,
   Routes.sleepHistory,
   Routes.workouts,
-  Routes.journal,
-  Routes.recommendations,
 };
 
 /// Whether [path] is one of the screens the day follows the reader onto.
@@ -237,8 +173,8 @@ bool isDateAwareRoute(String path) => kDateAwareRoutes.contains(path);
 /// The day named in [uri], or null when it names none this app can read.
 ///
 /// The other half of [dateLocation], and it lives beside the half that writes
-/// it for the reason [coachTopicOf] does: a day dropped HERE looks exactly like
-/// a link that carried none, and the screen opens on the latest day either way.
+/// it: a day dropped HERE looks exactly like a link that carried none, and the
+/// screen opens on the latest day either way.
 ///
 /// **Shape only.** `2026-02-31` is refused because it is not a day at all —
 /// `DateTime` rolls it silently into March, and the app would then be showing a

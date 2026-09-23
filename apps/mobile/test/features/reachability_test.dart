@@ -41,7 +41,6 @@ import 'package:healthee/core/router.dart';
 import 'package:healthee/core/tabs.dart';
 import 'package:healthee/data/pairing/paired_strap.dart';
 import 'package:healthee/features/diagnostics/diagnostics_screen.dart';
-import 'package:healthee/features/journal/journal_screen.dart';
 import 'package:healthee/features/pairing/pairing_screen.dart';
 import 'package:healthee/features/profile/profile_screen.dart';
 import 'package:healthee/features/settings/about_screen.dart';
@@ -101,7 +100,6 @@ void main() {
       ('Appearance', AppearanceScreen),
       ('Reminders', RemindersScreen),
       ('Background sync', BackgroundScreen),
-      ('Health journal', JournalScreen),
       ('Account & server', ServerSignInScreen),
       ('About Healthee', AboutScreen),
     ]) {
@@ -160,7 +158,6 @@ void main() {
       Routes.sleep,
       Routes.activity,
       Routes.insights,
-      Routes.actions,
       Routes.settings,
       Routes.diagnostics,
       Routes.pairing,

@@ -28,6 +28,8 @@ tests).
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from psycopg import errors, sql
 from tests.conftest import TEST_APP_ROLE
@@ -264,6 +266,49 @@ def test_app_role_can_read_the_subscription_table(app_role: str) -> None:  # noq
     seed.reset()
     rows = _as_owner("SELECT count(*) FROM subscription WHERE user_id = %s", (SENTINEL_USER_ID,))
     assert rows == [(0,)]
+
+
+def _insert_enrollment_code() -> None:
+    _as_app_role(
+        "INSERT INTO enrollment_code (user_id, code_hash, expires_at) "
+        "VALUES (%s, %s, now() + interval '10 minutes')",
+        (SENTINEL_USER_ID, f"test-{uuid4().hex}"),
+    )
+
+
+def test_app_role_cannot_create_or_delete_enrollment_codes(app_role: str) -> None:  # noqa: ARG001
+    """Phones cannot enroll phones — a PRIVILEGE, like `subscription` (0023).
+
+    Redeeming is an UPDATE, which the request path needs; creating a code is how a new
+    phone gets a credential, and that stays with the admin CLI on the admin connection.
+    """
+    seed.reset()
+    with pytest.raises(errors.InsufficientPrivilege):
+        _insert_enrollment_code()
+    with pytest.raises(errors.InsufficientPrivilege):
+        _as_app_role("DELETE FROM enrollment_code")
+    assert _as_app_role("UPDATE enrollment_code SET used_at = now() WHERE false") == []
+
+
+def test_provisioning_revokes_an_enrollment_insert_that_was_already_granted(
+    app_role: str,
+) -> None:
+    """The REVOKE proved by defeating it first, for the reason given above for
+    `subscription`: production runs `migrate` before `provision_app_role`, so the new
+    table arrives with the default DML grant and only the REVOKE takes it back."""
+    with admin_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            sql.SQL("GRANT INSERT ON TABLE enrollment_code TO {role}").format(
+                role=sql.Identifier(app_role)
+            )
+        )
+    seed.reset()
+    _insert_enrollment_code()  # the premise: with the grant, the write goes through
+
+    provision_app_role.provision()
+
+    with pytest.raises(errors.InsufficientPrivilege):
+        _insert_enrollment_code()
 
 
 def test_app_role_cannot_read_the_migration_ledger(app_role: str) -> None:  # noqa: ARG001

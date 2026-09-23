@@ -29,15 +29,16 @@
 library;
 
 import 'package:drift/drift.dart';
-import 'package:healthee/data/store/coach_tables.dart';
 import 'package:healthee/data/store/connection.dart';
 import 'package:healthee/data/store/gps_tables.dart';
 import 'package:healthee/data/store/horizon_prune.dart';
+import 'package:healthee/data/store/mirror_table.dart';
 import 'package:healthee/data/store/prune_report.dart';
 import 'package:healthee/data/store/push_reader.dart';
 import 'package:healthee/data/store/strap_reader.dart';
 import 'package:healthee/data/store/strap_writer.dart';
 import 'package:healthee/data/store/tables.dart';
+import 'package:healthee/data/store/weight_outbox_table.dart';
 
 part 'local_store.g.dart';
 
@@ -111,10 +112,10 @@ class CachedPayloads extends Table {
     StoredWorkouts,
     DeviceTotals,
     SyncMeta,
-    StoredCoachThreads,
-    StoredCoachTurns,
     GpsRecordings,
     GpsFixes,
+    PendingWeights,
+    MirrorMonths,
   ],
   daos: [StrapWriter, StrapReader, PushReader, HorizonPrune],
 )
@@ -130,15 +131,20 @@ class LocalStore extends _$LocalStore {
   LocalStore.at(String path) : super(openFileAt(path));
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 9;
 
   /// v1 → v2 added the five raw-strap tables beside the payload cache.
   /// v2 → v3 added the per-row push marker to the four measurement tables.
   ///
-  /// v5 → v6 adds the coach's conversations. Purely additive: two new tables,
-  /// nothing existing touched, so an upgrade cannot lose a measurement. Threads
-  /// written before it simply do not exist — a conversation held only in memory
-  /// left no record to recover, which is the defect the tables exist to end.
+  /// v5 → v6 added two tables for the interactive coach's conversations.
+  /// v6 → v7 drops them again: the coach UI was removed (DESIGN_DECISIONS P3)
+  /// and the owner chose to delete the stored conversations with it. Only those
+  /// two tables are touched; every measurement and pending upload survives.
+  /// `deleteTable` is `DROP TABLE IF EXISTS`, so an install older than v6, which
+  /// never had them, upgrades through the same branch harmlessly.
+  ///
+  /// v7 → v8 adds the weigh-in outbox (`weight_outbox_table.dart`). Additive.
+  /// v8 → v9 adds the full-history mirror (`mirror_table.dart`). Additive.
   ///
   /// v3 → v4 scopes cached server responses to a sign-in. Old cache rows have
   /// no attributable owner and are discarded; every raw measurement and pending
@@ -175,9 +181,15 @@ class LocalStore extends _$LocalStore {
         await m.createTable(gpsRecordings);
         await m.createTable(gpsFixes);
       }
-      if (from < 6) {
-        await m.createTable(storedCoachThreads);
-        await m.createTable(storedCoachTurns);
+      if (from < 7) {
+        await m.deleteTable('stored_coach_turns');
+        await m.deleteTable('stored_coach_threads');
+      }
+      if (from < 8) {
+        await m.createTable(pendingWeights);
+      }
+      if (from < 9) {
+        await m.createTable(mirrorMonths);
       }
     },
   );

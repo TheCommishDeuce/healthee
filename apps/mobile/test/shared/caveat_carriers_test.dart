@@ -24,11 +24,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/theme/app_theme.dart';
 import 'package:healthee/data/honesty/disclosure.dart';
 import 'package:healthee/data/honesty/reading.dart';
-import 'package:healthee/shared/instrument_module.dart';
 import 'package:healthee/shared/metric_info/metric_info_sheet.dart';
 import 'package:healthee/shared/states/caveat_disclosure.dart';
 import 'package:healthee/shared/states/caveat_scope.dart';
 import 'package:healthee/shared/states/reading_view.dart';
+import 'package:healthee/shared/v02/bio_hero.dart';
 import 'package:healthee/shared/v02/panel.dart';
 import 'package:healthee/shared/v02/panel_head.dart';
 
@@ -58,28 +58,15 @@ void main() {
       ),
     );
 
-    testWidgets('AN INSTRUMENT MODULE DRAWS THE NOTE IT WAS HANDED', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        carrier(
-          InstrumentModule(
-            label: 'Breathing',
-            // No hue: the dot the owner removed is gone, and `tag` is the
-            // module's DECLARED identity rather than something it paints.
-            tag: null,
-            children: const <Widget>[Text('14')],
-          ),
-        ),
-      );
+    testWidgets('the retained hero carries its disclosure inside its info control', (tester) async {
+      await tester.pumpWidget(carrier(const BioHero(
+        eyebrow: 'Estimate', value: '14', infoKey: 'biological_age',
+      )));
       await tester.pumpAndSettle();
-
-      final note = find.descendant(
-        of: find.byType(InstrumentModule),
-        matching: find.byType(CaveatNote),
-      );
-      expect(note, findsOneWidget, reason: 'the pre-v02 carrier');
-      expect(find.text(caveatHeadline(1)), findsOneWidget);
+      final dot = tester.widget<MetricInfoDot>(find.descendant(
+        of: find.byType(BioHero), matching: find.byType(MetricInfoDot),
+      ));
+      expect(dot.detail.disclosures, [tilt]);
     });
 
     testWidgets('A V02 PANEL HANDS THE NOTE TO ITS OWN ⓘ', (tester) async {

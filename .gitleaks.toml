@@ -59,4 +59,8 @@ regexes = [
   # rebased away because the string was never a secret — it is the fixture whose
   # entire job in that test is to NOT appear in the response.
   '''the-jwt-signing-secret-0123456789''',
+  # The HS256 key `tests/integration/test_enrollment.py` signs its OWN test JWTs with
+  # (commit 16707c3, pushed). It is word-shaped and verifies nothing outside that
+  # test's monkeypatched settings; listed by value for the reason above.
+  '''enrollment-integration-secret-0123456789abcdef''',
 ]

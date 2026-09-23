@@ -15,16 +15,19 @@
 ///     grade derived from an id is a second grade that can disagree with the
 ///     corpus, which is #83 rebuilt one layer down.
 ///
-/// All three are driven through `ReasoningNote` and the coach bubble because
+/// They are driven through `ReasoningNote` and the shared insight card because
 /// both are thin — the payload reaches `MetricDetail` through almost nothing, so
-/// a failure here is about the routing and not about a card.
+/// a failure here is about the routing and not about a card. (The grade case
+/// used the coach bubble until the interactive coach was removed; the insight
+/// card is the surviving surface that carries a server `grade_floor`.)
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:healthee/data/coach/coach_answer.dart';
-import 'package:healthee/features/coach/coach_conversation.dart';
-import 'package:healthee/features/coach/widgets/coach_thread.dart';
+import 'package:healthee/data/insights/generated_insight.dart';
+import 'package:healthee/data/insights/insight_repository.dart';
 import 'package:healthee/shared/format/note_names.dart';
+import 'package:healthee/shared/insight_card.dart';
 import 'package:healthee/shared/states/citation_row.dart';
 import 'package:healthee/shared/states/reasoning_note.dart';
 import '_citation_probe.dart';
@@ -87,17 +90,28 @@ void main() {
     ) async {
       // Never derived from an id. `citation_row.dart` has the argument: a second
       // grade that can disagree with the corpus is #83 rebuilt one layer down.
-      final ungraded = CoachAnswer.fromJson(const <String, Object?>{
-        'reply': 'Your recovery supports it [recovery_readiness].',
-        'citations': <String>[],
-        'grade_floor': null,
-        'refused': false,
-        'validated': true,
-      });
-      await pumpAt(tester, 390, CoachEntryView(entry: CoachReply(ungraded)));
+      await pumpAt(
+        tester,
+        390,
+        ProviderScope(
+          overrides: [
+            generatedInsightProvider('activity', '').overrideWith(
+              (ref) async => GeneratedInsight.fromJson(const <String, Object?>{
+                'insight': 'Your recovery supports it [recovery_readiness].',
+                'citations': <String>[],
+                'grade_floor': null,
+                'validated': true,
+              }),
+            ),
+          ],
+          child: const InsightCard(scope: 'activity'),
+        ),
+      );
+      await tester.tap(find.text('Coach analysis'));
+      await tester.pumpAndSettle();
 
-      expect(detailIn(tester, find.byType(CoachEntryView)).grade, isNull);
-      await tester.tap(dotIn(find.byType(CoachEntryView)));
+      expect(detailIn(tester, find.byType(InsightCard)).grade, isNull);
+      await tester.tap(dotIn(find.byType(InsightCard)));
       await tester.pumpAndSettle();
 
       expect(find.text(noteName('recovery_readiness')!), findsOneWidget);

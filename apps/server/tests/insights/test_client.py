@@ -85,6 +85,7 @@ def provider_order(monkeypatch: pytest.MonkeyPatch) -> Any:
                 llm_provider_order=order,
                 llm_provider_sort=sort,
                 llm_deadline_s=real.llm_deadline_s,
+                llm_base_url=real.llm_base_url,
             ),
         )
 

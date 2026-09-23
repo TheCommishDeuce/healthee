@@ -29,29 +29,14 @@ void main() {
       expect(parentTabFor('${Routes.insight}/caffeine-sleep'), Routes.insights);
     });
 
-    test('the workout, GPS and fitness screens are filed under Activity', () {
+    test('the workout and fitness screens are filed under Activity', () {
       for (final String location in <String>[
         Routes.workouts,
         Routes.workout,
-        Routes.routes,
-        Routes.gps,
         Routes.fitness,
         Routes.body,
-        '${Routes.route}/2026-07-31T07:00:00Z',
       ]) {
         expect(parentTabFor(location), Routes.activity, reason: location);
-      }
-    });
-
-    test('the challenge, program and journal screens are filed under Actions', () {
-      for (final String location in <String>[
-        Routes.outcomes,
-        Routes.recommendations,
-        Routes.journal,
-        '${Routes.challenge}/7',
-        '${Routes.program}/3',
-      ]) {
-        expect(parentTabFor(location), Routes.actions, reason: location);
       }
     });
   });
@@ -65,9 +50,9 @@ void main() {
     });
 
     test('AN UNMAPPED SCREEN GOES TO TODAY, as the prototype does', () {
-      // `H.back()` ends `|| 'today'`. Coach is deliberately unmapped in both:
-      // five tabs open it, so no one tab owns it.
-      expect(parentTabFor('/coach'), Routes.today);
+      // `H.back()` ends `|| 'today'`. The removed Actions screens now fall
+      // through here too, rather than to a tab that no longer exists.
+      expect(parentTabFor('/challenge/7'), Routes.today);
       expect(parentTabFor(Routes.settings), Routes.today);
       expect(parentTabFor('/nothing-like-this'), Routes.today);
     });

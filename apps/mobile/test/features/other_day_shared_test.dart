@@ -12,28 +12,14 @@
 /// as today's on one surface while the other named the day. The illness banner never got
 /// it at all.
 ///
-/// The decision now lives in `shared/format/other_day.dart`. This file asserts the two
-/// things that keep it there: the rule itself, and that the callers are calling it rather
-/// than each carrying a copy.
+/// The decision now lives in `shared/format/other_day.dart`. This file asserts the rule
+/// itself. (The Actions screen and its recommendation wording were removed; the illness
+/// banner is the remaining caller.)
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:healthee/data/models/recommendation.dart';
-import 'package:healthee/features/today/widgets/actions_section.dart';
 import 'package:healthee/shared/format/other_day.dart';
 
-Recommendation _rec(String? date) => Recommendation.fromJson(<String, Object?>{
-  'id': 1,
-  'date': ?date,
-  'action': 'Walk 30 minutes.',
-  'rationale': null,
-  'expected_effect': null,
-  'category': 'activity',
-  'evidence_grade': 3,
-  'research_note_ids': const <String>[],
-  'signal_source': 'mvpa_gap',
-  'adopted': false,
-});
 
 void main() {
   group('the rule', () {
@@ -60,50 +46,7 @@ void main() {
     });
   });
 
-  group('BOTH SURFACES ASK THE SAME QUESTION', () {
-    test('the recommendation set speaks through its first row', () {
-      // All rows in a set share a date — the server keeps only the newest date found.
-      final items = <Recommendation>[_rec('2026-09-06'), _rec('2026-09-06')];
-
-      expect(recommendationsFromDay(items, '2026-09-08'), '2026-09-06');
-      expect(recommendationsFromDay(items, '2026-09-06'), isNull);
-    });
-
-    test('an empty set has no day', () {
-      expect(
-        recommendationsFromDay(const <Recommendation>[], '2026-09-08'),
-        isNull,
-      );
-    });
-
-    test('ActionsSection.otherDay IS the shared function, not a second copy', () {
-      // The Today card's static kept its name so no call site moved, but it must answer
-      // identically — two implementations of one rule is how one surface got fixed and
-      // the other did not.
-      for (final viewed in <String?>['2026-09-08', '2026-09-06', null]) {
-        for (final rows in <List<Recommendation>>[
-          <Recommendation>[_rec('2026-09-06')],
-          <Recommendation>[_rec(null)],
-          const <Recommendation>[],
-        ]) {
-          expect(
-            ActionsSection.otherDay(rows, viewed),
-            recommendationsFromDay(rows, viewed),
-          );
-        }
-      }
-    });
-  });
-
-  group('the two wordings are different on purpose', () {
-    test('written-for is about authored advice', () {
-      expect(
-        writtenForDay('2026-09-06'),
-        'Written for 6 Sep — nothing was written for this day.',
-      );
-      expect(actionsFromDay('2026-09-06'), writtenForDay('2026-09-06'));
-    });
-
+  group('the raised-on wording', () {
     test('raised-on is about a MEASURED signal, and says nothing about a job', () {
       // An illness flag is not advice authored for a day; it is a reading taken on one,
       // still inside the server's active window. "Nothing was written for this day"

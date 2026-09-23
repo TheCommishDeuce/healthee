@@ -1,5 +1,10 @@
 # Whole-codebase review — consolidated findings
 
+> **Revalidated 2026-09-23:** every CRITICAL (C1–C3) and HIGH (H1–H6) finding below is
+> fixed in current code; the evidence per finding is in `docs/REVIEW_PLAN.md`
+> ("Revalidated review findings"). MEDIUM and LOW were not rechecked — treat them as
+> unverified, not as open.
+
 **Date:** 2026-07-17 · **Ref:** `main` @ `51bc30d` · **Method:** seven parallel dimension
 agents (security & tenancy, correctness & integrity, honesty contract, error handling &
 operability, test quality, performance, standards & structure), each running the

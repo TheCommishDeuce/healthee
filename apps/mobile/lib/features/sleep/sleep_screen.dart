@@ -108,7 +108,7 @@ class _SleepScreenState extends ConsumerState<SleepScreen> {
     );
   }
 
-  /// The five places this screen can go.
+  /// The four places this screen can go.
   ///
   /// Pushed, never `go`: `go` REPLACES the location, which leaves the
   /// destination with nothing beneath it and the next Back leaves the app.
@@ -118,7 +118,6 @@ class _SleepScreenState extends ConsumerState<SleepScreen> {
     onOpenMetric: (metric) => unawaited(
       context.push('${Routes.history}?metric=${Uri.encodeComponent(metric)}'),
     ),
-    onOpenJournal: () => unawaited(context.push(Routes.journal)),
     onOpenHistory: () => unawaited(context.push(Routes.sleepHistory)),
     // `Routes.history` with no `metric` IS the directory — one route, two
     // screens, as `router.dart` records.

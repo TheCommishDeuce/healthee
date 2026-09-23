@@ -9,7 +9,6 @@
 /// Not a `*_test.dart` file, so it is never run as a suite.
 library;
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,25 +16,17 @@ import 'package:healthee/app.dart';
 import 'package:healthee/ble/models/device_daily_totals.dart';
 import 'package:healthee/ble/models/strap_sample.dart';
 import 'package:healthee/core/theme/app_theme.dart';
-import 'package:healthee/data/api/account_api.dart';
-import 'package:healthee/data/api/cache_session.dart';
 import 'package:healthee/data/api/server_session.dart';
 import 'package:healthee/data/api/server_snapshot.dart';
-import 'package:healthee/data/challenges/challenge_feed.dart';
-import 'package:healthee/data/challenges/commitment_repository.dart';
-import 'package:healthee/data/challenges/health_program.dart';
-import 'package:healthee/data/challenges/program_feed.dart';
-import 'package:healthee/data/gps/gps_recorder.dart';
-import 'package:healthee/data/gps/gps_recording_state.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/honesty/last_known.dart';
 import 'package:healthee/data/insights/notable_event.dart';
+import 'package:healthee/data/journal/journal_repository.dart';
 import 'package:healthee/data/models/sleep_consistency.dart';
 import 'package:healthee/data/models/sleep_insight.dart';
 import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/data/models/today_view.dart';
 import 'package:healthee/data/models/trend_point.dart';
-import 'package:healthee/data/notifications/notify_completions.dart';
 import 'package:healthee/data/pairing/paired_strap.dart';
 import 'package:healthee/data/pairing/pairing_repository.dart';
 import 'package:healthee/data/sleep_repository.dart';
@@ -94,8 +85,8 @@ Widget todayHost(
   SleepPage? sleep,
   SleepConsistency? consistency,
   LastKnown<double>? lastKnownBioAge,
-  List<HealthProgram> suggestedPrograms = const [],
   DatedHistory? history,
+  JournalRepository? journalRepository,
 }) {
   return _scoped(
     store,
@@ -106,8 +97,9 @@ Widget todayHost(
     signedIn: signedIn,
     sleep: sleep,
     consistency: consistency,
-    lastKnownBioAge: lastKnownBioAge, suggestedPrograms: suggestedPrograms,
+    lastKnownBioAge: lastKnownBioAge,
     history: history,
+    journalRepository: journalRepository,
     child: MaterialApp(
       theme: themeOverride ?? AppTheme.light,
       // **Reduced motion, always.** Today's hero carries `BioHalo`, an ambient
@@ -171,11 +163,13 @@ Widget _scoped(
   SleepPage? sleep,
   SleepConsistency? consistency,
   LastKnown<double>? lastKnownBioAge,
-  List<HealthProgram> suggestedPrograms = const [],
   DatedHistory? history,
+  JournalRepository? journalRepository,
 }) {
   return ProviderScope(
     overrides: [
+      if (journalRepository != null)
+        journalRepositoryProvider.overrideWith((ref) async => journalRepository),
       // ALWAYS overridden, defaulting to "this phone holds no earlier value".
       // The real provider walks the cached-payload table through
       // `TodayRepository`, which reaches `credentialsProvider` and the api
@@ -184,36 +178,8 @@ Widget _scoped(
       lastKnownBiologicalAgeProvider.overrideWith(
         (ref) async => lastKnownBioAge,
       ),
-      challengeFeedProvider.overrideWith(
-        (ref) => Stream.value(
-          ServerSnapshot(
-            const ChallengeFeed(
-              active: [],
-              suggested: [],
-              recent: [],
-              maxActive: 3,
-            ),
-            fetchedAt: now,
-          ),
-        ),
-      ),
-      programFeedProvider.overrideWith(
-        (ref) => Stream.value(
-          ServerSnapshot(
-            ProgramFeed(active: null, suggested: suggestedPrograms, recent: const []),
-            fetchedAt: now,
-          ),
-        ),
-      ),
-      notifyCompletionsProvider().overrideWith((ref) async {}),
       notableEventsProvider.overrideWith(
         (ref) => Stream.value(ServerSnapshot(<NotableEvent>[], fetchedAt: now)),
-      ),
-      gpsRecorderProvider.overrideWith(FixedGps.new),
-      commitmentRepositoryProvider.overrideWith(
-        (ref) async => CommitmentRepository(
-          AccountApi(Dio(), await CacheSession.capture(null)),
-        ),
       ),
       localStoreProvider.overrideWithValue(store),
       todayProvider.overrideWithValue(todayDate),
@@ -371,12 +337,6 @@ Future<void> tapTab(WidgetTester tester, String label) async {
     find.descendant(of: find.byType(AppTabBar), matching: find.text(label)),
   );
   await tester.pumpAndSettle();
-}
-
-/// GPS acquisition has its own scripted suite; screen tests never open hardware.
-class FixedGps extends GpsRecorder {
-  @override
-  Future<GpsRecordingState> build() async => const GpsRecordingState();
 }
 
 /// Moves the screen to [iso] the way the owner now does.

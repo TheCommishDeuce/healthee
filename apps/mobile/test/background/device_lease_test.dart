@@ -62,23 +62,34 @@ void main() {
   );
 
   group('A LEASE IS ONLY ALIVE WHILE ITS OWNER IS', () {
-    test('a lease held by a dead process is taken at once, not in 30 minutes', () async {
-      final store = await freshStore();
-      final now = DateTime.utc(2026, 1, 1);
-      // Expiring half an hour from now — under the old rule this was simply
-      // unavailable, and the owner was told to wait for a connection that had
-      // already died with its process.
-      final until = now.add(DeviceLease.expiry).millisecondsSinceEpoch;
-      await plant(store, '00000000-0000-0000-0000-000000000000:$until:${await deadPid()}');
+    test(
+      'a dead owner is reclaimed only when the platform can prove it',
+      () async {
+        final store = await freshStore();
+        var now = DateTime.utc(2026, 1, 1);
+        // Expiring half an hour from now — under the old rule this was simply
+        // unavailable, and the owner was told to wait for a connection that had
+        // already died with its process.
+        final until = now.add(DeviceLease.expiry).millisecondsSinceEpoch;
+        await plant(
+          store,
+          '00000000-0000-0000-0000-000000000000:$until:${await deadPid()}',
+        );
 
-      final lease = DeviceLease(store, now: () => now);
-      addTearDown(lease.release);
-      expect(
-        await lease.acquire(),
-        isTrue,
-        reason: 'the recorded process no longer exists, so nothing holds it',
-      );
-    });
+        final lease = DeviceLease(store, now: () => now);
+        addTearDown(lease.release);
+        final hasProcessDirectory = Platform.isAndroid || Platform.isLinux;
+        expect(
+          await lease.acquire(),
+          hasProcessDirectory,
+          reason: hasProcessDirectory
+              ? 'the recorded process no longer exists, so nothing holds it'
+              : 'without /proc the production code conservatively waits for expiry',
+        );
+        now = now.add(DeviceLease.expiry + const Duration(seconds: 1));
+        expect(await lease.acquire(), isTrue);
+      },
+    );
 
     test('a lease held by a LIVE process is respected until it expires', () async {
       final store = await freshStore();

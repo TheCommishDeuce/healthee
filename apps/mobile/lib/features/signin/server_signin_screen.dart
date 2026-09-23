@@ -46,8 +46,10 @@ import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/type_scale_forms.dart';
 import 'package:healthee/data/api/credentials.dart';
 import 'package:healthee/data/api/server_session.dart';
+import 'package:healthee/data/auth/enrollment_link.dart';
 import 'package:healthee/data/auth/identity_providers.dart';
 import 'package:healthee/features/signin/server_signin_controller.dart';
+import 'package:healthee/features/signin/widgets/enrollment_entry.dart';
 import 'package:healthee/features/signin/widgets/server_session_card.dart';
 import 'package:healthee/features/signin/widgets/server_signin_form.dart';
 import 'package:healthee/features/signin/widgets/signin_failure_card.dart';
@@ -213,6 +215,14 @@ class _SignInBodyState extends ConsumerState<_SignInBody> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        if (!session.signedIn || _replacing) ...<Widget>[
+          EnrollmentEntry(
+            enabled: !state.isBusy,
+            onEdited: controller.clearFailure,
+            onEnroll: (link) => unawaited(_enroll(link)),
+          ),
+          const SectionGap(),
+        ],
         if (session.signedIn && !_replacing)
           ServerSessionCard(
             baseUrl: session.baseUrl!,
@@ -282,6 +292,12 @@ class _SignInBodyState extends ConsumerState<_SignInBody> {
             )
           : await controller.signIn(url: url, email: email, password: password),
     );
+  }
+
+  /// The QR enrollment path (`docs/QR_ENROLLMENT.md`).
+  Future<void> _enroll(EnrollmentLink link) async {
+    final controller = ref.read(serverSignInControllerProvider.notifier);
+    await _land(await controller.enroll(link));
   }
 
   /// ⛔ TRANSITIONAL — the pasted-token path. See `data/api/server_session.dart`.

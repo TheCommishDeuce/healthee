@@ -45,7 +45,7 @@ final class ServerSignInControllerProvider
 }
 
 String _$serverSignInControllerHash() =>
-    r'1c9ca09457b0c7fb76aa071b4345c45c15d1137e';
+    r'0796ff8360d8bb48b78decceaa4fbf599bb2adb5';
 
 /// Drives the server sign-in screen.
 

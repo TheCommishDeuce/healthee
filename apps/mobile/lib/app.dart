@@ -60,9 +60,7 @@ class _HealtheeAppState extends ConsumerState<HealtheeApp>
       ref.listen(notificationDestinationProvider, (previous, next) {
         next.whenData(
           (destination) => unawaited(
-            _router.push(
-              destination == 'sleep' ? Routes.sleep : Routes.actions,
-            ),
+            _router.push(Routes.sleep),
           ),
         );
       });
