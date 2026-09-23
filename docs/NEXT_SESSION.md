@@ -1,6 +1,31 @@
 # Next session — handoff (written 2026-09-23, updated same day after the fix session)
 
-## 0. Update — what the second session did (read this first)
+## 00. Current state (end of 2026-09-23) — read this first
+
+**The owner runs their own signed release now.** `v1.0.8` (versionCode 10) was built by
+`release.yml` from this fork and signed with the owner's own key (SHA-256
+`fe52d627…435c`); Obtainium on the phone tracks `TheCommishDeuce/healthee`, so future
+releases update in place. Tag `vX.Y.Z` on `main` with a matching `version: X.Y.Z+N` in
+`apps/mobile/pubspec.yaml` (N greater than the last) to release.
+
+- **Signing key:** owner-held, backed up by the owner; the working copy is
+  `~/.healthee-release/` on the dev Mac (`healthee-release.jks` + `credentials.env`).
+  Fork secrets `HEALTHEE_KEYSTORE_BASE64`, `HEALTHEE_KEYSTORE_PASSWORD`,
+  `HEALTHEE_KEY_ALIAS`, `HEALTHEE_KEY_PASSWORD` are set. Losing the key = another
+  uninstall/reinstall switch. This settles R1 (upstream key no longer needed).
+- **Phone:** only `codes.afk.healthee` 1.0.8 (user 0). The upstream 1.0.7 and both
+  debug copies are uninstalled (debug had 0 unsent rows). Paired via Zepp, enrolled by
+  QR — token `87539f07…` "Pixel 8 Pro"; the four leftover tokens (two `debug app`, two
+  sign-in `ingest`) revoked. Background collection → ON and Wireless debugging → OFF were
+  the owner's last steps.
+- **Server:** `main` @ `7fc9c99`+ deployed (R9). PRs #10 (R9), #11 (debug-app work),
+  #12 (1.0.8) merged.
+- **Debug builds** still install side by side as `codes.afk.healthee.debug` when needed
+  (`flutter build apk --debug`, `adb install`).
+- **Still open:** GoTrue removal (now possible — QR enrollment runs on the real app;
+  see §6), edge hardening, local LLM, the smaller §6 items.
+
+## 0. Update — what the second session did
 
 All owner feedback F1–F4 and bugs B1–B5 are implemented on `feat/debug-side-by-side`
 (pushed; still **no PR**), each with tests, a mutation in `test/mutations.sh`, and a
