@@ -135,6 +135,15 @@ Owner feedback from the first session with the debug build (`NEXT_SESSION.md` §
   a model contribution, same card as Insights, now in `shared/v02/`) and
   *Recovery* (the server's overnight score when sent). No fitness term → the
   recovery card alone. The Fitness detail screen keeps its own age sentence.
+- **F5 — redundancy consolidated** (`REDUNDANCY_INVENTORY.md`; owner accepted the
+  recommendations). **R1** Sleep history drops the 7-night stage chart Sleep already
+  draws. **R2** Recovery drops the overnight vitals table Sleep already draws; its
+  existing bridge links there. **R3** Activity drops the hourly heart rate & stress
+  chart Today now draws as two cards (`V02LinkedChart` kept in `shared/`, uncalled).
+  **R5** the Sleep timing panel drops the SRI the regularity check already states.
+  **R8** one fitness-contribution helper. Kept on purpose: R4 (steps day vs week),
+  R6 (duration vs need vs month), R7 (the age card on Insights and Activity). R9 is a
+  server change, its own PR.
 
 ### Presentation constraints for the first slice
 

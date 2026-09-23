@@ -1,9 +1,10 @@
-# Redundancy inventory (F5) — proposal, nothing deleted yet
+# Redundancy inventory (F5)
 
 Owner feedback 2026-09-23: "a lot of redundancy in sections and screens". This is
 the screen × panel inventory after F1–F4 landed, the overlaps found in it, and a
-proposal for each. **Each R-item needs the owner's yes/no before any code
-changes.** Ids are stable; record accepted ones in `DESIGN_DECISIONS.md`.
+proposal for each. **Status (2026-09-23): the owner accepted the recommendations.
+R1, R2, R3, R5 and R8 are done (`142f7d6`); R4, R6, R7 are kept on purpose; R9 is
+open (server PR).** The screen table below is the state *before* the consolidation.
 
 ## What each screen draws now
 
