@@ -3115,6 +3115,15 @@ mutate 'a vital with no history series is still a link' \
   'onOpen: onOpenMetric == null'
 
 
+# B1, from the owner's phone: after pairing, Today kept "No strap is paired" from
+# the launch sync that ran before there was a strap. Pairing must run the sync.
+mutate 'pairing does not re-run the sync that failed before it' \
+  test/pairing/pairing_resyncs_test.dart lib/features/pairing/pairing_controller.dart \
+  '    unawaited(ref.read(syncControllerProvider.notifier).syncNow());
+' \
+  ''
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"

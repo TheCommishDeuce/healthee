@@ -17,6 +17,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/theme/app_theme.dart';
 import 'package:healthee/data/api/credentials.dart';
 import 'package:healthee/data/pairing/pairing_repository.dart';
+import 'package:healthee/data/sync/connection_state.dart';
+import 'package:healthee/data/sync/sync_controller.dart';
+import 'package:healthee/data/sync/sync_outcome.dart';
 import 'package:healthee/features/pairing/pairing_screen.dart';
 
 import '../pairing/_pairing_fakes.dart';
@@ -44,6 +47,9 @@ Widget pairingHost(
           scanner: scanner ?? FakeStrapScanner(),
         ),
       ),
+      // Pairing now runs a sync (B1). The real controller reaches the store and
+      // the radio; `pairing_resyncs_test.dart` owns that behaviour.
+      syncControllerProvider.overrideWith(_NoSync.new),
     ],
     child: MaterialApp(
       theme: AppTheme.light,
@@ -74,4 +80,13 @@ Future<void> signInToZepp(WidgetTester tester) async {
   await tester.enterText(find.byType(TextField).last, 'hunter2');
   await tester.tap(find.text('Find my straps'));
   await tester.pumpAndSettle();
+}
+
+/// A sync controller that never touches the store or the radio.
+class _NoSync extends SyncController {
+  @override
+  StrapConnection build() => const Disconnected();
+
+  @override
+  Future<SyncOutcome?> syncNow() async => null;
 }
