@@ -1,5 +1,101 @@
 # Next session — handoff (written 2026-09-23, updated same day after the fix session)
 
+## 000. Open/close bugs B6–B8 — found, fixed, released as 1.0.9 (2026-09-23 evening)
+
+Owner report: "a weird bug when opening and closing the app", in 1.0.8 and in the
+upstream 1.0.7. Investigated over wireless adb on the Pixel 8 Pro (1.0.8 release).
+Three separate bugs; only B6 is the visual one the owner meant. All three are
+fixed on `fix/lifecycle-b6-b8` (1.0.9, versionCode 11), each with a failing-first
+test and mutations in `test/mutations.sh` (all caught). Each was checked on the
+phone with a locally built 1.0.9, signed with the owner's key and installed over
+1.0.8 with `adb install -r` (data kept). The full suite passes (1937). The full
+mutation file was **not** re-run, only the six new mutations.
+
+| Id | Bug | Fix | On the phone |
+|---|---|---|---|
+| B6 | Every open/close switches the panel's **resolution** → flash / garbled frame | `2396513` | `mActiveModeId` stays 3 (1008×2244 @120) open and closed |
+| B7 | Close with **Back**, reopen → "Nothing has been read from your strap yet"; the strap is not reconnected for up to 30 min | `6a1ed08`, `ddb05ae` | same pid, new engine scans and connects within 1 s; no false card |
+| B8 | A BLE scan is left running (LOW_LATENCY) after a sync, for as long as the process lives | `3eec6ca` | both scans stop after registration; no scanner left registered |
+
+**B6 — the display changes resolution on every open and close.** Not a Flutter
+bug. `RefreshRate.enable()` (`refresh_rate` 1.0.2, added in `099afa3`, so already in
+1.0.7) picks a display mode by refresh rate only (`setSurfaceFrameRate`:
+`supportedModes.filter { refreshRate >= rate - 1 }.minByOrNull { … }`) and ignores
+resolution. The phone is set to "High resolution", so its default is mode 3
+(1008×2244 @120). Modes 2 (1344×2992 @120) and 3 tie, the first wins, and the panel
+switches:
+```
+adb shell dumpsys display | grep mActiveModeId
+launcher 3 → healthee 2 → launcher 3 → healthee 2 → launcher 3   (every time)
+```
+Fix: plugin removed (`pubspec.yaml`, `pubspec.lock`, `lib/main.dart`);
+`android/app/src/main/kotlin/codes/afk/healthee/MainActivity.kt` asks for the peak
+rate among modes **at the current physical size** only (still 120 Hz here, no
+switch; SurfaceFlinger reports 1008x2244 @120.00 Hz with the app open). Guard:
+`test/core/display_mode_test.dart`.
+
+**B7 — Back, then reopen, leaves the strap locked by a dead isolate.** Back
+destroys the Activity **and its FlutterEngine**, but Android keeps the **process**
+alive (same pid). Reopening starts a new engine and a new Dart isolate in that
+process. Two faults stack up:
+1. *The lease is never released.* The old isolate's `toBackground` → `_release` →
+   `DeviceLease.release()` is async, and the engine is torn down before it runs. The
+   logcat shows the BLE disconnect coming from the plugin's `onDetachedFromEngine`,
+   not from Dart. The new isolate's `acquire()` finds a row
+   `<other-uuid>:<expiry>:<same pid>`, and `_reclaimIfOwnerIsGone` treats
+   `owner == _pid` as alive (`data/sync/device_lease.dart`). So it waits out the
+   30-minute expiry. `ForegroundLink._connect` just logs "background sync owns the
+   strap; retrying shortly" and publishes no state. Logcat is consistent with this:
+   the new engine makes **no** FBP method calls at all. (Inferred from the code plus
+   that log. The lease row itself was not read: the release build is not
+   debuggable, so `run-as` fails. Confirm it on a debug build.)
+2. *The screen then says something false.* `SyncController.build()` starts at
+   `const Disconnected()` with `lastCompleteSync == null`, and nothing replaces it.
+   So `connection_health.dart` shows `never_synced`, "Nothing has been read from
+   your strap yet", ten seconds after a complete sync.
+   The strap battery also turns grey.
+
+Repro: open the app, let it sync, press **Back**, reopen, then screenshot. Home
+instead of Back does not trigger it (same engine).
+
+Fix: (1) the isolate that runs `main()` calls `DeviceLease.markUiIsolate()` and
+stamps its lease rows `<owner>:<expiry>:<pid>:<ui-token>`. A process hosts one UI
+isolate at a time, so a same-pid row with a *different* UI token is reclaimed at
+once. Unstamped rows (WorkManager's `backgroundDispatcher`, which never runs
+`main()`) and rows from this same isolate are judged as before. Tests:
+`test/background/device_lease_ui_isolate_test.dart`, `device_lease_test.dart`.
+(2) `ForegroundLink._connect` now publishes
+`Disconnected(lastCompleteSync: <stored>)` when the lease is refused, instead of
+nothing (`test/sync/foreground_link_lease_test.dart`). **Still true:** a
+*background* isolate cannot tell whether a stamped UI row is still live, so if
+the owner never reopens after Back, background collection waits out the expiry
+(≤ 30 min) as before.
+
+**B8 — the preflight scan is never stopped.** `bluetooth_strap_scanner.dart`
+listens to `FlutterBluePlus.scanResults`, which **re-emits the previous scan's
+results** on listen (FBP docs; `onScanResults` is the variant that does not). On any
+sync after the first, the old sighting of the strap completes the `Completer`
+immediately, so `finally { stopScan }` runs about 5 ms after `startScan`, before
+Android has registered the scanner:
+```
+17:53:59.935 onMethodCall: startScan
+17:53:59.940 onMethodCall: stopScan
+17:53:59.940 E BluetoothLeScanner: stopLeScan(): Error state, mScannerId=0
+17:53:59.941 D BluetoothLeScanner: onScannerRegistered(status=0, scannerId=2)
+```
+The stop is dropped and the scan runs on. FBP now believes it is stopped
+(`mIsScanning=false`), so even its `onDetachedFromEngine` cleanup skips it.
+`dumpsys bluetooth_manager` showed "Ongoing 1 scans: [17:53:59.947] Elapsed
+1207544ms … 3420 results" (20 min, LOW_LATENCY), and an earlier one lasting 558 s
+until a force-stop. Costs: battery drain, and a preflight "in range" answer that
+can come from a stale sighting. After a Back/reopen it also produces the
+`invokeMethodUIThread: tried to call method on closed channel: OnScanResponse`
+logcat spam. Fix: listen to `FlutterBluePlus.onScanResults`. A result can only
+come from a registered scanner, so the stop can no longer arrive before
+registration. The scan step is the top-level `scanForStrap` so a fake radio
+(`test/ble/strap_scan_test.dart`) can drive it; that adds
+`flutter_blue_plus_platform_interface` as a dev dependency.
+
 ## 00. Current state (end of 2026-09-23) — read this first
 
 **The owner runs their own signed release now.** `v1.0.8` (versionCode 10) was built by
@@ -13,7 +109,8 @@ releases update in place. Tag `vX.Y.Z` on `main` with a matching `version: X.Y.Z
   Fork secrets `HEALTHEE_KEYSTORE_BASE64`, `HEALTHEE_KEYSTORE_PASSWORD`,
   `HEALTHEE_KEY_ALIAS`, `HEALTHEE_KEY_PASSWORD` are set. Losing the key = another
   uninstall/reinstall switch. This settles R1 (upstream key no longer needed).
-- **Phone:** only `codes.afk.healthee` 1.0.8 (user 0). The upstream 1.0.7 and both
+- **Phone:** only `codes.afk.healthee` (user 0), now 1.0.9 (a local build of the same
+  commit, owner-signed, `adb install -r` over 1.0.8, see §000; the release APK is the same versionCode). The upstream 1.0.7 and both
   debug copies are uninstalled (debug had 0 unsent rows). Paired via Zepp, enrolled by
   QR — token `87539f07…` "Pixel 8 Pro"; the four leftover tokens (two `debug app`, two
   sign-in `ingest`) revoked. Background collection → ON and Wireless debugging → OFF were
