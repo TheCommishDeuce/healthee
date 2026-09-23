@@ -24,6 +24,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/router.dart';
+import 'package:healthee/features/settings/widgets/history_mirror_card.dart';
 import 'package:healthee/shared/v02/settings_page.dart';
 import 'package:healthee/shared/v02/surfaces.dart';
 
@@ -97,8 +98,11 @@ Future<void> _pumpAt(
   bool signedIn = false,
   bool paired = true,
 }) async {
+  // Tall enough for the longest settings screen (data & sync, with the history
+  // mirror card) to be built whole: `ListView` builds lazily, so a row past the
+  // viewport would read as missing rather than out of order.
   tester.view
-    ..physicalSize = Size(width, 3400)
+    ..physicalSize = Size(width, 4400)
     ..devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -208,6 +212,7 @@ void main() {
         find.text('Helio Strap'),
         find.text('Data freshness'),
         find.text('Sync now'),
+        find.text(HistoryMirrorCard.title),
         find.text('Background preferences'),
       ]);
     });

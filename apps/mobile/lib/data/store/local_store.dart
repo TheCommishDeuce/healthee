@@ -32,6 +32,7 @@ import 'package:drift/drift.dart';
 import 'package:healthee/data/store/connection.dart';
 import 'package:healthee/data/store/gps_tables.dart';
 import 'package:healthee/data/store/horizon_prune.dart';
+import 'package:healthee/data/store/mirror_table.dart';
 import 'package:healthee/data/store/prune_report.dart';
 import 'package:healthee/data/store/push_reader.dart';
 import 'package:healthee/data/store/strap_reader.dart';
@@ -114,6 +115,7 @@ class CachedPayloads extends Table {
     GpsRecordings,
     GpsFixes,
     PendingWeights,
+    MirrorMonths,
   ],
   daos: [StrapWriter, StrapReader, PushReader, HorizonPrune],
 )
@@ -129,7 +131,7 @@ class LocalStore extends _$LocalStore {
   LocalStore.at(String path) : super(openFileAt(path));
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   /// v1 → v2 added the five raw-strap tables beside the payload cache.
   /// v2 → v3 added the per-row push marker to the four measurement tables.
@@ -142,6 +144,7 @@ class LocalStore extends _$LocalStore {
   /// never had them, upgrades through the same branch harmlessly.
   ///
   /// v7 → v8 adds the weigh-in outbox (`weight_outbox_table.dart`). Additive.
+  /// v8 → v9 adds the full-history mirror (`mirror_table.dart`). Additive.
   ///
   /// v3 → v4 scopes cached server responses to a sign-in. Old cache rows have
   /// no attributable owner and are discarded; every raw measurement and pending
@@ -184,6 +187,9 @@ class LocalStore extends _$LocalStore {
       }
       if (from < 8) {
         await m.createTable(pendingWeights);
+      }
+      if (from < 9) {
+        await m.createTable(mirrorMonths);
       }
     },
   );

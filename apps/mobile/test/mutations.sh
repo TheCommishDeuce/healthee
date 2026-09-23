@@ -161,6 +161,23 @@ mutate 'the enrollment link accepts any scheme' \
   "uri.scheme != 'healthee' || " \
   ''
 
+# The history mirror (docs/MIRROR.md): skip what is current, drop what the
+# server dropped, and keep owners apart.
+mutate 'the mirror re-downloads months that did not change' \
+  test/mirror/mirror_sync_test.dart lib/data/mirror/mirror_sync.dart \
+  '            stored.digest == month.digest &&' \
+  '            stored.digest == month.digest && false &&'
+
+mutate 'a month the server dropped stays on the phone' \
+  test/mirror/mirror_sync_test.dart lib/data/mirror/mirror_sync.dart \
+  '    for (final gone in held.values) {' \
+  '    for (final gone in const <MirrorMonthRow>[]) {'
+
+mutate 'the mirror reports another owner’s history' \
+  test/mirror/mirror_sync_test.dart lib/data/mirror/mirror_sync.dart \
+  '    )..where((r) => r.owner.equals(meta.value))).get();' \
+  '    )).get();'
+
 # GPS removal must not hide strap workouts or request modern location access.
 mutate 'GPS removal accidentally hides recorded workouts' \
   test/features/gps_removal_test.dart lib/features/activity/activity_sections.dart \

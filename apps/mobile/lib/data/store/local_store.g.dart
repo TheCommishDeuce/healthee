@@ -3881,6 +3881,534 @@ class PendingWeightsCompanion extends UpdateCompanion<PendingWeightRow> {
   }
 }
 
+class $MirrorMonthsTable extends MirrorMonths
+    with TableInfo<$MirrorMonthsTable, MirrorMonthRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MirrorMonthsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _ownerMeta = const VerificationMeta('owner');
+  @override
+  late final GeneratedColumn<String> owner = GeneratedColumn<String>(
+    'owner',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _streamMeta = const VerificationMeta('stream');
+  @override
+  late final GeneratedColumn<String> stream = GeneratedColumn<String>(
+    'stream',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _monthMeta = const VerificationMeta('month');
+  @override
+  late final GeneratedColumn<String> month = GeneratedColumn<String>(
+    'month',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _digestMeta = const VerificationMeta('digest');
+  @override
+  late final GeneratedColumn<String> digest = GeneratedColumn<String>(
+    'digest',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rowsMeta = const VerificationMeta('rows');
+  @override
+  late final GeneratedColumn<int> rows = GeneratedColumn<int>(
+    'rows',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncedAtMsMeta = const VerificationMeta(
+    'syncedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> syncedAtMs = GeneratedColumn<int>(
+    'synced_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    owner,
+    stream,
+    month,
+    digest,
+    rows,
+    version,
+    payload,
+    syncedAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'mirror_months';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MirrorMonthRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('owner')) {
+      context.handle(
+        _ownerMeta,
+        owner.isAcceptableOrUnknown(data['owner']!, _ownerMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerMeta);
+    }
+    if (data.containsKey('stream')) {
+      context.handle(
+        _streamMeta,
+        stream.isAcceptableOrUnknown(data['stream']!, _streamMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_streamMeta);
+    }
+    if (data.containsKey('month')) {
+      context.handle(
+        _monthMeta,
+        month.isAcceptableOrUnknown(data['month']!, _monthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_monthMeta);
+    }
+    if (data.containsKey('digest')) {
+      context.handle(
+        _digestMeta,
+        digest.isAcceptableOrUnknown(data['digest']!, _digestMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_digestMeta);
+    }
+    if (data.containsKey('rows')) {
+      context.handle(
+        _rowsMeta,
+        rows.isAcceptableOrUnknown(data['rows']!, _rowsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rowsMeta);
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_versionMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('synced_at_ms')) {
+      context.handle(
+        _syncedAtMsMeta,
+        syncedAtMs.isAcceptableOrUnknown(
+          data['synced_at_ms']!,
+          _syncedAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_syncedAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {owner, stream, month};
+  @override
+  MirrorMonthRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MirrorMonthRow(
+      owner: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner'],
+      )!,
+      stream: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stream'],
+      )!,
+      month: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}month'],
+      )!,
+      digest: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}digest'],
+      )!,
+      rows: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rows'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      syncedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}synced_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $MirrorMonthsTable createAlias(String alias) {
+    return $MirrorMonthsTable(attachedDatabase, alias);
+  }
+}
+
+class MirrorMonthRow extends DataClass implements Insertable<MirrorMonthRow> {
+  /// The owner's server UUID (`/api/account`), not a sign-in scope: re-enrolling
+  /// the same owner keeps the mirror, and a different owner never sees it.
+  final String owner;
+
+  /// `derived_daily`, `sleep_session`, … — the server's stream name.
+  final String stream;
+
+  /// `YYYY-MM`.
+  final String month;
+
+  /// The digest the server served these rows under.
+  final String digest;
+
+  /// How many rows [payload] holds.
+  final int rows;
+
+  /// The mirror contract version the month was fetched under.
+  final int version;
+
+  /// The month's rows, as the JSON array the server sent.
+  final String payload;
+
+  /// When this month was last written, Unix milliseconds.
+  final int syncedAtMs;
+  const MirrorMonthRow({
+    required this.owner,
+    required this.stream,
+    required this.month,
+    required this.digest,
+    required this.rows,
+    required this.version,
+    required this.payload,
+    required this.syncedAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['owner'] = Variable<String>(owner);
+    map['stream'] = Variable<String>(stream);
+    map['month'] = Variable<String>(month);
+    map['digest'] = Variable<String>(digest);
+    map['rows'] = Variable<int>(rows);
+    map['version'] = Variable<int>(version);
+    map['payload'] = Variable<String>(payload);
+    map['synced_at_ms'] = Variable<int>(syncedAtMs);
+    return map;
+  }
+
+  MirrorMonthsCompanion toCompanion(bool nullToAbsent) {
+    return MirrorMonthsCompanion(
+      owner: Value(owner),
+      stream: Value(stream),
+      month: Value(month),
+      digest: Value(digest),
+      rows: Value(rows),
+      version: Value(version),
+      payload: Value(payload),
+      syncedAtMs: Value(syncedAtMs),
+    );
+  }
+
+  factory MirrorMonthRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MirrorMonthRow(
+      owner: serializer.fromJson<String>(json['owner']),
+      stream: serializer.fromJson<String>(json['stream']),
+      month: serializer.fromJson<String>(json['month']),
+      digest: serializer.fromJson<String>(json['digest']),
+      rows: serializer.fromJson<int>(json['rows']),
+      version: serializer.fromJson<int>(json['version']),
+      payload: serializer.fromJson<String>(json['payload']),
+      syncedAtMs: serializer.fromJson<int>(json['syncedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'owner': serializer.toJson<String>(owner),
+      'stream': serializer.toJson<String>(stream),
+      'month': serializer.toJson<String>(month),
+      'digest': serializer.toJson<String>(digest),
+      'rows': serializer.toJson<int>(rows),
+      'version': serializer.toJson<int>(version),
+      'payload': serializer.toJson<String>(payload),
+      'syncedAtMs': serializer.toJson<int>(syncedAtMs),
+    };
+  }
+
+  MirrorMonthRow copyWith({
+    String? owner,
+    String? stream,
+    String? month,
+    String? digest,
+    int? rows,
+    int? version,
+    String? payload,
+    int? syncedAtMs,
+  }) => MirrorMonthRow(
+    owner: owner ?? this.owner,
+    stream: stream ?? this.stream,
+    month: month ?? this.month,
+    digest: digest ?? this.digest,
+    rows: rows ?? this.rows,
+    version: version ?? this.version,
+    payload: payload ?? this.payload,
+    syncedAtMs: syncedAtMs ?? this.syncedAtMs,
+  );
+  MirrorMonthRow copyWithCompanion(MirrorMonthsCompanion data) {
+    return MirrorMonthRow(
+      owner: data.owner.present ? data.owner.value : this.owner,
+      stream: data.stream.present ? data.stream.value : this.stream,
+      month: data.month.present ? data.month.value : this.month,
+      digest: data.digest.present ? data.digest.value : this.digest,
+      rows: data.rows.present ? data.rows.value : this.rows,
+      version: data.version.present ? data.version.value : this.version,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      syncedAtMs: data.syncedAtMs.present
+          ? data.syncedAtMs.value
+          : this.syncedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MirrorMonthRow(')
+          ..write('owner: $owner, ')
+          ..write('stream: $stream, ')
+          ..write('month: $month, ')
+          ..write('digest: $digest, ')
+          ..write('rows: $rows, ')
+          ..write('version: $version, ')
+          ..write('payload: $payload, ')
+          ..write('syncedAtMs: $syncedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    owner,
+    stream,
+    month,
+    digest,
+    rows,
+    version,
+    payload,
+    syncedAtMs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MirrorMonthRow &&
+          other.owner == this.owner &&
+          other.stream == this.stream &&
+          other.month == this.month &&
+          other.digest == this.digest &&
+          other.rows == this.rows &&
+          other.version == this.version &&
+          other.payload == this.payload &&
+          other.syncedAtMs == this.syncedAtMs);
+}
+
+class MirrorMonthsCompanion extends UpdateCompanion<MirrorMonthRow> {
+  final Value<String> owner;
+  final Value<String> stream;
+  final Value<String> month;
+  final Value<String> digest;
+  final Value<int> rows;
+  final Value<int> version;
+  final Value<String> payload;
+  final Value<int> syncedAtMs;
+  final Value<int> rowid;
+  const MirrorMonthsCompanion({
+    this.owner = const Value.absent(),
+    this.stream = const Value.absent(),
+    this.month = const Value.absent(),
+    this.digest = const Value.absent(),
+    this.rows = const Value.absent(),
+    this.version = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.syncedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MirrorMonthsCompanion.insert({
+    required String owner,
+    required String stream,
+    required String month,
+    required String digest,
+    required int rows,
+    required int version,
+    required String payload,
+    required int syncedAtMs,
+    this.rowid = const Value.absent(),
+  }) : owner = Value(owner),
+       stream = Value(stream),
+       month = Value(month),
+       digest = Value(digest),
+       rows = Value(rows),
+       version = Value(version),
+       payload = Value(payload),
+       syncedAtMs = Value(syncedAtMs);
+  static Insertable<MirrorMonthRow> custom({
+    Expression<String>? owner,
+    Expression<String>? stream,
+    Expression<String>? month,
+    Expression<String>? digest,
+    Expression<int>? rows,
+    Expression<int>? version,
+    Expression<String>? payload,
+    Expression<int>? syncedAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (owner != null) 'owner': owner,
+      if (stream != null) 'stream': stream,
+      if (month != null) 'month': month,
+      if (digest != null) 'digest': digest,
+      if (rows != null) 'rows': rows,
+      if (version != null) 'version': version,
+      if (payload != null) 'payload': payload,
+      if (syncedAtMs != null) 'synced_at_ms': syncedAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MirrorMonthsCompanion copyWith({
+    Value<String>? owner,
+    Value<String>? stream,
+    Value<String>? month,
+    Value<String>? digest,
+    Value<int>? rows,
+    Value<int>? version,
+    Value<String>? payload,
+    Value<int>? syncedAtMs,
+    Value<int>? rowid,
+  }) {
+    return MirrorMonthsCompanion(
+      owner: owner ?? this.owner,
+      stream: stream ?? this.stream,
+      month: month ?? this.month,
+      digest: digest ?? this.digest,
+      rows: rows ?? this.rows,
+      version: version ?? this.version,
+      payload: payload ?? this.payload,
+      syncedAtMs: syncedAtMs ?? this.syncedAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (owner.present) {
+      map['owner'] = Variable<String>(owner.value);
+    }
+    if (stream.present) {
+      map['stream'] = Variable<String>(stream.value);
+    }
+    if (month.present) {
+      map['month'] = Variable<String>(month.value);
+    }
+    if (digest.present) {
+      map['digest'] = Variable<String>(digest.value);
+    }
+    if (rows.present) {
+      map['rows'] = Variable<int>(rows.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (syncedAtMs.present) {
+      map['synced_at_ms'] = Variable<int>(syncedAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MirrorMonthsCompanion(')
+          ..write('owner: $owner, ')
+          ..write('stream: $stream, ')
+          ..write('month: $month, ')
+          ..write('digest: $digest, ')
+          ..write('rows: $rows, ')
+          ..write('version: $version, ')
+          ..write('payload: $payload, ')
+          ..write('syncedAtMs: $syncedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalStore extends GeneratedDatabase {
   _$LocalStore(QueryExecutor e) : super(e);
   $LocalStoreManager get managers => $LocalStoreManager(this);
@@ -3893,6 +4421,7 @@ abstract class _$LocalStore extends GeneratedDatabase {
   late final $GpsRecordingsTable gpsRecordings = $GpsRecordingsTable(this);
   late final $GpsFixesTable gpsFixes = $GpsFixesTable(this);
   late final $PendingWeightsTable pendingWeights = $PendingWeightsTable(this);
+  late final $MirrorMonthsTable mirrorMonths = $MirrorMonthsTable(this);
   late final StrapWriter strapWriter = StrapWriter(this as LocalStore);
   late final StrapReader strapReader = StrapReader(this as LocalStore);
   late final PushReader pushReader = PushReader(this as LocalStore);
@@ -3911,6 +4440,7 @@ abstract class _$LocalStore extends GeneratedDatabase {
     gpsRecordings,
     gpsFixes,
     pendingWeights,
+    mirrorMonths,
   ];
 }
 
@@ -5903,6 +6433,265 @@ typedef $$PendingWeightsTableProcessedTableManager =
       PendingWeightRow,
       PrefetchHooks Function()
     >;
+typedef $$MirrorMonthsTableCreateCompanionBuilder =
+    MirrorMonthsCompanion Function({
+      required String owner,
+      required String stream,
+      required String month,
+      required String digest,
+      required int rows,
+      required int version,
+      required String payload,
+      required int syncedAtMs,
+      Value<int> rowid,
+    });
+typedef $$MirrorMonthsTableUpdateCompanionBuilder =
+    MirrorMonthsCompanion Function({
+      Value<String> owner,
+      Value<String> stream,
+      Value<String> month,
+      Value<String> digest,
+      Value<int> rows,
+      Value<int> version,
+      Value<String> payload,
+      Value<int> syncedAtMs,
+      Value<int> rowid,
+    });
+
+class $$MirrorMonthsTableFilterComposer
+    extends Composer<_$LocalStore, $MirrorMonthsTable> {
+  $$MirrorMonthsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stream => $composableBuilder(
+    column: $table.stream,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get digest => $composableBuilder(
+    column: $table.digest,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rows => $composableBuilder(
+    column: $table.rows,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncedAtMs => $composableBuilder(
+    column: $table.syncedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MirrorMonthsTableOrderingComposer
+    extends Composer<_$LocalStore, $MirrorMonthsTable> {
+  $$MirrorMonthsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stream => $composableBuilder(
+    column: $table.stream,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get digest => $composableBuilder(
+    column: $table.digest,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rows => $composableBuilder(
+    column: $table.rows,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncedAtMs => $composableBuilder(
+    column: $table.syncedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MirrorMonthsTableAnnotationComposer
+    extends Composer<_$LocalStore, $MirrorMonthsTable> {
+  $$MirrorMonthsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get owner =>
+      $composableBuilder(column: $table.owner, builder: (column) => column);
+
+  GeneratedColumn<String> get stream =>
+      $composableBuilder(column: $table.stream, builder: (column) => column);
+
+  GeneratedColumn<String> get month =>
+      $composableBuilder(column: $table.month, builder: (column) => column);
+
+  GeneratedColumn<String> get digest =>
+      $composableBuilder(column: $table.digest, builder: (column) => column);
+
+  GeneratedColumn<int> get rows =>
+      $composableBuilder(column: $table.rows, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<int> get syncedAtMs => $composableBuilder(
+    column: $table.syncedAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$MirrorMonthsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalStore,
+          $MirrorMonthsTable,
+          MirrorMonthRow,
+          $$MirrorMonthsTableFilterComposer,
+          $$MirrorMonthsTableOrderingComposer,
+          $$MirrorMonthsTableAnnotationComposer,
+          $$MirrorMonthsTableCreateCompanionBuilder,
+          $$MirrorMonthsTableUpdateCompanionBuilder,
+          (
+            MirrorMonthRow,
+            BaseReferences<_$LocalStore, $MirrorMonthsTable, MirrorMonthRow>,
+          ),
+          MirrorMonthRow,
+          PrefetchHooks Function()
+        > {
+  $$MirrorMonthsTableTableManager(_$LocalStore db, $MirrorMonthsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MirrorMonthsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MirrorMonthsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MirrorMonthsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> owner = const Value.absent(),
+                Value<String> stream = const Value.absent(),
+                Value<String> month = const Value.absent(),
+                Value<String> digest = const Value.absent(),
+                Value<int> rows = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<int> syncedAtMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MirrorMonthsCompanion(
+                owner: owner,
+                stream: stream,
+                month: month,
+                digest: digest,
+                rows: rows,
+                version: version,
+                payload: payload,
+                syncedAtMs: syncedAtMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String owner,
+                required String stream,
+                required String month,
+                required String digest,
+                required int rows,
+                required int version,
+                required String payload,
+                required int syncedAtMs,
+                Value<int> rowid = const Value.absent(),
+              }) => MirrorMonthsCompanion.insert(
+                owner: owner,
+                stream: stream,
+                month: month,
+                digest: digest,
+                rows: rows,
+                version: version,
+                payload: payload,
+                syncedAtMs: syncedAtMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MirrorMonthsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalStore,
+      $MirrorMonthsTable,
+      MirrorMonthRow,
+      $$MirrorMonthsTableFilterComposer,
+      $$MirrorMonthsTableOrderingComposer,
+      $$MirrorMonthsTableAnnotationComposer,
+      $$MirrorMonthsTableCreateCompanionBuilder,
+      $$MirrorMonthsTableUpdateCompanionBuilder,
+      (
+        MirrorMonthRow,
+        BaseReferences<_$LocalStore, $MirrorMonthsTable, MirrorMonthRow>,
+      ),
+      MirrorMonthRow,
+      PrefetchHooks Function()
+    >;
 
 class $LocalStoreManager {
   final _$LocalStore _db;
@@ -5925,4 +6714,6 @@ class $LocalStoreManager {
       $$GpsFixesTableTableManager(_db, _db.gpsFixes);
   $$PendingWeightsTableTableManager get pendingWeights =>
       $$PendingWeightsTableTableManager(_db, _db.pendingWeights);
+  $$MirrorMonthsTableTableManager get mirrorMonths =>
+      $$MirrorMonthsTableTableManager(_db, _db.mirrorMonths);
 }

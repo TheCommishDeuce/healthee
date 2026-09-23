@@ -49,6 +49,7 @@ import 'package:healthee/data/honesty/reading.dart';
 import 'package:healthee/data/push/push_stamp_provider.dart';
 import 'package:healthee/data/sync/connection_health.dart';
 import 'package:healthee/data/sync/sync_controller.dart';
+import 'package:healthee/features/settings/widgets/history_mirror_card.dart';
 import 'package:healthee/features/today/v02/today_header.dart';
 import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/v02/buttons.dart';
@@ -142,6 +143,8 @@ class DataFreshnessScreen extends ConsumerWidget {
                   ref.read(syncControllerProvider.notifier).syncNow(),
                 ),
         ),
+        const SectionGap(),
+        HistoryMirrorCard(now: now),
         const SectionGap(),
         FlushCard(
           children: <Widget>[
