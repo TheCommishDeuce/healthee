@@ -57,7 +57,7 @@ void main() {
   setUp(() => store = LocalStore.memory());
   tearDown(() => store.close());
 
-  testWidgets('THE MONTH, THE WEEK, AND EVERY NIGHT AS A ROW', (tester) async {
+  testWidgets('THE MONTH AND EVERY NIGHT AS A ROW — NO SECOND STAGE WEEK (R1)', (tester) async {
     tallViewport(tester);
     await tester.pumpWidget(
       todayHost(
@@ -71,8 +71,9 @@ void main() {
     expect(find.text(kSleepHistoryTitle), findsOneWidget);
     expect(find.text(SleepDurationPanel.title), findsOneWidget);
     expect(find.byType(V02LineChart), findsOneWidget);
-    expect(find.text(NightStagesPanel.title), findsOneWidget);
-    expect(find.byType(HStackedSleep), findsOneWidget);
+    // The 7-night stage chart lives on Sleep ("Your week, stage by stage");
+    // drawing the identical chart here was the repeat the owner reported (R1).
+    expect(find.byType(HStackedSleep), findsNothing);
     expect(find.text('Open a night'), findsOneWidget);
     // The fixture carries thirty nights and the window is thirty.
     expect(find.byType(NightRow), findsNWidgets(30));

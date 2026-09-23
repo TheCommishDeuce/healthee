@@ -21,6 +21,9 @@
 /// occurrence that section 1 says to extract instead. So the table moved here
 /// and the two panels above it stayed where they are.
 ///
+/// Recovery stopped drawing its copy in R2 (the owner found the repeat
+/// redundant; Sleep is one link away), so Sleep is the one caller today.
+///
 /// ## Five families in one panel, and no widget takes a colour
 ///
 /// `data-tone` sits on the **row**, not the panel, so each row's glyph and its

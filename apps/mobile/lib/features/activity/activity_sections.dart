@@ -58,12 +58,10 @@ import 'package:healthee/data/device/device_workout.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/history/history_metric.dart';
 import 'package:healthee/data/models/activity_today.dart';
-import 'package:healthee/data/models/biological_age.dart';
 import 'package:healthee/data/models/fitness_plan.dart';
 import 'package:healthee/data/models/vo2max.dart';
 import 'package:healthee/features/activity/activity_extras.dart';
 import 'package:healthee/features/activity/v02/fitness_plan_panel.dart';
-import 'package:healthee/features/activity/v02/heart_stress_panel.dart';
 import 'package:healthee/features/activity/v02/movement_panels.dart';
 import 'package:healthee/features/activity/v02/recovery_entry_card.dart';
 import 'package:healthee/features/activity/v02/training_panels.dart';
@@ -231,17 +229,8 @@ List<PageSection> activitySections(ScreenData data, ActivityExtras extras) {
       onDetails: _metric(extras, 'steps_total'),
     ),
   );
-  if (snapshot != null && HeartStressPanel.hasSomethingToDraw(
-    snapshot.hourlyHeartRate, snapshot.hourlyStress,
-  )) {
-    sections
-      ..gap(PageSpacing.panel)
-      ..add(HeartStressPanel(
-        heartRate: snapshot.hourlyHeartRate,
-        stress: snapshot.hourlyStress,
-        reveals: reveals,
-      ));
-  }
+  // ⛔ No `Heart rate & stress` here (R3): Today draws the day's heart rate
+  // and stress by hour, each in its own card, and this was the same two series.
   if (snapshot != null) {
     sections.gap(PageSpacing.panel);
     sections.add(
@@ -310,7 +299,7 @@ void _destinations(
   ActivityExtras extras,
 ) {
   final snapshot = data.snapshot;
-  final years = fitnessContributionYears(snapshot?.biologicalAge.valueOrNull);
+  final years = AgeEntryCard.contribution(snapshot?.biologicalAge.valueOrNull);
   final recovery = RecoveryEntryCard(
     score: snapshot?.recovery.valueOrNull?.recovery,
     onOpen: extras.onOpenRecovery,
@@ -370,20 +359,6 @@ String _sessionDetail(DeviceWorkout workout) => <String>[
   if (workout.avgHr > 0) '${workout.avgHr} bpm avg',
   if (workout.calories > 0) "${workout.calories} kcal by the strap's count",
 ].join(' · ');
-
-/// The fitness term of the age model, or null when the payload has none.
-///
-/// Public because the fitness screen carries the same bridge: two readings of
-/// `contributions[]` would be two chances to name a different number under one
-/// sentence.
-double? fitnessContributionYears(BiologicalAge? age) {
-  for (final term in age?.contributions ?? const <AgeContribution>[]) {
-    if (term.term == 'fitness' && term.deltaYears != null) {
-      return term.deltaYears;
-    }
-  }
-  return null;
-}
 
 VoidCallback? _metric(ActivityExtras extras, String metric) =>
     extras.onOpenMetric == null ? null : () => extras.onOpenMetric!(metric);

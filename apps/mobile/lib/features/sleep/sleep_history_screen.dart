@@ -6,10 +6,13 @@
 /// ```text
 ///   header                  Sleep history
 ///   Sleep duration          the month of nightly totals
-///   Seven nights of stages  the stacked week, and its colour key
 ///   Open a night            every night in the window, as a button
 ///   footer
 /// ```
+///
+/// The prototype's `Seven nights of stages` is not drawn: Sleep's *Your week,
+/// stage by stage* is the identical chart over the same nights, and the owner
+/// asked for the repeat out (R1, `DESIGN_DECISIONS.md`).
 ///
 /// ## The rows set the day, and Sleep now opens on it
 ///
@@ -36,7 +39,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
-import 'package:healthee/data/models/sleep_history.dart';
 import 'package:healthee/data/models/sleep_night.dart';
 import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/data/sleep_repository.dart';
@@ -55,9 +57,6 @@ const String kSleepHistoryTitle = 'Sleep history';
 
 /// How many nights the duration chart and the list cover.
 const int kSleepHistoryDays = 30;
-
-/// How many nights the stage chart covers.
-const int kSleepHistoryWeek = 7;
 
 /// The sleep-history screen.
 class SleepHistoryScreen extends ConsumerStatefulWidget {
@@ -153,23 +152,6 @@ class SleepHistoryDetail extends StatelessWidget {
   /// The window the chart and the list cover, newest first.
   List<SleepNight> get window => dated.take(kSleepHistoryDays).toList();
 
-  /// The stacked week, oldest first.
-  List<SleepNightSummary> get week => <SleepNightSummary>[
-    for (final night in dated.take(kSleepHistoryWeek).toList().reversed)
-      SleepNightSummary(
-        date: night.date,
-        // NO `?? night.stages.total` fallback. `tst_min` is withheld by the server
-        // when it cannot say, and replacing a withhold with a stage sum put the
-        // refusal back as a number — which for an unstaged night was zero.
-        durationMin: night.tstMin.valueOrNull?.round(),
-        deepMin: night.stages?.deep.round(),
-        lightMin: night.stages?.light.round(),
-        remMin: night.stages?.rem.round(),
-        awakeMin: night.stages?.awake.round(),
-        deviceScore: night.deviceScore.valueOrNull?.round(),
-      ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final nights = window;
@@ -195,11 +177,6 @@ class SleepHistoryDetail extends StatelessWidget {
         // are not duration, so neither is a substitute. The link comes back
         // with the metric.
         SleepDurationPanel(nights: nights, reveals: reveals),
-        // One bar is not a week. The prototype draws seven; the payload decides.
-        if (week.length >= 2) ...<Widget>[
-          const SizedBox(height: panelGap),
-          NightStagesPanel(nights: week, reveals: reveals),
-        ],
         const SizedBox(height: blockGap),
         const SectionHead(title: 'Open a night'),
         FlushCard(

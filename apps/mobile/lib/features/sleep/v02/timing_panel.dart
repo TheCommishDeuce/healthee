@@ -28,19 +28,17 @@
 /// chart when it arrives and none of it when it does not; the chart is the half
 /// of this panel that comes from `/api/sleep` and never waits on the other read.
 ///
-/// The SRI arrives with its own withheld block (`read/sleep_extras.py` nulls it
-/// whenever it is not current and moves the value into `sri_withheld` "where it
-/// carries its own date and age"), so it is rendered through `ReadingView` and a
-/// stale reading says so instead of vanishing.
+/// The SRI that block also carries is **not drawn here** (R5,
+/// `DESIGN_DECISIONS.md`): the night's regularity check on this screen already
+/// states it, and Insights carries its trend — three copies was the repeat the
+/// owner reported.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/tone.dart';
-import 'package:healthee/core/theme/tone_scope.dart';
 import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/honesty/citations.dart';
-import 'package:healthee/data/honesty/reading.dart';
 import 'package:healthee/data/models/sleep_consistency.dart';
 import 'package:healthee/features/sleep/sleep_format.dart';
 import 'package:healthee/shared/charts/v02/chart_void.dart';
@@ -48,7 +46,6 @@ import 'package:healthee/shared/charts/v02/v02_timing_chart.dart';
 import 'package:healthee/shared/metric_info/metric_detail.dart';
 import 'package:healthee/shared/reveal_once.dart';
 import 'package:healthee/shared/states/grounded_text.dart';
-import 'package:healthee/shared/states/reading_view.dart';
 import 'package:healthee/shared/v02/colour_key.dart';
 import 'package:healthee/shared/v02/panel.dart';
 import 'package:healthee/shared/v02/panel_head.dart';
@@ -165,7 +162,7 @@ class SleepTimingPanel extends StatelessWidget {
   }
 }
 
-/// The typical onset band, the median clocks, and the SRI beside them.
+/// The typical onset band and the median clocks.
 class _BandBlock extends StatelessWidget {
   const _BandBlock({required this.block});
 
@@ -202,23 +199,6 @@ class _BandBlock extends StatelessWidget {
                 style: TypeScale.panelContext.copyWith(color: colors.ink2),
               ),
             ),
-            const SizedBox(width: 10),
-            Flexible(
-              child: ReadingView<double>(
-                reading: block.sri,
-                label: 'Sleep regularity',
-                withheldBuilder: (context, disclosure) => Text(
-                  'SRI —',
-                  textAlign: TextAlign.right,
-                  style: TypeScale.statUnit.copyWith(color: colors.ink3),
-                ),
-                builder: (context, sri) => Text(
-                  'SRI ${sri.round()}',
-                  textAlign: TextAlign.right,
-                  style: TypeScale.panelTitle.copyWith(color: context.family),
-                ),
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -239,9 +219,6 @@ class _BandBlock extends StatelessWidget {
             ],
           ],
         ),
-        // The SRI's own reason, in words, inside the card that owns it.
-        if (block.sri case Withheld<double>(:final disclosure))
-          PanelNote('Sleep regularity: ${disclosure.message}'),
       ],
     );
   }

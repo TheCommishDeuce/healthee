@@ -1,11 +1,10 @@
-/// The three panels the recovery screen adds under `Recovery, explained`.
+/// The panels the recovery screen adds under `Recovery, explained`.
 ///
 /// `design/mobile-preview/screens-daily.js::H.screens.recovery`:
 ///
 /// ```js
 /// H.panel('Compared with your baseline','recovery', signals + note, 'metrics')
 /// H.bridge('sleep','Sleep contributes 40% of the model. …','sleep','Explore your sleep')
-/// H.panel('Your body overnight','oxygen', H.overnightVitals(), 'sleep','heart')
 /// H.panel('Capacity changes through the day','movement',
 ///         two stats + load bars + note, 'activity','walk')
 /// ```
@@ -49,7 +48,6 @@ import 'package:healthee/shared/v02/panel.dart';
 import 'package:healthee/shared/v02/panel_head.dart';
 import 'package:healthee/shared/v02/panel_parts.dart';
 import 'package:healthee/shared/v02/signal_chart.dart';
-import 'package:healthee/shared/v02/vitals_table.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 /// What a baseline IS. True on every payload, including one with no summary.
@@ -225,65 +223,6 @@ class BaselinePanel extends StatelessWidget {
       ),
     );
   }
-}
-
-/// `Your body overnight` on the recovery screen — the same five measurements,
-/// read off `/api/today` rather than off one night of `/api/sleep`.
-class RecoveryVitalsPanel extends StatelessWidget {
-  /// [vitals] is built by the screen; this is the frame around it.
-  const RecoveryVitalsPanel({
-    required this.vitals,
-    required this.reveals,
-    this.onDetails,
-    this.onOpenMetric,
-    super.key,
-  });
-
-  /// The prototype's title.
-  static const String title = 'Your body overnight';
-
-  /// The reveal-id namespace for this screen's rows.
-  static const String revealPrefix = 'recovery.vital';
-
-  /// The five rows.
-  final List<Vital> vitals;
-
-  /// Where "already revealed" is remembered.
-  final RevealRegistry reveals;
-
-  /// Opens the sleep screen — the prototype's `Details`.
-  final VoidCallback? onDetails;
-
-  /// Opens one measurement's own history.
-  final void Function(String metric)? onOpenMetric;
-
-  @override
-  Widget build(BuildContext context) => Panel(
-    tone: Tone.oxygen,
-    label: 'Overnight vitals',
-    head: PanelHead(
-      title: title,
-      icon: SolarIconsOutline.heart,
-      infoKey: 'sleep',
-      actionLabel: onDetails == null ? null : 'Details',
-      onAction: onDetails,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        VitalsTable(
-          vitals: vitals,
-          reveals: reveals,
-          revealPrefix: revealPrefix,
-          onOpenMetric: onOpenMetric,
-        ),
-        if (VitalsTable.refusals(vitals) case final List<String> lines
-            when lines.isNotEmpty)
-          PanelNote(lines.join('\n')),
-      ],
-    ),
-  );
 }
 
 /// `Capacity changes through the day` — the overnight estimate, what is left of

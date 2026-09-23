@@ -8,11 +8,14 @@
 ///   Recovery, explained          the number, the weights, the four factor bars
 ///   Compared with your baseline  each signal against its own normal
 ///   context bridge               sleep's share, and what a night holds
-///   Your body overnight          five measurements, each to its own history
 ///   Capacity changes …           overnight against remaining, and the effort
 ///   ⓘ                            method, weighting and limitations
 ///   footer
 /// ```
+///
+/// The prototype's `Your body overnight` is not drawn here: Sleep draws the
+/// same five measurements, and the bridge above it already leads there (R2,
+/// `DESIGN_DECISIONS.md`).
 ///
 /// ## Nothing here is a second reading
 ///
@@ -32,15 +35,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
-import 'package:healthee/core/theme/tone.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/history/history_metric.dart';
-import 'package:healthee/data/honesty/envelope.dart';
 import 'package:healthee/data/models/recovery_score.dart';
 import 'package:healthee/data/models/recovery_signals.dart';
 import 'package:healthee/data/models/today_snapshot.dart';
 import 'package:healthee/data/today_repository.dart';
-import 'package:healthee/features/today/today_facts.dart';
 import 'package:healthee/features/today/v02/recovery_detail_panels.dart';
 import 'package:healthee/features/today/v02/recovery_panel.dart';
 import 'package:healthee/shared/history_link.dart';
@@ -56,9 +56,7 @@ import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/dated_history.dart';
 import 'package:healthee/shared/v02/detail_page.dart';
 import 'package:healthee/shared/v02/view_day.dart';
-import 'package:healthee/shared/v02/vitals_table.dart';
 import 'package:healthee/shared/v02/withheld_panel.dart';
-import 'package:solar_icons/solar_icons.dart';
 
 /// The prototype's own title, full stop included.
 const String kRecoveryTitle = 'Recovery, in context.';
@@ -163,7 +161,6 @@ class RecoveryDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final facts = TodayFacts.of(snapshot, now);
     final score = snapshot.recovery.valueOrNull;
     return _Frame(
       date: snapshot.date,
@@ -191,17 +188,6 @@ class RecoveryDetail extends StatelessWidget {
             onOpen: () => unawaited(context.push(Routes.sleep)),
           ),
         ],
-        const SizedBox(height: _Frame.panelGap),
-        RecoveryVitalsPanel(
-          vitals: overnightVitals(facts, snapshot),
-          reveals: reveals,
-          onDetails: () => unawaited(context.push(Routes.sleep)),
-          onOpenMetric: (metric) => unawaited(
-            context.push(
-              '${Routes.history}?metric=${Uri.encodeComponent(metric)}',
-            ),
-          ),
-        ),
         if (score != null) ...<Widget>[
           const SizedBox(height: _Frame.panelGap),
           CapacityPanel(
@@ -227,76 +213,6 @@ class RecoveryDetail extends StatelessWidget {
       ],
     );
   }
-
-  /// The five overnight rows, off `/api/today` rather than off one night.
-  ///
-  /// The Sleep screen builds the same five from `/api/sleep`, where a whole
-  /// night is in hand. This screen has today's payload, so each reading is the
-  /// one `TodayFacts` already resolved for the hero and the tiles — the same
-  /// number the owner has just tapped through from, rather than a second read of
-  /// the same measurement.
-  static List<Vital> overnightVitals(
-    TodayFacts facts,
-    TodaySnapshot snapshot,
-  ) => <Vital>[
-    Vital(
-      label: 'Resting heart',
-      tone: Tone.heart,
-      icon: SolarIconsOutline.heart,
-      unit: 'bpm',
-      reading: facts.restingHeartRate,
-      series: _series(facts, TodayMetricIds.restingHeartRate),
-      metric: TodayMetricIds.restingHeartRate,
-    ),
-    Vital(
-      label: 'HRV',
-      tone: Tone.fitness,
-      icon: SolarIconsOutline.chart_2,
-      unit: 'ms',
-      reading: facts.heartRateVariability,
-      series: _series(facts, TodayMetricIds.heartRateVariability),
-      metric: TodayMetricIds.heartRateVariability,
-    ),
-    Vital(
-      label: 'Blood oxygen',
-      tone: Tone.oxygen,
-      icon: SolarIconsOutline.waterdrop,
-      unit: '%',
-      reading: facts.bloodOxygen,
-      series: _series(facts, TodayMetricIds.bloodOxygenMin),
-      metric: TodayMetricIds.bloodOxygen,
-      digits: 1,
-    ),
-    Vital(
-      label: 'Breathing',
-      tone: Tone.oxygen,
-      icon: SolarIconsOutline.wind,
-      unit: '/min',
-      reading: facts.respiratoryRate,
-      series: _series(facts, TodayMetricIds.respiratoryRate),
-      metric: TodayMetricIds.respiratoryRate,
-    ),
-    Vital(
-      label: 'Skin temperature',
-      tone: Tone.stress,
-      icon: SolarIconsOutline.sun,
-      unit: '°C',
-      // `/api/today` carries no series for skin temperature and no refusal
-      // block for it either, so an absent reading resolves the same
-      // "unexplained absence" `readingFrom` gives any other empty block — one
-      // absence, worded one way, rather than a sentence invented here.
-      reading: readingFrom<double>(
-        const <String, Object?>{},
-        (_) => snapshot.overnightVitals?.skinTempC,
-      ),
-      series: const <double?>[],
-      metric: 'skin_temp_c',
-      digits: 1,
-    ),
-  ];
-
-  static List<double?> _series(TodayFacts facts, String metric) =>
-      <double?>[...facts.spark(metric)];
 }
 
 /// The page every state of this screen is drawn in, so the head and the gutter

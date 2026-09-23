@@ -51,6 +51,7 @@ import 'package:healthee/shared/states/caveat_scope.dart';
 import 'package:healthee/shared/states/current_account_value.dart';
 import 'package:healthee/shared/states/reading_view.dart';
 import 'package:healthee/shared/states/state_scaffold.dart';
+import 'package:healthee/shared/v02/age_entry_card.dart';
 import 'package:healthee/shared/v02/context_bridge.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/dated_history.dart';
@@ -171,7 +172,7 @@ class FitnessDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vo2max = snapshot.vo2max.valueOrNull;
-    final years = fitnessContributionYears(
+    final years = AgeEntryCard.contribution(
       snapshot.biologicalAge.valueOrNull,
     );
     final rhythm = RhythmPanel(
