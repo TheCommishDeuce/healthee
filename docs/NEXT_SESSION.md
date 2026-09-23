@@ -19,11 +19,24 @@ has all of it.
 | F3 Activity bridges → Fitness→age + Recovery entry cards | `657b62c` | yes |
 | F1 Today: steps / heart rate / stress day cards below sleep, recovery, weight | `65ae0ef`, `e1f1be4` | yes |
 
+Later the same session (owner: "proceed"; accepted the F5 recommendations):
+
+| Item | Commit |
+|---|---|
+| F5 R1 R2 R3 R5 R8 consolidation ([REDUNDANCY_INVENTORY.md](REDUNDANCY_INVENTORY.md)) | `142f7d6` |
+| B2 on every server-backed screen: `/api/*` refused with no session, sign-in card | `a034a53` |
+| R10 one `hoursMinutes`; Recovery baseline reads `6h 56m` not `416 min` | `81b2962` |
+
+Full mutation run after F5: **311 caught, 0 survived** (more added since, each checked).
+
 **Open now:**
-- **F5** — proposal written: [REDUNDANCY_INVENTORY.md](REDUNDANCY_INVENTORY.md) (R1–R9).
-  Owner decides each item; nothing deleted yet.
-- Recovery/Body/Fitness detail screens still say "Couldn't reach your server…" when
-  signed out (B2 fixed the tab screens only).
+- **R9** (server, one-definition): plan in REDUNDANCY_INVENTORY.md. Own branch + PR.
+- **Owner-gated, deferred until everything else is done** (owner's words): unpair +
+  re-pair to see B1 on the phone; sign out + QR re-enrol to see B2 on the phone.
+- `V02LinkedChart` has no caller since R3 (kept with its tests on purpose).
+- `RecoveryDetail.now` is unused since R2 (harmless; the screen's `now` feeds it).
+- `durationLabel` (`48m`, workouts) and `hoursMinutes` (`0h 48m`, sleep) are two
+  duration formats by design; revisit if the owner finds that inconsistent.
 - The rest of §4–§6 below is unchanged (offline weigh-in test, clean-up, R1 key, …).
 
 Sections 1–3 below are the original handoff, kept for context; their F/B items are done.
