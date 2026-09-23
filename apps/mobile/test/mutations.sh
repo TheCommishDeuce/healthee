@@ -3064,6 +3064,19 @@ mutate 'the line chart ignores the format it is handed' \
   '      '
 
 
+# B3, from the owner's phone: "439 records across 7 months" for history spanning
+# August and September — it counted stream-months. Both the held summary and the
+# run message must count calendar months.
+mutate 'mirror stats count stream-months as months' \
+  test/mirror/mirror_sync_test.dart lib/data/mirror/mirror_sync.dart \
+  'months: rows.map((row) => row.month).toSet().length,' \
+  'months: rows.length,'
+mutate 'a mirror run counts stream-months as months' \
+  test/mirror/mirror_sync_test.dart lib/data/mirror/mirror_sync.dart \
+  'fetchedMonths: fetchedMonths.length,' \
+  'fetchedMonths: fetched,'
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"

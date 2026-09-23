@@ -29,17 +29,22 @@ class MirrorRun {
   /// All fields required.
   const MirrorRun({
     required this.fetched,
+    required this.fetchedMonths,
     required this.unchanged,
     required this.removed,
   });
 
-  /// Months downloaded because they were new or had changed.
+  /// Stream-months downloaded because they were new or had changed.
   final int fetched;
 
-  /// Months already current, so not downloaded.
+  /// Distinct calendar months among [fetched] — what a person calls "months".
+  /// Three streams for September are three fetches and one month.
+  final int fetchedMonths;
+
+  /// Stream-months already current, so not downloaded.
   final int unchanged;
 
-  /// Months deleted because the server no longer lists them.
+  /// Stream-months deleted because the server no longer lists them.
   final int removed;
 }
 
@@ -62,7 +67,9 @@ class MirrorStats {
     lastSynced: null,
   );
 
-  /// Stream-months held.
+  /// Distinct calendar months held, whichever streams cover them. Not
+  /// stream-months: history spanning August and September is two months even
+  /// when five streams each hold both (B3).
   final int months;
 
   /// Rows across them.
@@ -102,6 +109,7 @@ class MirrorSync {
         '${row.stream}/${row.month}': row,
     };
     var fetched = 0;
+    final fetchedMonths = <String>{};
     var unchanged = 0;
     for (final MapEntry(key: stream, value: months)
         in manifest.streams.entries) {
@@ -115,6 +123,7 @@ class MirrorSync {
         }
         await _fetch(api, owner, stream, month.month, manifest.version, now);
         fetched++;
+        fetchedMonths.add(month.month);
       }
     }
     // Whatever is left was not in the manifest: the server no longer has it.
@@ -134,6 +143,7 @@ class MirrorSync {
         );
     return MirrorRun(
       fetched: fetched,
+      fetchedMonths: fetchedMonths.length,
       unchanged: unchanged,
       removed: held.length,
     );
@@ -187,7 +197,7 @@ class MirrorSync {
     )..where((r) => r.owner.equals(meta.value))).get();
     if (rows.isEmpty) return MirrorStats.empty;
     return MirrorStats(
-      months: rows.length,
+      months: rows.map((row) => row.month).toSet().length,
       rows: rows.fold(0, (sum, row) => sum + row.rows),
       bytes: rows.fold(0, (sum, row) => sum + utf8.encode(row.payload).length),
       lastSynced: DateTime.fromMillisecondsSinceEpoch(

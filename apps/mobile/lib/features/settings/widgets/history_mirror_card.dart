@@ -38,8 +38,23 @@ class HistoryMirrorCard extends ConsumerWidget {
     final synced = stats.lastSynced == null
         ? ''
         : ' Updated ${ageLabel(stats.lastSynced!, now: now)}.';
-    return '${stats.rows} records across ${stats.months} months '
+    return '${stats.rows} records across ${stats.months} '
+        '${stats.months == 1 ? 'month' : 'months'} '
         '($size MB).$synced';
+  }
+
+  /// What a run did, in calendar months (B3: "7 months downloaded" counted
+  /// stream-months for history spanning two).
+  static String runSummary(MirrorRun run) {
+    const removed = 'Removed what the server no longer holds.';
+    final months = run.fetchedMonths;
+    final downloaded = months == 0
+        ? null
+        : 'Downloaded $months ${months == 1 ? 'month' : 'months'} of history.';
+    if (downloaded == null) {
+      return run.removed == 0 ? 'Already up to date.' : removed;
+    }
+    return run.removed == 0 ? downloaded : '$downloaded $removed';
   }
 
   @override
@@ -68,9 +83,7 @@ class HistoryMirrorCard extends ConsumerWidget {
               final run = await ref
                   .read(mirrorSyncProvider)
                   .run(await ref.read(accountApiProvider.future));
-              return '${run.fetched} months downloaded, ${run.unchanged} '
-                  'already current'
-                  '${run.removed == 0 ? '' : ', ${run.removed} removed'}.';
+              return runSummary(run);
             },
             onSaved: () => ref.invalidate(mirrorStatsProvider),
           ),
