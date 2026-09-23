@@ -3165,6 +3165,32 @@ mutate 'the recovery card opens nothing' \
   '    onOpen: null,'
 
 
+# F1, the owner: Today carries the day — steps, heart rate, stress — as its own
+# cards. Hours sit on the clock with gaps kept as gaps, and every figure is a
+# reading someone else produced.
+mutate 'day-card hours are packed together instead of placed on the clock' \
+  test/features/today_day_cards_test.dart lib/features/today/v02/day_cards.dart \
+  '  return <double?>[for (var hour = 0; hour <= last; hour++) byHour[hour]];' \
+  '  return <double?>[for (final point in points) pick(point)];'
+mutate 'a missing step hour is left out instead of counted as zero' \
+  test/features/today_day_cards_test.dart lib/features/today/v02/day_cards.dart \
+  '    return <double?>[for (var hour = 0; hour <= last; hour++) hours[hour] ?? 0];' \
+  '    return <double?>[for (final v in hours.values) v];'
+mutate 'the heart-rate range reads the hourly averages, not the samples' \
+  test/features/today_day_cards_test.dart lib/features/today/v02/day_cards.dart \
+  '    final lows = hourly.map((p) => p.minimum).whereType<double>();' \
+  '    final lows = hourly.map((p) => p.average).whereType<double>();'
+mutate 'the stress peak is the first hour, not the highest' \
+  test/features/today_day_cards_test.dart lib/features/today/v02/day_cards.dart \
+  '      : hourly.reduce((a, b) => b.average > a.average ? b : a);' \
+  '      : hourly.first;'
+mutate 'Today drops the day cards again' \
+  test/features/today_order_test.dart lib/features/today/today_sections.dart \
+  '  _theDay(sections, data, extras);
+' \
+  ''
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"

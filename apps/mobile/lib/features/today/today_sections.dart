@@ -1,12 +1,18 @@
-/// Today is a morning overview: sleep, overnight recovery, then weight entry.
-/// Connection failures and safety notices remain above the readings they qualify.
+/// Today: last night's sleep, overnight recovery and the weigh-in, then the day
+/// itself — steps, heart rate and stress, each its own card (F1, which partly
+/// reverses U11/U20; see `DESIGN_DECISIONS.md`). Connection failures and safety
+/// notices remain above the readings they qualify.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:healthee/data/honesty/device_absence.dart';
 import 'package:healthee/data/models/recovery_score.dart';
+import 'package:healthee/data/models/today_series.dart';
 import 'package:healthee/data/push/push_stamp.dart';
 import 'package:healthee/data/sync/connection_health.dart';
+import 'package:healthee/features/today/today_facts.dart';
 import 'package:healthee/features/today/v02/date_control.dart';
+import 'package:healthee/features/today/v02/day_cards.dart';
 import 'package:healthee/features/today/v02/recovery_panel.dart';
 import 'package:healthee/features/today/v02/today_header.dart';
 import 'package:healthee/features/today/widgets/data_health_section.dart';
@@ -33,6 +39,7 @@ class TodayExtras {
     this.onOpenProfile,
     this.onOpenRecovery,
     this.onOpenSleep,
+    this.onOpenMetric,
   });
 
   final PushStamp? push;
@@ -44,6 +51,9 @@ class TodayExtras {
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenRecovery;
   final VoidCallback? onOpenSleep;
+
+  /// Opens one metric's own history — the steps card's `Details`.
+  final void Function(String metric)? onOpenMetric;
 }
 
 List<PageSection> todaySections(ScreenData data, TodayExtras extras) {
@@ -78,7 +88,51 @@ List<PageSection> todaySections(ScreenData data, TodayExtras extras) {
   sections.add(
     WeightEntry(signedIn: extras.signedIn, onSignIn: extras.onSignIn),
   );
+  _theDay(sections, data, extras);
   return sections.build();
+}
+
+/// Steps, heart rate and stress for the day being read (F1).
+///
+/// Drawn with or without a server answer: the strap's own counters and latest
+/// samples need none, and each card says when the server's hours are missing.
+void _theDay(SectionList sections, ScreenData data, TodayExtras extras) {
+  final snapshot = data.snapshot;
+  final openMetric = extras.onOpenMetric;
+  sections
+    ..gap(PageSpacing.panel)
+    ..add(
+      StepsDayCard(
+        day: data.day,
+        buckets: snapshot?.stepBuckets ?? const <StepBucket>[],
+        reveals: data.reveals,
+        onDetails: openMetric == null
+            ? null
+            : () => openMetric(TodayMetricIds.steps),
+      ),
+    )
+    ..gap(PageSpacing.panel)
+    ..add(
+      HeartRateDayCard(
+        day: data.day,
+        hourly: snapshot?.hourlyHeartRate ?? const <HourPoint>[],
+        resting: snapshot == null
+            ? notMeasured<double>('resting heart rate')
+            : TodayFacts.of(snapshot, data.now ?? DateTime.now())
+                .restingHeartRate,
+        reveals: data.reveals,
+      ),
+    )
+    ..gap(PageSpacing.panel)
+    ..add(
+      StressDayCard(
+        latest: data.day.metrics
+            .where((metric) => metric.stream.metric == 'stress')
+            .firstOrNull,
+        hourly: snapshot?.hourlyStress ?? const <HourPoint>[],
+        reveals: data.reveals,
+      ),
+    );
 }
 
 void _head(SectionList sections, ScreenData data, TodayExtras extras) {

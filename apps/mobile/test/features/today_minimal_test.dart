@@ -23,7 +23,7 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  testWidgets('Today is sleep, overnight recovery and weight entry', (
+  testWidgets('Today is sleep, recovery, weight, then steps, heart rate, stress', (
     tester,
   ) async {
     viewport(tester);
@@ -52,6 +52,13 @@ void main() {
     final weightY = tester.getTopLeft(find.text('Log weight')).dy;
     expect(sleepY, lessThan(recoveryY));
     expect(recoveryY, lessThan(weightY));
+    // F1: the day, below the morning's three, each its own card.
+    var previous = weightY;
+    for (final title in <String>['Steps', 'Heart rate', 'Stress']) {
+      final y = tester.getTopLeft(find.text(title).last).dy;
+      expect(y, greaterThan(previous), reason: title);
+      previous = y;
+    }
     expect(tester.takeException(), isNull);
   });
 

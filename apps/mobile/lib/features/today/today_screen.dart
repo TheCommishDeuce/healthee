@@ -14,6 +14,7 @@ import 'package:healthee/data/sync/connection_health.dart';
 import 'package:healthee/data/sync/sync_controller.dart';
 import 'package:healthee/features/today/today_sections.dart';
 import 'package:healthee/features/today/v02/date_control.dart';
+import 'package:healthee/shared/history_link.dart';
 import 'package:healthee/shared/instrument_screen.dart';
 
 /// A short morning overview; the shared shell still owns collection and refresh.
@@ -57,6 +58,7 @@ class TodayScreen extends ConsumerWidget {
           onOpenProfile: () => unawaited(context.push(Routes.settings)),
           onOpenRecovery: () => unawaited(context.push(Routes.recovery)),
           onOpenSleep: () => context.go(Routes.sleep),
+          onOpenMetric: (metric) => openMetricHistory(context, metric),
         ),
       ),
     );

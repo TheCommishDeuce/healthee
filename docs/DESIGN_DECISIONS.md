@@ -73,7 +73,7 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 | U8 | Accepted direction | Retain functional page navigation and existing visual language. No unrelated theme or component-library rewrite. |
 | U9 | Consequence | Remove Today's chapter-navigation machinery when the short layout no longer needs it. |
 | U10 | Accepted | Do not build food tracking. Owner: “nevermind dont bother.” |
-| U11 | Accepted | Today's three content priorities, in order: **sleep, recovery, log weight**. Conditional sync/failure/safety notices are not extra dashboard sections and must remain useful. |
+| U11 | Revised by F1 | Today's three content priorities, in order: **sleep, recovery, log weight**. Conditional sync/failure/safety notices are not extra dashboard sections and must remain useful. |
 | U12 | Proposed method | Remove surplus Today composition; retain shared components/details until callers are checked. Lack of a top-level tab does not mean a detail page has no caller. |
 | U13 | Settled by F4 | Owner: “maybe (lets see it in the first build)” about Insights. Earlier notes incorrectly converted this into an unequivocal deletion. Retain it for review rather than silently remove it. |
 | U14 | Accepted direction | No general journal page is needed for caffeine/alcohol tracking; owner does not log those. Keep weight entry and its supporting code. Do not delete `data/journal` before moving/reusing the weight path. |
@@ -82,7 +82,7 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 | U17 | Proposed/deferred | Landing site is a separate Astro marketing/waitlist site, unrelated to the Android UI. Owner did not know it existed. No deletion needed to deliver the first mobile slice. |
 | U18 | Accepted with dependency check | Replace the crowded Today composition. Do not blindly delete every file under `features/today`: Sleep, Activity and pushed details share some of them. |
 | U19 | Accepted | No new gym exercise catalogue, sets/reps or progression tracker for now. Does not remove strap-recorded workouts (U16). |
-| U20 | Implementation choice for U11 | Today uses three full-width cards, without the age hero, dashboard chapters or floating coach button. Recovery keeps its factor bars; weighting/method detail remains reachable rather than duplicating the full detail page. |
+| U20 | Revised by F1 | Today uses three full-width cards, without the age hero, dashboard chapters or floating coach button. Recovery keeps its factor bars; weighting/method detail remains reachable rather than duplicating the full detail page. |
 | U21 | Superseded by A8 (`4f8bc19`) | Weight entry opens the existing validated form directly and observes credential loading/retries. An unreachable server now HOLDS the entry on the phone (form clears, says so); a server refusal keeps the form. |
 | U22 | Implementation choice for U2/A3 | Sleep timestamps are displayed in phone-local time, explicitly labelled local and including the year. The server sends timestamp instants, not necessarily owner-local dates. Missing dates are explicit. Local sleep is a fallback only when no server answer exists, never a way around a server refusal. |
 
@@ -102,6 +102,15 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 
 Owner feedback from the first session with the debug build (`NEXT_SESSION.md` §2).
 
+- **F1 — Today gains the day (partly reverses U11/U20).** Owner: Today should
+  carry the day's **steps, heart rate and stress**, each a separate detailed card,
+  beside last night's sleep, recovery and the weigh-in ("already right, keep as
+  is"). Order: sleep, recovery, weight, then steps, heart rate, stress
+  (implementation choice; the morning three stay first). Today shows the DAY by
+  hour; Activity keeps the week. Every figure is the strap's counter/latest
+  sample, the server's hourly aggregates, or the server's canonical resting heart
+  rate — no new metric. The retired `V02BucketChart` was not restored: steps use
+  the existing bar chart, summed from the server's 15-minute buckets into hours.
 - **F2 — Sleep trimmed below the timing panel.** Everything from the prototype's
   *Beyond a single night* chapter down is removed: the three fortnight trends
   (efficiency, regularity, HRV), the tonight lever and the sleep findings list.
