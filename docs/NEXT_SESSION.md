@@ -1,4 +1,33 @@
-# Next session — handoff (written 2026-09-23)
+# Next session — handoff (written 2026-09-23, updated same day after the fix session)
+
+## 0. Update — what the second session did (read this first)
+
+All owner feedback F1–F4 and bugs B1–B5 are implemented on `feat/debug-side-by-side`
+(pushed; still **no PR**), each with tests, a mutation in `test/mutations.sh`, and a
+`DESIGN_DECISIONS.md` entry under *First on-phone review*. The debug APK on the phone
+has all of it.
+
+| Item | Commit | Checked on phone |
+|---|---|---|
+| B4 sleep history in h/min | `9097689` | yes |
+| B3 calendar months in mirror card | `2938a2e` | yes |
+| B2 signed out → "sign in", no request | `c2f4607` | no (would need sign-out + QR re-enrol) |
+| F2 overnight rows open their own metric | `1b84c91` | yes |
+| B1 pairing re-runs the sync | `9c25ec7` | no (would need unpair + Zepp re-pair) |
+| F2 Sleep trimmed; naps only on a nap day (owner chose this) | `87e94ac` | yes |
+| F4 Insights trimmed (findings list cut, owner confirmed) — also B5 | `51145d3` | yes |
+| F3 Activity bridges → Fitness→age + Recovery entry cards | `657b62c` | yes |
+| F1 Today: steps / heart rate / stress day cards below sleep, recovery, weight | `65ae0ef`, `e1f1be4` | yes |
+
+**Open now:**
+- **F5** — proposal written: [REDUNDANCY_INVENTORY.md](REDUNDANCY_INVENTORY.md) (R1–R9).
+  Owner decides each item; nothing deleted yet.
+- Recovery/Body/Fitness detail screens still say "Couldn't reach your server…" when
+  signed out (B2 fixed the tab screens only).
+- The rest of §4–§6 below is unchanged (offline weigh-in test, clean-up, R1 key, …).
+
+Sections 1–3 below are the original handoff, kept for context; their F/B items are done.
+
 
 Start here. It carries everything needed to resume without the previous context:
 owner feedback from the first on-phone session, bugs found, the live state of the
