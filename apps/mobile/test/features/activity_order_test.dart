@@ -20,11 +20,14 @@ import 'package:healthee/features/activity/activity_extras.dart';
 import 'package:healthee/features/activity/activity_sections.dart';
 import 'package:healthee/features/activity/v02/fitness_plan_panel.dart';
 import 'package:healthee/features/activity/v02/movement_panels.dart';
+import 'package:healthee/features/activity/v02/recovery_entry_card.dart';
 import 'package:healthee/shared/insight_card.dart';
 import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/states/reading_view.dart';
+import 'package:healthee/shared/v02/age_entry_card.dart';
 import 'package:healthee/shared/v02/context_bridge.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
+import 'package:healthee/shared/v02/entry_card.dart';
 import 'package:healthee/shared/v02/list_rows.dart';
 import 'package:healthee/shared/v02/page_header.dart';
 import 'package:healthee/shared/v02/section_head.dart';
@@ -79,12 +82,11 @@ void main() {
         _indexOf<InsightCard>(list),
         // `H.panel('Fitness with its source', …)`, now at the top with it.
         _indexOf<ReadingView<Vo2max>>(list),
-        // `H.bridge('fitness', …)` — the age model's fitness term.
-        _nthOf<ContextBridge>(list, 0),
+        // The two destinations the prototype reached through bridge sentences,
+        // as cards (F3): the age model's fitness term, and recovery.
+        _indexOf<EntryGrid>(list),
         // `H.panel('Today’s movement', …)`.
         _indexOf<MovementPanel>(list),
-        // `H.bridge('movement', …)`.
-        _nthOf<ContextBridge>(list, 1),
         // `H.panel('Your week, by intensity', …)`.
         _indexOf<ReadingView<Mvpa>>(list),
         // `H.panel('Training load, not just time', …)`.
@@ -160,15 +162,8 @@ void main() {
       );
     });
 
-    test('a bridge is a block break, and two panels are a panel break', () {
+    test('two panels are a panel break', () {
       final list = sections();
-      // The bridge owns that gap now, so its rule can span it and reach the
-      // card above — see `ContextBridge.leadIn` and `today_order_test.dart`.
-      expect(list[_nthOf<ContextBridge>(list, 0) - 1].gap, 0);
-      expect(
-        (list[_nthOf<ContextBridge>(list, 0)].child as ContextBridge).leadIn,
-        PageSpacing.block,
-      );
       expect(list[_indexOf<ReadingView<Mvpa>>(list)].gap, PageSpacing.panel);
     });
   });
@@ -187,7 +182,7 @@ void main() {
       );
       final refusal = _indexOf<ReadingView<Mvpa>>(list);
       expect(refusal, isNonNegative, reason: 'the slot must keep its place');
-      expect(refusal, greaterThan(_nthOf<ContextBridge>(list, 0)));
+      expect(refusal, greaterThan(_indexOf<MovementPanel>(list)));
       expect(refusal, lessThan(_indexOf<ReadingView<CardioLoad>>(list)));
     });
 
@@ -208,7 +203,25 @@ void main() {
   });
 
   group('the conditional sections are the payload’s conditions', () {
-    test('no fitness term means no age bridge — never an invented one', () {
+    test('NO BRIDGE SENTENCE BETWEEN THE CARDS ANY MORE (F3)', () {
+      expect(_indexOf<ContextBridge>(sections()), -1);
+    });
+
+    test('the cards are the age model and recovery', () {
+      var recovery = 0;
+      final list = sections(
+        extras: ActivityExtras(onOpenRecovery: () => recovery++),
+      );
+      final grid = list[_indexOf<EntryGrid>(list)].child as EntryGrid;
+      expect(grid.left, isA<AgeEntryCard>());
+      final card = grid.right as RecoveryEntryCard;
+      // The server's own score, when it sent one.
+      expect(card.score, isNotNull);
+      card.onOpen!();
+      expect(recovery, 1);
+    });
+
+    test('no fitness term means no age card — never an invented one', () {
       final none = sections(
         mutate: (json) => <String, Object?>{
           ...json,
@@ -218,9 +231,10 @@ void main() {
           },
         },
       );
-      // The movement bridge stays; the age one is gone.
-      expect(_nthOf<ContextBridge>(none, 0), isNonNegative);
-      expect(_nthOf<ContextBridge>(none, 1), -1);
+      // The recovery card stays, alone and full width; the age card is gone.
+      expect(_indexOf<EntryGrid>(none), -1);
+      expect(_indexOf<RecoveryEntryCard>(none), isNonNegative);
+      expect(_indexOf<AgeEntryCard>(none), -1);
     });
 
     test('a day without workouts keeps history accessible without GPS clutter', () {

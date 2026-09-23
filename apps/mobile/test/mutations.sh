@@ -3141,6 +3141,30 @@ mutate 'a day with no nap still draws the naps panel' \
       ..add(NapsPanel(naps: naps));'
 
 
+# F3, the owner: Activity's two destinations are entry cards, the recovery card
+# carries the server's own score, and no fitness term means no age card.
+mutate 'the recovery card drops the server score' \
+  test/features/activity_order_test.dart lib/features/activity/activity_sections.dart \
+  '    score: snapshot?.recovery.valueOrNull?.recovery,' \
+  '    score: null,'
+mutate 'an age card is drawn with no fitness term' \
+  test/features/activity_order_test.dart lib/features/activity/activity_sections.dart \
+  '    years == null
+        ? recovery
+        : EntryGrid(
+            // Opens the age screen itself, as it does on Insights.
+            left: AgeEntryCard(years: years),' \
+  '    false
+        ? recovery
+        : EntryGrid(
+            // Opens the age screen itself, as it does on Insights.
+            left: AgeEntryCard(years: years ?? 0),'
+mutate 'the recovery card opens nothing' \
+  test/features/v02_screen_links_test.dart lib/features/activity/activity_sections.dart \
+  '    onOpen: extras.onOpenRecovery,' \
+  '    onOpen: null,'
+
+
 echo
 echo "caught $PASS, survived $FAIL"
 [ "$SKIPPED" -eq 0 ] || echo "SKIPPED $SKIPPED — this was a FILTERED run, not the gate"

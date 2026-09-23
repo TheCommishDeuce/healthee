@@ -1,4 +1,5 @@
-/// The entry cards Insights is built from.
+/// The entry cards Insights is built from. The age card is shared with Activity
+/// and lives in `shared/v02/age_entry_card.dart`.
 ///
 /// `screens-overview.js::H.screens.insights`:
 ///
@@ -43,7 +44,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
 import 'package:healthee/core/theme/tone.dart';
-import 'package:healthee/data/models/biological_age.dart';
 import 'package:healthee/data/models/finding.dart';
 import 'package:healthee/features/insights/v02/finding_detail_screen.dart';
 import 'package:healthee/shared/format/metric_names.dart';
@@ -108,40 +108,4 @@ class FindingEntryCard extends StatelessWidget {
     final b = metricName(finding.metricB!);
     return '${a[0].toUpperCase()}${a.substring(1)} $kPairArrow $b';
   }
-}
-
-/// The second relationship card: the fitness term of the age model.
-class AgeEntryCard extends StatelessWidget {
-  /// Builds the card for [years], the fitness contribution in years.
-  const AgeEntryCard({required this.years, super.key});
-
-  /// The contribution, signed as the server sent it.
-  final double years;
-
-  @override
-  Widget build(BuildContext context) => EntryCard(
-    tone: Tone.fitness,
-    icon: SolarIconsOutline.heartPulse,
-    title: 'Fitness → age',
-    body: '${_signed(years)} years\nModel contribution',
-    // `<span class="text-button">Understand ↗</span>` on the prototype's second
-    // relationship card, pointed at `#body`. It carried no action while that
-    // screen did not exist; it does now.
-    actionLabel: 'Understand',
-    onOpen: () => unawaited(context.push(Routes.body)),
-  );
-
-  /// The fitness term of the age model, or null when the payload has none.
-  static double? contribution(BiologicalAge? age) {
-    for (final term in age?.contributions ?? const <AgeContribution>[]) {
-      if (term.term == 'fitness' && term.deltaYears != null) {
-        return term.deltaYears;
-      }
-    }
-    return null;
-  }
-
-  static String _signed(double years) => years < 0
-      ? '−${(-years).toStringAsFixed(1)}'
-      : '+${years.toStringAsFixed(1)}';
 }

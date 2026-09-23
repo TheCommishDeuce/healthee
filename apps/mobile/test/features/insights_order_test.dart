@@ -18,6 +18,7 @@ import 'package:healthee/features/insights/widgets/notable_events.dart';
 import 'package:healthee/features/insights/widgets/trends_section.dart';
 import 'package:healthee/shared/findings_section.dart';
 import 'package:healthee/shared/page_section.dart';
+import 'package:healthee/shared/v02/age_entry_card.dart';
 import 'package:healthee/shared/v02/context_bridge.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/entry_card.dart';

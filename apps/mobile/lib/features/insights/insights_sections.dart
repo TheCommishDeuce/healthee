@@ -73,6 +73,7 @@ import 'package:healthee/shared/format/metric_polarity.dart';
 import 'package:healthee/shared/instrument_screen.dart';
 import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/section_list.dart';
+import 'package:healthee/shared/v02/age_entry_card.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/dated_history.dart';
 import 'package:healthee/shared/v02/entry_card.dart';

@@ -119,6 +119,13 @@ Owner feedback from the first session with the debug build (`NEXT_SESSION.md` §
   findings list (owner confirmed). The top finding stays reachable from its card.
   `shared/findings_section.dart` is kept: its headline/window helpers and the
   citation tests still apply; its list widget currently has no caller.
+- **F3 — Activity's bridge sentences become entry cards.** Owner: "stupid text
+  between the cards", but the destinations (age model, recovery) are "very cool"
+  and deserve more visibility. The two `ContextBridge` sentences are replaced by
+  an entry-card grid directly under VO₂max: *Fitness → age* (the fitness term as
+  a model contribution, same card as Insights, now in `shared/v02/`) and
+  *Recovery* (the server's overnight score when sent). No fitness term → the
+  recovery card alone. The Fitness detail screen keeps its own age sentence.
 
 ### Presentation constraints for the first slice
 

@@ -25,7 +25,6 @@ class ActivityExtras {
     this.onOpenMetric,
     this.onOpenRecovery,
     this.onOpenFitness,
-    this.onOpenBody,
   });
 
   /// Opens settings. The avatar's destination.
@@ -43,12 +42,9 @@ class ActivityExtras {
   /// Opens one metric's own history. The panels' `Details` action.
   final void Function(String metric)? onOpenMetric;
 
-  /// Opens the recovery detail — `H.bridge('movement', …, 'recovery', …)`.
+  /// Opens the recovery detail — the recovery entry card (F3).
   final VoidCallback? onOpenRecovery;
 
   /// Opens the fitness detail — the VO₂max panel's `Details`.
   final VoidCallback? onOpenFitness;
-
-  /// Opens the age calculation — `H.bridge('fitness', …, 'body', …)`.
-  final VoidCallback? onOpenBody;
 }

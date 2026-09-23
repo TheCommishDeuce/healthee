@@ -173,16 +173,15 @@ void main() {
       expect(find.byType(SleepScreen), findsOneWidget);
     });
 
-    testWidgets('the movement bridge carries its own label to recovery', (
+    testWidgets('the recovery card on Activity opens recovery', (
       tester,
     ) async {
-      // `H.bridge('movement', …, 'recovery', 'See the relationship')`.
       _tall(tester);
       await tester.pumpWidget(routedApp(store));
       await tester.pumpAndSettle();
 
       await tapTab(tester, 'Activity');
-      await tapText(tester, 'View recovery');
+      await tapText(tester, 'Recovery');
 
       expect(find.byType(RecoveryScreen), findsOneWidget);
     });

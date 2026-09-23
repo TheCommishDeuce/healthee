@@ -59,17 +59,17 @@ void main() {
     testWidgets('the age model is named as a model output, not as an age', (
       tester,
     ) async {
-      // Biological age itself is Today's hero and is drawn once. What Activity
-      // carries is the prototype's bridge: the fitness TERM, named as a term.
+      // Biological age itself is drawn on the age screen. What Activity carries
+      // is the fitness TERM, named as a model contribution, on the entry card
+      // that opens that screen (F3) — the same card Insights draws.
       await tester.pumpWidget(todayHost(store, home: const ActivityScreen()));
       await tester.pumpAndSettle();
-      await reveal(tester, find.textContaining('to the age model'));
+      await reveal(tester, find.textContaining('Model contribution'));
 
       expect(
-        find.textContaining('contributes −1.7 years to the age model'),
+        find.textContaining('−1.7 years\nModel contribution'),
         findsOneWidget,
       );
-      expect(find.textContaining('not a change in actual age'), findsOneWidget);
       expect(
         find.text('34.3'),
         findsNothing,
