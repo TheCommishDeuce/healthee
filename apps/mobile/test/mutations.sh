@@ -3232,6 +3232,12 @@ mutate 'an underived night blames the strap for missing SpO2' \
   "      spo2Avg: sleepReading(number('spo2_avg'), vitals)," \
   "      spo2Avg: sleepReading(number('spo2_avg'), sampled),"
 
+# B8: the preflight scan answered from the PREVIOUS scan's results, stopped the
+# new scan before Android registered it, and left a LOW_LATENCY scan running.
+mutate 'the strap scan listens to the replaying scanResults stream again' \
+  test/ble/strap_scan_test.dart lib/ble/bluetooth_strap_scanner.dart \
+  '  final subscription = FlutterBluePlus.onScanResults.listen((results) {' \
+  '  final subscription = FlutterBluePlus.scanResults.listen((results) {'
 
 echo
 echo "caught $PASS, survived $FAIL"
