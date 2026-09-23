@@ -36,6 +36,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/history/history_metric.dart';
 import 'package:healthee/data/models/activity_today.dart';
@@ -47,6 +48,7 @@ import 'package:healthee/features/activity/v02/fitness_effort_panels.dart';
 import 'package:healthee/features/activity/v02/fitness_panels.dart';
 import 'package:healthee/shared/history_link.dart';
 import 'package:healthee/shared/reveal_once.dart';
+import 'package:healthee/shared/screen_data.dart';
 import 'package:healthee/shared/states/caveat_scope.dart';
 import 'package:healthee/shared/states/current_account_value.dart';
 import 'package:healthee/shared/states/reading_view.dart';
@@ -135,11 +137,14 @@ class _FitnessScreenState extends ConsumerState<FitnessScreen> {
       ),
       error: (error, stackTrace) => _Frame(
         children: <Widget>[
-          ErrorState(
-            message: "Couldn't reach your server for your fitness",
-            detail: 'This is a connection problem, not a gap in your data.',
-            onRetry: () => ref.invalidate(todaySnapshotProvider),
-          ),
+          if (isNotSignedIn(error))
+            signInNeededCard()
+          else
+            ErrorState(
+              message: "Couldn't reach your server for your fitness",
+              detail: 'This is a connection problem, not a gap in your data.',
+              onRetry: () => ref.invalidate(todaySnapshotProvider),
+            ),
         ],
       ),
       data: (value) =>

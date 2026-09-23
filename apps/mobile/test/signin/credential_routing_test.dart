@@ -12,6 +12,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/api/credentials.dart';
 import 'package:healthee/data/api/interceptors.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/api/server_session.dart';
 import 'package:healthee/data/api/stored_server_session.dart';
 import 'package:healthee/data/auth/device_token_client.dart';
@@ -224,14 +225,29 @@ void main() {
   });
 
   group('no session at all', () {
-    test('nothing is sent, and the build default stands', () async {
-      final empty = FakeSecretStore();
-      final dio = Dio(BaseOptions(baseUrl: 'https://healthee.example.com'))
-        ..httpClientAdapter = server
-        ..interceptors.add(
-          ServerSessionInterceptor(Credentials(empty), null),
-        );
-      await dio.get<Object?>('/api/today');
+    Dio emptyClient() =>
+        Dio(BaseOptions(baseUrl: 'https://healthee.example.com'))
+          ..httpClientAdapter = server
+          ..interceptors.add(
+            ServerSessionInterceptor(Credentials(FakeSecretStore()), null),
+          );
+
+    test('AN /api/* READ IS REFUSED BEFORE IT LEAVES, TYPED (B2)', () async {
+      // Every /api/* route this client calls needs a credential, so the
+      // request could only come back 401 — and a screen would then blame the
+      // server. It is refused here instead, as NotSignedIn.
+      Object? caught;
+      try {
+        await emptyClient().get<Object?>('/api/today');
+      } on DioException catch (error) {
+        caught = error;
+      }
+      expect(isNotSignedIn(caught), isTrue);
+      expect(server.sent, isEmpty);
+    });
+
+    test('anything else is not this rule\'s business', () async {
+      await emptyClient().get<Object?>('/ingest/samples');
       expect(sentAuth(), isNull);
     });
   });

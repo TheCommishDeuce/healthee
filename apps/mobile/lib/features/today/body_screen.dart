@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
 import 'package:healthee/core/theme/tone.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/history/history_metric.dart';
 import 'package:healthee/data/honesty/disclosure.dart';
@@ -50,6 +51,7 @@ import 'package:healthee/features/today/v02/today_hero.dart';
 import 'package:healthee/features/today/v02/today_hero_withheld.dart';
 import 'package:healthee/shared/history_link.dart';
 import 'package:healthee/shared/reveal_once.dart';
+import 'package:healthee/shared/screen_data.dart';
 import 'package:healthee/shared/states/current_account_value.dart';
 import 'package:healthee/shared/states/state_scaffold.dart';
 import 'package:healthee/shared/v02/context_bridge.dart';
@@ -121,11 +123,14 @@ class _BodyScreenState extends ConsumerState<BodyScreen> {
       ),
       error: (error, stackTrace) => _Frame(
         children: <Widget>[
-          ErrorState(
-            message: "Couldn't reach your server for your estimate",
-            detail: 'This is a connection problem, not a gap in your data.',
-            onRetry: () => ref.invalidate(todaySnapshotProvider),
-          ),
+          if (isNotSignedIn(error))
+            signInNeededCard()
+          else
+            ErrorState(
+              message: "Couldn't reach your server for your estimate",
+              detail: 'This is a connection problem, not a gap in your data.',
+              onRetry: () => ref.invalidate(todaySnapshotProvider),
+            ),
         ],
       ),
       data: (value) => BodyDetail(snapshot: value.snapshot, reveals: _reveals),

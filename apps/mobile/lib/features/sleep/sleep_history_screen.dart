@@ -39,12 +39,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/models/sleep_night.dart';
 import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/data/sleep_repository.dart';
 import 'package:healthee/data/store/view_date.dart';
 import 'package:healthee/features/sleep/v02/history_panels.dart';
 import 'package:healthee/shared/reveal_once.dart';
+import 'package:healthee/shared/screen_data.dart';
 import 'package:healthee/shared/states/state_scaffold.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/detail_page.dart';
@@ -82,13 +84,16 @@ class _SleepHistoryState extends ConsumerState<SleepHistoryScreen> {
           ),
           error: (error, stackTrace) => _Frame(
             children: <Widget>[
-              ErrorState(
-                message: "Couldn't reach your server for your nights",
-                detail:
-                    'Your nights are safe. This is a connection problem, not '
-                    'a gap in them.',
-                onRetry: () => ref.invalidate(sleepPageProvider),
-              ),
+              if (isNotSignedIn(error))
+                signInNeededCard()
+              else
+                ErrorState(
+                  message: "Couldn't reach your server for your nights",
+                  detail:
+                      'Your nights are safe. This is a connection problem, '
+                      'not a gap in them.',
+                  onRetry: () => ref.invalidate(sleepPageProvider),
+                ),
             ],
           ),
           data: (page) => SleepHistoryDetail(

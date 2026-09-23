@@ -26,6 +26,18 @@ void main() {
     }
     expect(apiProviderRetry(0, const FormatException('Invalid response')), isNull);
     expect(apiProviderRetry(0, const NotSignedIn()), isNull);
+    expect(
+      apiProviderRetry(
+        0,
+        DioException(
+          requestOptions: request,
+          error: const NotSignedIn(),
+          type: DioExceptionType.unknown,
+        ),
+      ),
+      isNull,
+      reason: 'the interceptor-shaped refusal is not retried either',
+    );
     final offline = DioException.connectionError(requestOptions: request, reason: 'Offline');
     expect(apiProviderRetry(0, offline), isNotNull);
     expect(apiProviderRetry(1, offline), isNull);

@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import 'package:healthee/core/logging.dart';
 import 'package:healthee/data/api/cache_session.dart';
 import 'package:healthee/data/api/credentials.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/api/stored_server_session.dart';
 import 'package:healthee/data/auth/identity_client.dart';
 
@@ -81,6 +82,20 @@ class ServerSessionInterceptor extends Interceptor {
         ? options.extra[CacheSession.requestKey] as StoredServerSession?
         : await _credentials.serverSession();
     if (session == null) {
+      // Every `/api/*` route this client calls needs a credential (sign-in,
+      // enrolment and discovery use their own clients), so sending one without
+      // is a guaranteed 401 — and a screen would then blame the server. Refuse
+      // it here, typed, so the screen can say "sign in" instead (B2).
+      if (options.path.startsWith('/api/')) {
+        handler.reject(
+          DioException(
+            requestOptions: options,
+            error: const NotSignedIn(),
+            type: DioExceptionType.cancel,
+          ),
+        );
+        return;
+      }
       handler.next(options);
       return;
     }

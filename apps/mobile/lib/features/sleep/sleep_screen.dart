@@ -34,12 +34,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:healthee/core/router.dart';
 import 'package:healthee/core/theme/dimensions.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/models/sleep_consistency.dart';
 import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/data/sleep_repository.dart';
 import 'package:healthee/data/sync/sync_controller.dart';
 import 'package:healthee/features/sleep/sleep_sections.dart';
 import 'package:healthee/shared/reveal_once.dart';
+import 'package:healthee/shared/screen_data.dart';
 import 'package:healthee/shared/skeletons/sleep_skeleton.dart';
 import 'package:healthee/shared/states/current_account_value.dart';
 import 'package:healthee/shared/states/state_scaffold.dart';
@@ -81,13 +83,16 @@ class _SleepScreenState extends ConsumerState<SleepScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: SleepList.padding,
                   children: <Widget>[
-                    ErrorState(
-                      message: "Couldn't reach your server for your sleep",
-                      detail:
-                          'Your nights are safe. This is a connection problem, '
-                          'not a gap in them.',
-                      onRetry: () => ref.invalidate(sleepPageProvider),
-                    ),
+                    if (isNotSignedIn(error))
+                      signInNeededCard()
+                    else
+                      ErrorState(
+                        message: "Couldn't reach your server for your sleep",
+                        detail:
+                            'Your nights are safe. This is a connection '
+                            'problem, not a gap in them.',
+                        onRetry: () => ref.invalidate(sleepPageProvider),
+                      ),
                   ],
                 ),
                 data: (page) => SleepList(

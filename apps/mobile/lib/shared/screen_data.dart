@@ -139,7 +139,7 @@ class ScreenData {
   /// was made — so it draws [signInNeededCard] instead, with no retry (B2).
   PageSection? get serverFailure => snapshot == null && server.hasError
       ? PageSection(
-          server.error is NotSignedIn
+          isNotSignedIn(server.error)
               ? signInNeededCard()
               : serverErrorCard(onRetryServer),
         )

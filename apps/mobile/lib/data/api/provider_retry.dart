@@ -7,7 +7,7 @@ import 'package:healthee/data/api/not_signed_in.dart';
 Duration? apiProviderRetry(int retryCount, Object error) {
   if (error is FormatException) return null;
   // Retrying cannot sign anyone in; a sign-in re-runs the provider by itself.
-  if (error is NotSignedIn) return null;
+  if (isNotSignedIn(error)) return null;
   if (error is DioException) {
     final status = error.response?.statusCode;
     if (error.type == DioExceptionType.cancel ||

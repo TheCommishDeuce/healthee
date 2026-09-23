@@ -3089,7 +3089,7 @@ mutate 'signed out, /api/today is requested anyway' \
   ''
 mutate 'a sign-in refusal is drawn as a server fault' \
   test/features/today_signin_entry_test.dart lib/shared/screen_data.dart \
-  'server.error is NotSignedIn' \
+  'isNotSignedIn(server.error)' \
   'server.error is Never'
 mutate 'signed-out Today blames the server beside the sign-in card' \
   test/features/today_signin_entry_test.dart lib/features/today/today_sections.dart \
@@ -3098,7 +3098,7 @@ mutate 'signed-out Today blames the server beside the sign-in card' \
   '  if (data.serverFailure case final PageSection failure) {'
 mutate 'a sign-in refusal is retried with backoff' \
   test/signin/provider_retry_test.dart lib/data/api/provider_retry.dart \
-  '  if (error is NotSignedIn) return null;' \
+  '  if (isNotSignedIn(error)) return null;' \
   ''
 
 
@@ -3189,6 +3189,26 @@ mutate 'Today drops the day cards again' \
   '  _theDay(sections, data, extras);
 ' \
   ''
+
+
+# B2, carried to every server-backed screen: with no session an /api/* request
+# is refused before it leaves, typed, and each screen says "sign in".
+mutate 'a signed-out /api/* request is sent anyway' \
+  test/signin/credential_routing_test.dart lib/data/api/interceptors.dart \
+  "      if (options.path.startsWith('/api/')) {" \
+  "      if (options.path.startsWith('/never/')) {"
+mutate 'the interceptor-shaped refusal is not recognised' \
+  test/signin/credential_routing_test.dart lib/data/api/not_signed_in.dart \
+  '    error is NotSignedIn || (error is DioException && error.error is NotSignedIn);' \
+  '    error is NotSignedIn;'
+mutate 'Sleep blames the server when signed out' \
+  test/features/signed_out_screens_test.dart lib/features/sleep/sleep_screen.dart \
+  '                    if (isNotSignedIn(error))' \
+  '                    if (false)'
+mutate 'Recovery blames the server when signed out' \
+  test/features/signed_out_screens_test.dart lib/features/today/recovery_screen.dart \
+  '          if (isNotSignedIn(error))' \
+  '          if (false)'
 
 
 echo

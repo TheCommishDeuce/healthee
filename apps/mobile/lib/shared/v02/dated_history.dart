@@ -47,11 +47,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/history/history_metric.dart';
 import 'package:healthee/data/history/history_window.dart';
 import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/reveal_once.dart';
+import 'package:healthee/shared/screen_data.dart';
 import 'package:healthee/shared/section_list.dart';
 import 'package:healthee/shared/states/state_scaffold.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
@@ -135,11 +137,14 @@ List<Widget> datedPanels({
     skipLoadingOnRefresh: true,
     loading: () => const <Widget>[LoadingState(label: kDatedHistoryLoading)],
     error: (error, stackTrace) => <Widget>[
-      ErrorState(
-        message: kDatedHistoryError,
-        detail: kDatedHistoryErrorDetail,
-        onRetry: onRetry,
-      ),
+      if (isNotSignedIn(error))
+        signInNeededCard()
+      else
+        ErrorState(
+          message: kDatedHistoryError,
+          detail: kDatedHistoryErrorDetail,
+          onRetry: onRetry,
+        ),
     ],
     data: (series) => <Widget>[
       for (final metric in metrics) ...<Widget>[
