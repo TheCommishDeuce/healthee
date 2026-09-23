@@ -2164,11 +2164,9 @@ mutate 'the day is dropped on a tab switch' \
 # 60-day horizon then leaves a date in the URL the screen is not showing.
 mutate 'the route accepts a day outside the retention window' \
   "$DATE_ROUTE_TEST" "$DATE_ROUTE" \
-  '  if (requested != null &&
-      requested != selected &&
-      isViewableDay(requested, latest)) {' \
-  '  if (requested != null &&
-      requested != selected) {'
+  '      requested != honoured &&
+      isViewableDay(requested, latest);' \
+  '      requested != honoured;'
 
 # Sleep'"'"'s window stops following the reader and slices from the newest night
 # again — the seam `sleep_history_screen.dart` used to record, reopened.
@@ -2761,10 +2759,8 @@ mutate 'the shared token stops being accepted on /api/*' "$ROUTING_TEST" "$INTER
 # one credential they have.
 mutate 'a legacy stored session is read as a device token' \
   "$ROUTING_TEST" "$STORED_SESSION" \
-  "      kind: data['kind'] == 'device'
-          ? StoredCredentialKind.device
-          : StoredCredentialKind.shared," \
-  '      kind: StoredCredentialKind.device,'
+  "        _ => StoredCredentialKind.shared," \
+  '        _ => StoredCredentialKind.device,'
 
 mutate 'a minted device token is filed as the shared one' \
   "$ROUTING_TEST" "$IDENTITY_SESSION" \
@@ -2993,10 +2989,12 @@ mutate 'a too-old server is reported as an unconfigured one' \
 # Preferring the compiled-in one would quietly restore the old behaviour.
 mutate 'the compiled-in provider wins over the discovered one' \
   test/auth/discovery_test.dart lib/data/auth/identity_providers.dart \
-  'Future<AuthConfig?> resolveAuthConfig(Credentials credentials) async =>
-    await credentials.authConfig() ??' \
-  'Future<AuthConfig?> resolveAuthConfig(Credentials credentials) async =>
-    null ??'
+  '  final stored = await credentials.authConfig();
+  if (stored != null) {
+    return stored;
+  }
+  if (Env.hasIdentityProvider) {' \
+  '  if (Env.hasIdentityProvider) {'
 
 
 # ⛔ THE UPGRADE PATH. Without it every existing install signs itself out: a phone

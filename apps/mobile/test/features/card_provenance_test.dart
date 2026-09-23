@@ -65,6 +65,15 @@ void main() {
       await tester.tap(dot, warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(find.byType(BottomSheet), findsOneWidget);
+      // The sheet is where the card's sources went when they left its face; an
+      // ⓘ that opens onto no sources has lost them rather than moved them.
+      final sources = <String>[
+        for (final row in tester.widgetList<CitationRow>(
+          find.byType(CitationRow),
+        ))
+          ...row.noteIds,
+      ];
+      expect(sources, isNotEmpty, reason: 'the sheet carries no sources');
       if (panel == RecoveryPanel) {
         expect(find.textContaining(kRecoveryScalesNote), findsOneWidget);
       }

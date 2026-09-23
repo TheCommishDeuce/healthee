@@ -54,6 +54,9 @@ void main() {
       findsNWidgets(factors.length - 1),
     );
     expect(find.descendant(of: bars, matching: find.text('—')), findsOneWidget);
+    // Named for a person, never by the wire key the server files them under.
+    expect(factors.map((factor) => factor.label), contains('Resting HR'));
+    expect(factors.map((factor) => factor.label), isNot(contains('rhr')));
   });
 
   testWidgets(
