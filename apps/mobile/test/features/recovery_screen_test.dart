@@ -137,10 +137,9 @@ void main() {
       expect(find.byType(WithheldPanel), findsWidgets);
       expect(find.textContaining('A few more nights'), findsWidgets);
       expect(find.text(RecoveryPanel.title), findsNothing);
-      // The five overnight measurements are not the model, so they survive it.
-      expect(find.text(RecoveryVitalsPanel.title), findsOneWidget);
-      expect(find.text('Resting heart'), findsOneWidget);
-      expect(find.text('Skin temperature'), findsOneWidget);
+      // The signals against their baselines are not the model, so they
+      // survive it.
+      expect(find.text(BaselinePanel.title), findsOneWidget);
       // The capacity panel needs the score, so it is gone with it.
       expect(find.text(CapacityPanel.title), findsNothing);
     });
@@ -154,7 +153,10 @@ void main() {
 
       expect(find.text(kRecoveryTitle), findsOneWidget);
       expect(find.text(RecoveryPanel.title), findsOneWidget);
-      expect(find.text(RecoveryVitalsPanel.title), findsOneWidget);
+      // The five overnight vitals live on Sleep, one link away (R2): the same
+      // table here was the repeat the owner reported.
+      expect(find.text('Your body overnight'), findsNothing);
+      expect(find.text('Explore your sleep'), findsOneWidget);
       expect(find.text(CapacityPanel.title), findsOneWidget);
       expect(find.text(kCapacityNote), findsOneWidget);
     });

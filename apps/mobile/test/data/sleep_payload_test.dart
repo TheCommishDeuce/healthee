@@ -13,6 +13,7 @@ import 'package:healthee/data/honesty/reading.dart';
 import 'package:healthee/data/honesty/sleep_gap.dart';
 import 'package:healthee/data/models/sleep_consistency.dart';
 import 'package:healthee/features/sleep/sleep_format.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 
 import '../_sleep_stubs.dart';
 

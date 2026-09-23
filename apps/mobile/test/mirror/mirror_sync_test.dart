@@ -111,8 +111,11 @@ void main() {
     final run = await mirror.run(server.api());
 
     expect((run.fetched, run.unchanged, run.removed), (3, 0, 0));
+    // Three stream-months, but only January and February: B3 said "7 months"
+    // for history that spans two.
+    expect(run.fetchedMonths, 2);
     final stats = await mirror.stats();
-    expect((stats.months, stats.rows), (3, 6));
+    expect((stats.months, stats.rows), (2, 6));
     expect(stats.bytes, greaterThan(0));
     final january = await (store.select(
       store.mirrorMonths,
@@ -126,7 +129,7 @@ void main() {
 
     final run = await mirror.run(server.api());
 
-    expect((run.fetched, run.unchanged), (0, 3));
+    expect((run.fetched, run.unchanged, run.fetchedMonths), (0, 3, 0));
     expect(server.fetches, isEmpty);
   });
 
@@ -157,7 +160,9 @@ void main() {
     final run = await mirror.run(server.api());
 
     expect(run.removed, 1);
-    expect((await mirror.stats()).months, 2);
+    // February still holds a weigh-in, so it is still a month held.
+    final stats = await mirror.stats();
+    expect((stats.months, stats.rows), (2, 4));
   });
 
   test(

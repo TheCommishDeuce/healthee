@@ -20,6 +20,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:healthee/core/theme/tone.dart';
+import 'package:healthee/data/history/history_metric.dart';
 import 'package:healthee/data/models/sleep_night.dart';
 import 'package:healthee/shared/reveal_once.dart';
 import 'package:healthee/shared/v02/panel.dart';
@@ -65,6 +66,12 @@ class OvernightPanel extends StatelessWidget {
   final VoidCallback? onOpenAll;
 
   /// The five rows, in the prototype's order.
+  ///
+  /// Each `metric` is the CANONICAL history id, not the sleep payload's own key
+  /// (`rhr`, `spo2_avg`, …): the history screen knows canonical ids only and fell
+  /// back to HRV for the rest, so four rows in five opened HRV (F2). Skin
+  /// temperature keeps its payload key — there is no history series for it,
+  /// and `VitalsTable` draws that row as no link at all.
   List<Vital> get vitals => <Vital>[
     Vital(
       label: 'Resting heart',
@@ -73,7 +80,7 @@ class OvernightPanel extends StatelessWidget {
       unit: 'bpm',
       reading: night.restingHr,
       series: _series((night) => night.restingHr.valueOrNull),
-      metric: 'rhr',
+      metric: HistoryMetric.restingHr.id,
     ),
     Vital(
       label: 'HRV',
@@ -82,7 +89,7 @@ class OvernightPanel extends StatelessWidget {
       unit: 'ms',
       reading: night.hrvSleepAvg,
       series: _series((night) => night.hrvSleepAvg.valueOrNull),
-      metric: 'hrv_sleep_avg',
+      metric: HistoryMetric.hrv.id,
     ),
     Vital(
       label: 'Blood oxygen',
@@ -91,7 +98,7 @@ class OvernightPanel extends StatelessWidget {
       unit: '%',
       reading: night.spo2Avg,
       series: _series((night) => night.spo2Avg.valueOrNull),
-      metric: 'spo2_avg',
+      metric: HistoryMetric.oxygen.id,
     ),
     Vital(
       label: 'Breathing',
@@ -100,7 +107,7 @@ class OvernightPanel extends StatelessWidget {
       unit: '/min',
       reading: night.respiratoryRate,
       series: _series((night) => night.respiratoryRate.valueOrNull),
-      metric: 'respiratory_rate',
+      metric: HistoryMetric.breathing.id,
     ),
     Vital(
       label: 'Skin temperature',

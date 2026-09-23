@@ -15,10 +15,13 @@
 /// dispose.
 library;
 
+import 'dart:async';
+
 import 'package:healthee/data/pairing/paired_strap.dart';
 import 'package:healthee/data/pairing/pairing_exception.dart';
 import 'package:healthee/data/pairing/pairing_repository.dart';
 import 'package:healthee/data/pairing/zepp_device.dart';
+import 'package:healthee/data/sync/sync_controller.dart';
 import 'package:healthee/features/pairing/pairing_state.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -106,6 +109,11 @@ class PairingController extends _$PairingController {
   }
 
   /// Writes the pairing to the keystore. The end of the flow.
+  ///
+  /// Then runs a sync, unawaited (B1). The launch auto-sync ran before there was
+  /// a strap and failed with `StrapNotPaired`, which the link treats as
+  /// permanent — so nothing retried it, and Today kept saying "No strap is
+  /// paired" beside a strap that was. Pairing is what makes that failure false.
   Future<void> pair() async {
     final step = state.step;
     if (step is! ConfirmStrapStep) {
@@ -123,6 +131,7 @@ class PairingController extends _$PairingController {
     forget();
     ref.invalidate(pairingSummaryProvider);
     state = state.at(PairedStep(step.strap));
+    unawaited(ref.read(syncControllerProvider.notifier).syncNow());
   }
 
   /// Forgets the strap and any remembered sign-in, and returns to the start.

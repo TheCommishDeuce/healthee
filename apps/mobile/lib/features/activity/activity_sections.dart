@@ -6,16 +6,21 @@
 ///
 /// ```text
 ///   header                    date · Activity · avatar
+///   activity analysis         this app's own — the prototype has no surface
+///   fitness with its source   VO₂max, its rail, its instrument
+///   fitness → age · recovery  two entry cards (F3)
 ///   today’s movement          steps, the week of them, energy, active minutes
-///   context bridge            movement → the longer view, and → recovery
 ///   your week, by intensity   moderate-equivalent minutes and their parts
 ///   training load             today's TRIMP against the habit behind it
 ///   the sessions behind it    the recorded workouts
-///   fitness with its source   VO₂max, its rail, its instrument
-///   context bridge            the fitness term of the age model
-///   activity analysis         this app's own — the prototype has no surface
 ///   footer
 /// ```
+///
+/// **The prototype's two bridge sentences are entry cards now** (F3,
+/// `DESIGN_DECISIONS.md`). The owner called the sentences "stupid text between
+/// the cards" and the two destinations — the age model and recovery — "very
+/// cool"; a card makes them visible instead of hiding a link at the end of
+/// prose.
 ///
 /// ## What survived the redesign, and what did not
 ///
@@ -53,13 +58,12 @@ import 'package:healthee/data/device/device_workout.dart';
 import 'package:healthee/data/history/dated_history.dart';
 import 'package:healthee/data/history/history_metric.dart';
 import 'package:healthee/data/models/activity_today.dart';
-import 'package:healthee/data/models/biological_age.dart';
 import 'package:healthee/data/models/fitness_plan.dart';
 import 'package:healthee/data/models/vo2max.dart';
 import 'package:healthee/features/activity/activity_extras.dart';
 import 'package:healthee/features/activity/v02/fitness_plan_panel.dart';
-import 'package:healthee/features/activity/v02/heart_stress_panel.dart';
 import 'package:healthee/features/activity/v02/movement_panels.dart';
+import 'package:healthee/features/activity/v02/recovery_entry_card.dart';
 import 'package:healthee/features/activity/v02/training_panels.dart';
 import 'package:healthee/features/activity/v02/zones_panel.dart';
 import 'package:healthee/shared/format/time_labels.dart';
@@ -69,21 +73,18 @@ import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/section_list.dart';
 import 'package:healthee/shared/states/caveat_scope.dart';
 import 'package:healthee/shared/states/reading_view.dart';
-import 'package:healthee/shared/v02/context_bridge.dart';
+import 'package:healthee/shared/v02/age_entry_card.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/dated_history.dart';
+import 'package:healthee/shared/v02/entry_card.dart';
 import 'package:healthee/shared/v02/list_rows.dart';
 import 'package:healthee/shared/v02/page_header.dart';
 import 'package:healthee/shared/v02/section_head.dart';
 import 'package:healthee/shared/v02/withheld_panel.dart';
 import 'package:solar_icons/solar_icons.dart';
 
-/// `H.bridge('movement', …)` — what today's movement does and does not move.
-const String kActivityRecoveryBridge =
-    'Daily movement supports the longer view of fitness. Recent training effort '
-    'also belongs in your recovery picture.';
-
-/// `H.bridge('fitness', …)` — the fitness term, named as a model output.
+/// `H.bridge('fitness', …)` — the fitness term, named as a model output. Drawn
+/// by the fitness screen; Activity carries the same number on its age card.
 ///
 /// The years come from the payload's own `contributions` entry. There is no
 /// fallback sentence: a bridge that names a contribution the server did not send
@@ -216,18 +217,10 @@ List<PageSection> activitySections(ScreenData data, ActivityExtras extras) {
         ..gap(PageSpacing.panel)
         ..add(FitnessPlanPanel(plan: plan));
     }
-    if (fitnessContributionYears(snapshot.biologicalAge.valueOrNull)
-        case final double y) {
-      sections.add(
-        ContextBridge.link(
-          ageBridge(y),
-          label: 'See the calculation',
-          onOpen: extras.onOpenBody,
-        ),
-      );
-    }
-    sections.gap(PageSpacing.block);
+    sections.gap(PageSpacing.panel);
   }
+  _destinations(sections, data, extras);
+  sections.gap(PageSpacing.block);
   sections.add(
     MovementPanel(
       day: data.day,
@@ -236,24 +229,8 @@ List<PageSection> activitySections(ScreenData data, ActivityExtras extras) {
       onDetails: _metric(extras, 'steps_total'),
     ),
   );
-  if (snapshot != null && HeartStressPanel.hasSomethingToDraw(
-    snapshot.hourlyHeartRate, snapshot.hourlyStress,
-  )) {
-    sections
-      ..gap(PageSpacing.panel)
-      ..add(HeartStressPanel(
-        heartRate: snapshot.hourlyHeartRate,
-        stress: snapshot.hourlyStress,
-        reveals: reveals,
-      ));
-  }
-  sections.add(
-    ContextBridge.link(
-      kActivityRecoveryBridge,
-      label: 'View recovery',
-      onOpen: extras.onOpenRecovery,
-    ),
-  );
+  // ⛔ No `Heart rate & stress` here (R3): Today draws the day's heart rate
+  // and stress by hour, each in its own card, and this was the same two series.
   if (snapshot != null) {
     sections.gap(PageSpacing.panel);
     sections.add(
@@ -312,6 +289,32 @@ List<PageSection> activitySections(ScreenData data, ActivityExtras extras) {
   return sections.build();
 }
 
+/// The age model's fitness term and recovery, as entry cards (F3).
+///
+/// Two cards make the grid; with no fitness term on the payload the recovery
+/// card draws alone and full width — never an age card with an invented number.
+void _destinations(
+  SectionList sections,
+  ScreenData data,
+  ActivityExtras extras,
+) {
+  final snapshot = data.snapshot;
+  final years = AgeEntryCard.contribution(snapshot?.biologicalAge.valueOrNull);
+  final recovery = RecoveryEntryCard(
+    score: snapshot?.recovery.valueOrNull?.recovery,
+    onOpen: extras.onOpenRecovery,
+  );
+  sections.add(
+    years == null
+        ? recovery
+        : EntryGrid(
+            // Opens the age screen itself, as it does on Insights.
+            left: AgeEntryCard(years: years),
+            right: recovery,
+          ),
+  );
+}
+
 /// Recorded workouts, with a link to history even on days without a session.
 void _sessions(
   SectionList sections,
@@ -356,20 +359,6 @@ String _sessionDetail(DeviceWorkout workout) => <String>[
   if (workout.avgHr > 0) '${workout.avgHr} bpm avg',
   if (workout.calories > 0) "${workout.calories} kcal by the strap's count",
 ].join(' · ');
-
-/// The fitness term of the age model, or null when the payload has none.
-///
-/// Public because the fitness screen carries the same bridge: two readings of
-/// `contributions[]` would be two chances to name a different number under one
-/// sentence.
-double? fitnessContributionYears(BiologicalAge? age) {
-  for (final term in age?.contributions ?? const <AgeContribution>[]) {
-    if (term.term == 'fitness' && term.deltaYears != null) {
-      return term.deltaYears;
-    }
-  }
-  return null;
-}
 
 VoidCallback? _metric(ActivityExtras extras, String metric) =>
     extras.onOpenMetric == null ? null : () => extras.onOpenMetric!(metric);

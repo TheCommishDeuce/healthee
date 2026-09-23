@@ -9,6 +9,7 @@
 /// Not a `*_test.dart` file, so it is never run as a suite.
 library;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,7 @@ import 'package:healthee/app.dart';
 import 'package:healthee/ble/models/device_daily_totals.dart';
 import 'package:healthee/ble/models/strap_sample.dart';
 import 'package:healthee/core/theme/app_theme.dart';
+import 'package:healthee/data/api/not_signed_in.dart';
 import 'package:healthee/data/api/server_session.dart';
 import 'package:healthee/data/api/server_snapshot.dart';
 import 'package:healthee/data/history/dated_history.dart';
@@ -78,6 +80,7 @@ Widget todayHost(
   SyncController? sync,
   TodayView? server,
   bool serverUnreachable = false,
+  bool signedOutServer = false,
   ThemeData? themeOverride,
   bool signedIn = true,
   bool reducedMotion = true,
@@ -94,6 +97,7 @@ Widget todayHost(
     sync: sync,
     server: server,
     serverUnreachable: serverUnreachable,
+    signedOutServer: signedOutServer,
     signedIn: signedIn,
     sleep: sleep,
     consistency: consistency,
@@ -158,6 +162,7 @@ Widget _scoped(
   SyncController? sync,
   TodayView? server,
   bool serverUnreachable = false,
+  bool signedOutServer = false,
   bool signedIn = true,
   bool paired = false,
   SleepPage? sleep,
@@ -203,7 +208,9 @@ Widget _scoped(
       // A `server` handed in explicitly still wins whole: a test that built its
       // own payload is asserting something about THAT payload.
       todaySnapshotProvider.overrideWith(
-        serverUnreachable
+        signedOutServer
+            ? (ref) async => throw const NotSignedIn()
+            : serverUnreachable
             ? todayUnreachable()
             : (server != null
                   ? todayIs(server)
@@ -228,7 +235,9 @@ Widget _scoped(
       // override. Empty by default: a suite about what a screen DECIDES does
       // not need readings, and a suite about the panels passes its own.
       datedHistoryProvider.overrideWith(
-        (ref) async => serverUnreachable
+        (ref) async => signedOutServer
+            ? throw notSignedInRejection('/api/history')
+            : serverUnreachable
             ? throw StateError('no server')
             : history ??
                   const DatedHistory(
@@ -243,12 +252,16 @@ Widget _scoped(
       // says nothing about the test. The insight defaults to LOCKED so no
       // suite leaves a spinner running that `pumpAndSettle` will wait on.
       sleepPageProvider.overrideWith(
-        (ref) async => serverUnreachable
+        (ref) async => signedOutServer
+            ? throw notSignedInRejection('/api/sleep')
+            : serverUnreachable
             ? throw StateError('no server')
             : sleep ?? sleepPageFixture(),
       ),
       sleepConsistencyProvider.overrideWith(
-        (ref) async => serverUnreachable
+        (ref) async => signedOutServer
+            ? throw notSignedInRejection('/api/sleep/consistency')
+            : serverUnreachable
             ? throw StateError('no server')
             : consistency ?? consistencyFixture(),
       ),
@@ -358,3 +371,11 @@ Future<void> openCalendar(WidgetTester tester) async {
   await tester.tap(find.byType(DayPill));
   await tester.pumpAndSettle();
 }
+
+/// What the app client throws for an `/api/*` request made with no session:
+/// the interceptor refuses it before it leaves, typed [NotSignedIn].
+DioException notSignedInRejection(String path) => DioException(
+  requestOptions: RequestOptions(path: path),
+  error: const NotSignedIn(),
+  type: DioExceptionType.cancel,
+);

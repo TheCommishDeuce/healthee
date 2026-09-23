@@ -103,7 +103,7 @@ void main() {
 
       expect(
         note,
-        'Sleep duration is called unfavourable by the population floor of 300 min, '
+        'Sleep duration is called unfavourable by the population floor of 5h 00m, '
         'not by your own baseline beside it.',
       );
     });
@@ -124,7 +124,7 @@ void main() {
       expect(
         note,
         'Sleep duration is called unfavourable by your own baseline, not by the '
-        'population floor of 300 min.',
+        'population floor of 5h 00m.',
       );
     });
 
@@ -141,7 +141,16 @@ void main() {
         ]),
       );
 
-      expect(note, contains('and by the population floor of 300 min alike'));
+      expect(note, contains('and by the population floor of 5h 00m alike'));
+    });
+
+    test('A MINUTE READING IS HOURS AND MINUTES, like everywhere else', () {
+      // The baseline row read "416 min" beside Sleep's "6h 56m" for the same
+      // night — the B4 defect on another screen.
+      final signal = _ladder(<Map<String, Object?>>[
+        _signal(name: 'Sleep duration'),
+      ]).signals.single;
+      expect(BaselinePanel.reading(signal), '4h 40m');
     });
 
     test('THE FLOOR IS NAMED, never left as a bare word', () {
@@ -160,7 +169,7 @@ void main() {
         ]),
       );
 
-      expect(note, contains('300 min'));
+      expect(note, contains('5h 00m'));
     });
 
     test('an older server that sends no floor still says which limb spoke', () {

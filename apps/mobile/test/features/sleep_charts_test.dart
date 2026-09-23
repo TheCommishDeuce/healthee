@@ -139,6 +139,27 @@ void main() {
   });
 
   group('the bedtime and wake chart', () {
+    testWidgets('THE SRI IS NOT REPEATED HERE — the checks carry it (R5)', (
+      tester,
+    ) async {
+      expect(consistencyFixture().sri.hasValue, isTrue);
+      await tester.pumpWidget(
+        sleepPanelHost(
+          SleepTimingPanel(
+            bedtime: windows.bedtime,
+            wake: windows.wake,
+            dates: windows.timingDates,
+            consistency: consistencyFixture(),
+            reveals: RevealRegistry(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('SRI'), findsNothing);
+      // The band the panel exists for is still drawn.
+      expect(find.textContaining('typical bedtime band'), findsOneWidget);
+    });
+
     testWidgets('IT FILLS THE PANEL AND DRAWS BOTH SERIES', (tester) async {
       await tester.pumpWidget(
         sleepPanelHost(

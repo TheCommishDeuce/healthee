@@ -26,4 +26,32 @@ void main() {
     );
     expect(said, '18234 records across 24 months (3.0 MB). Updated 3 h ago.');
   });
+
+  test('one month is one month', () {
+    final said = HistoryMirrorCard.summary(
+      const MirrorStats(months: 1, rows: 40, bytes: 0, lastSynced: null),
+      now,
+    );
+    expect(said, '40 records across 1 month (0.0 MB).');
+  });
+
+  test('a run reports calendar months, never stream-months (B3)', () {
+    String said(int fetched, int months, int unchanged, int removed) =>
+        HistoryMirrorCard.runSummary(
+          MirrorRun(
+            fetched: fetched,
+            fetchedMonths: months,
+            unchanged: unchanged,
+            removed: removed,
+          ),
+        );
+    expect(said(7, 2, 0, 0), 'Downloaded 2 months of history.');
+    expect(said(1, 1, 6, 0), 'Downloaded 1 month of history.');
+    expect(said(0, 0, 7, 0), 'Already up to date.');
+    expect(
+      said(1, 1, 5, 1),
+      'Downloaded 1 month of history. Removed what the server no longer holds.',
+    );
+    expect(said(0, 0, 6, 1), 'Removed what the server no longer holds.');
+  });
 }

@@ -22,6 +22,12 @@
 /// its slot. A "linked" chart with one live pane is not a weaker version of this
 /// chart — it is a different chart, drawn under a title promising a comparison
 /// the reader cannot make.
+///
+/// **No screen draws this since R3** (`docs/REDUNDANCY_INVENTORY.md`): Activity's
+/// heart rate & stress panel was its last caller, removed because Today now
+/// draws both series in their own cards. Kept, with its tests, because the
+/// chart primitives around it were built for it and the owner may want the
+/// side-by-side comparison back.
 library;
 
 import 'package:flutter/material.dart';

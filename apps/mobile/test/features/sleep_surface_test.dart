@@ -15,7 +15,6 @@ import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/sleep/sleep_screen.dart';
 import 'package:healthee/features/sleep/v02/naps_panel.dart';
 import 'package:healthee/features/sleep/v02/stage_shares.dart';
-import 'package:healthee/shared/findings_section.dart';
 
 import '../_sleep_stubs.dart';
 import '_sleep_host.dart';
@@ -151,32 +150,6 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(kNoNapsNote), findsOneWidget);
-    });
-  });
-
-  group('findings — the section that must not exist when it is empty', () {
-    test('AN EMPTY FINDINGS ARRAY DRAWS NOTHING — no heading, no zero-state', () {
-      // The governing rule for everything surfaced off the new API. Sleep
-      // findings are empty for most owners most of the time (`read/findings.py`
-      // returns `[]` whenever the analytics layer has nothing), so a section
-      // that always existed would usually exist to say it was empty.
-      final page = sleepPageFixture();
-      final types = sectionTypes(
-        sleepList(
-          page: SleepPage(
-            nights: page.nights,
-            naps: page.naps,
-            cutoffs: page.cutoffs,
-            sleepDebt: page.sleepDebt,
-            findings: const [],
-            researchNotes: page.researchNotes,
-          ),
-        ),
-      );
-      expect(types, isNot(contains(FindingsSection)));
-      // MUTATION — and the same payload WITH a finding does draw one, so this
-      // is not passing because the section was never wired.
-      expect(sectionTypes(sleepList()), contains(FindingsSection));
     });
   });
 

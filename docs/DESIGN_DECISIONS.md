@@ -73,16 +73,16 @@ used by recommendations, not only caffeine/alcohol cutoffs.
 | U8 | Accepted direction | Retain functional page navigation and existing visual language. No unrelated theme or component-library rewrite. |
 | U9 | Consequence | Remove Today's chapter-navigation machinery when the short layout no longer needs it. |
 | U10 | Accepted | Do not build food tracking. Owner: “nevermind dont bother.” |
-| U11 | Accepted | Today's three content priorities, in order: **sleep, recovery, log weight**. Conditional sync/failure/safety notices are not extra dashboard sections and must remain useful. |
+| U11 | Revised by F1 | Today's three content priorities, in order: **sleep, recovery, log weight**. Conditional sync/failure/safety notices are not extra dashboard sections and must remain useful. |
 | U12 | Proposed method | Remove surplus Today composition; retain shared components/details until callers are checked. Lack of a top-level tab does not mean a detail page has no caller. |
-| U13 | Tentative | Owner: “maybe (lets see it in the first build)” about Insights. Earlier notes incorrectly converted this into an unequivocal deletion. Retain it for review rather than silently remove it. |
+| U13 | Settled by F4 | Owner: “maybe (lets see it in the first build)” about Insights. Earlier notes incorrectly converted this into an unequivocal deletion. Retain it for review rather than silently remove it. |
 | U14 | Accepted direction | No general journal page is needed for caffeine/alcohol tracking; owner does not log those. Keep weight entry and its supporting code. Do not delete `data/journal` before moving/reusing the weight path. |
 | U15 | Accepted | Remove built-in GPS/maps; owner uses Dawarich. Preserve workout records and any stored data during the removal. |
 | U16 | Accepted | Keep recorded workouts for exploration. Current UI displays strap-recorded sessions; it is not an exercise/set/rep catalogue. |
 | U17 | Proposed/deferred | Landing site is a separate Astro marketing/waitlist site, unrelated to the Android UI. Owner did not know it existed. No deletion needed to deliver the first mobile slice. |
 | U18 | Accepted with dependency check | Replace the crowded Today composition. Do not blindly delete every file under `features/today`: Sleep, Activity and pushed details share some of them. |
 | U19 | Accepted | No new gym exercise catalogue, sets/reps or progression tracker for now. Does not remove strap-recorded workouts (U16). |
-| U20 | Implementation choice for U11 | Today uses three full-width cards, without the age hero, dashboard chapters or floating coach button. Recovery keeps its factor bars; weighting/method detail remains reachable rather than duplicating the full detail page. |
+| U20 | Revised by F1 | Today uses three full-width cards, without the age hero, dashboard chapters or floating coach button. Recovery keeps its factor bars; weighting/method detail remains reachable rather than duplicating the full detail page. |
 | U21 | Superseded by A8 (`4f8bc19`) | Weight entry opens the existing validated form directly and observes credential loading/retries. An unreachable server now HOLDS the entry on the phone (form clears, says so); a server refusal keeps the form. |
 | U22 | Implementation choice for U2/A3 | Sleep timestamps are displayed in phone-local time, explicitly labelled local and including the year. The server sends timestamp instants, not necessarily owner-local dates. Missing dates are explicit. Local sleep is a fallback only when no server answer exists, never a way around a server refusal. |
 
@@ -97,6 +97,59 @@ used by recommendations, not only caffeine/alcohol cutoffs.
   timestamp, matching the existing server upsert key `(user_id, ts)`. Concurrent Save
   taps are refused. *(The last sentence of the original — no durable offline outbox —
   is superseded by A8: the retry identity now lives in the outbox row.)*
+
+### First on-phone review (2026-09-23)
+
+Owner feedback from the first session with the debug build (`NEXT_SESSION.md` §2).
+
+- **F1 — Today gains the day (partly reverses U11/U20).** Owner: Today should
+  carry the day's **steps, heart rate and stress**, each a separate detailed card,
+  beside last night's sleep, recovery and the weigh-in ("already right, keep as
+  is"). Order: sleep, recovery, weight, then steps, heart rate, stress
+  (implementation choice; the morning three stay first). Today shows the DAY by
+  hour; Activity keeps the week. Every figure is the strap's counter/latest
+  sample, the server's hourly aggregates, or the server's canonical resting heart
+  rate — no new metric. The retired `V02BucketChart` was not restored: steps use
+  the existing bar chart, summed from the server's 15-minute buckets into hours.
+- **F2 — Sleep trimmed below the timing panel.** Everything from the prototype's
+  *Beyond a single night* chapter down is removed: the three fortnight trends
+  (efficiency, regularity, HRV), the tonight lever and the sleep findings list.
+  Owner: redundant with the panels above, Sleep history and Insights. The widgets
+  are deleted, not hidden; `/api/sleep/consistency` still sends `tonight`, nothing
+  draws it. **Naps** stay, only on a day that has one, listing that day's naps
+  only (owner chose this over removal). Rows in *Your body overnight* open the
+  metric they name; skin temperature has no history series and is not a link.
+  Partly revises U3 ("Sleep should change minimally").
+- **F4 — Insights kept, trimmed (settles U13).** Kept: the relationship grid
+  (pattern card + age card), *Your longer patterns*, notable days, and the Sleep
+  history / Fitness estimates rows. Removed: *Effort & stress, side by side* and
+  its bridge sentence (the current day's material; Activity carries the chart;
+  this also removes B5's orphaned sentence), and the *What changed together?*
+  findings list (owner confirmed). The top finding stays reachable from its card.
+  `shared/findings_section.dart` is kept: its headline/window helpers and the
+  citation tests still apply; its list widget currently has no caller.
+- **F3 — Activity's bridge sentences become entry cards.** Owner: "stupid text
+  between the cards", but the destinations (age model, recovery) are "very cool"
+  and deserve more visibility. The two `ContextBridge` sentences are replaced by
+  an entry-card grid directly under VO₂max: *Fitness → age* (the fitness term as
+  a model contribution, same card as Insights, now in `shared/v02/`) and
+  *Recovery* (the server's overnight score when sent). No fitness term → the
+  recovery card alone. The Fitness detail screen keeps its own age sentence.
+- **F5 — redundancy consolidated** (`REDUNDANCY_INVENTORY.md`; owner accepted the
+  recommendations). **R1** Sleep history drops the 7-night stage chart Sleep already
+  draws. **R2** Recovery drops the overnight vitals table Sleep already draws; its
+  existing bridge links there. **R3** Activity drops the hourly heart rate & stress
+  chart Today now draws as two cards (`V02LinkedChart` kept in `shared/`, uncalled).
+  **R5** the Sleep timing panel drops the SRI the regularity check already states.
+  **R8** one fitness-contribution helper. Kept on purpose: R4 (steps day vs week),
+  R6 (duration vs need vs month), R7 (the age card on Insights and Activity). R9 is a
+  server change, its own PR.
+  **R10** (found later): one hoursMinutes label (`7h 05m`) everywhere; Recovery's
+  baseline row and population floor now use it instead of raw minutes.
+- **B2 carried to every server-backed screen.** With no session the app client
+  refuses `/api/*` before sending (typed `NotSignedIn`, never retried); Recovery,
+  Body, Fitness, Sleep, Sleep history and past-day history show the sign-in card
+  instead of "Couldn't reach your server".
 
 ### Presentation constraints for the first slice
 

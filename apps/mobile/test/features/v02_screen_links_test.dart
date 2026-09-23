@@ -4,12 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/core/router.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/activity/fitness_screen.dart';
-import 'package:healthee/features/insights/v02/pattern_panels.dart';
+import 'package:healthee/features/activity/v02/recovery_entry_card.dart';
 import 'package:healthee/features/sleep/sleep_history_screen.dart';
 import 'package:healthee/features/sleep/sleep_screen.dart';
 import 'package:healthee/features/today/body_screen.dart';
 import 'package:healthee/features/today/recovery_screen.dart';
 import 'package:healthee/features/today/widgets/sleep_summary.dart';
+import 'package:healthee/shared/v02/age_entry_card.dart';
 
 import '_today_host.dart';
 
@@ -63,10 +64,16 @@ void main() {
     expect(find.byType(SleepHistoryScreen), findsOneWidget);
   });
 
-  testWidgets('Activity bridge opens recovery', (tester) async {
+  testWidgets('Activity recovery card opens recovery', (tester) async {
     await pump(tester, tab: 'Activity');
-    await _open(tester, find.text('View recovery'));
+    await _open(tester, find.byType(RecoveryEntryCard));
     expect(find.byType(RecoveryScreen), findsOneWidget);
+  });
+
+  testWidgets('Activity age card opens the age model', (tester) async {
+    await pump(tester, tab: 'Activity');
+    await _open(tester, find.byType(AgeEntryCard));
+    expect(find.byType(BodyScreen), findsOneWidget);
   });
 
   testWidgets(

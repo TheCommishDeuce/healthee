@@ -1,11 +1,10 @@
-/// The three panels the recovery screen adds under `Recovery, explained`.
+/// The panels the recovery screen adds under `Recovery, explained`.
 ///
 /// `design/mobile-preview/screens-daily.js::H.screens.recovery`:
 ///
 /// ```js
 /// H.panel('Compared with your baseline','recovery', signals + note, 'metrics')
 /// H.bridge('sleep','Sleep contributes 40% of the model. …','sleep','Explore your sleep')
-/// H.panel('Your body overnight','oxygen', H.overnightVitals(), 'sleep','heart')
 /// H.panel('Capacity changes through the day','movement',
 ///         two stats + load bars + note, 'activity','walk')
 /// ```
@@ -43,13 +42,13 @@ import 'package:healthee/data/models/recovery_score.dart';
 import 'package:healthee/data/models/recovery_signals.dart';
 import 'package:healthee/data/models/trend_point.dart';
 import 'package:healthee/shared/charts/v02/v02_bar_chart.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/metric_info/metric_detail.dart';
 import 'package:healthee/shared/reveal_once.dart';
 import 'package:healthee/shared/v02/panel.dart';
 import 'package:healthee/shared/v02/panel_head.dart';
 import 'package:healthee/shared/v02/panel_parts.dart';
 import 'package:healthee/shared/v02/signal_chart.dart';
-import 'package:healthee/shared/v02/vitals_table.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 /// What a baseline IS. True on every payload, including one with no summary.
@@ -117,19 +116,25 @@ String? _basisLine(RecoverySignal signal) {
   };
 }
 
-/// `the population floor of 300 min`, or the unqualified phrase when none was sent.
+/// `the population floor of 5h 00m`, or the unqualified phrase when none was sent.
 String _floor(RecoverySignal signal) {
   final floor = signal.populationFloorMin;
-  if (floor == null) {
-    return 'the population floor';
+  return floor == null
+      ? 'the population floor'
+      : 'the population floor of ${_figure(floor, signal.unit)}';
+}
+
+/// A signal's number in its unit: `45 ms`, `48.8 bpm`, and minutes as
+/// `6h 56m` — the way every other screen writes a duration (the baseline row
+/// read `416 min` beside Sleep's `6h 56m` for the same night).
+String _figure(double value, String? unit) {
+  if (unit == 'min') {
+    return hoursMinutes(value);
   }
-  final figure = floor == floor.roundToDouble()
-      ? floor.round().toString()
-      : floor.toStringAsFixed(1);
-  final unit = signal.unit;
-  return unit == null
-      ? 'the population floor of $figure'
-      : 'the population floor of $figure $unit';
+  final figure = value == value.roundToDouble()
+      ? value.round().toString()
+      : value.toStringAsFixed(1);
+  return unit == null ? figure : '$figure $unit';
 }
 
 /// The prototype's own line under the capacity chart.
@@ -180,16 +185,10 @@ class BaselinePanel extends StatelessWidget {
       SignalRow(signal.name, reading(signal), z: signal.z),
   ];
 
-  /// `45 ms`, or an em dash when today's reading did not arrive.
+  /// `45 ms`, `6h 56m`, or an em dash when today's reading did not arrive.
   static String reading(RecoverySignal signal) {
     final value = signal.value;
-    if (value == null) {
-      return '—';
-    }
-    final figure = value == value.roundToDouble()
-        ? value.round().toString()
-        : value.toStringAsFixed(1);
-    return signal.unit == null ? figure : '$figure ${signal.unit}';
+    return value == null ? '—' : _figure(value, signal.unit);
   }
 
   @override
@@ -225,65 +224,6 @@ class BaselinePanel extends StatelessWidget {
       ),
     );
   }
-}
-
-/// `Your body overnight` on the recovery screen — the same five measurements,
-/// read off `/api/today` rather than off one night of `/api/sleep`.
-class RecoveryVitalsPanel extends StatelessWidget {
-  /// [vitals] is built by the screen; this is the frame around it.
-  const RecoveryVitalsPanel({
-    required this.vitals,
-    required this.reveals,
-    this.onDetails,
-    this.onOpenMetric,
-    super.key,
-  });
-
-  /// The prototype's title.
-  static const String title = 'Your body overnight';
-
-  /// The reveal-id namespace for this screen's rows.
-  static const String revealPrefix = 'recovery.vital';
-
-  /// The five rows.
-  final List<Vital> vitals;
-
-  /// Where "already revealed" is remembered.
-  final RevealRegistry reveals;
-
-  /// Opens the sleep screen — the prototype's `Details`.
-  final VoidCallback? onDetails;
-
-  /// Opens one measurement's own history.
-  final void Function(String metric)? onOpenMetric;
-
-  @override
-  Widget build(BuildContext context) => Panel(
-    tone: Tone.oxygen,
-    label: 'Overnight vitals',
-    head: PanelHead(
-      title: title,
-      icon: SolarIconsOutline.heart,
-      infoKey: 'sleep',
-      actionLabel: onDetails == null ? null : 'Details',
-      onAction: onDetails,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        VitalsTable(
-          vitals: vitals,
-          reveals: reveals,
-          revealPrefix: revealPrefix,
-          onOpenMetric: onOpenMetric,
-        ),
-        if (VitalsTable.refusals(vitals) case final List<String> lines
-            when lines.isNotEmpty)
-          PanelNote(lines.join('\n')),
-      ],
-    ),
-  );
 }
 
 /// `Capacity changes through the day` — the overnight estimate, what is left of

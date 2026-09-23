@@ -15,12 +15,14 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:healthee/core/theme/app_theme.dart';
 import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/data/store/local_store.dart';
 import 'package:healthee/features/sleep/sleep_history_screen.dart';
 import 'package:healthee/features/sleep/v02/history_panels.dart';
 import 'package:healthee/shared/charts/h_stacked_sleep.dart';
 import 'package:healthee/shared/charts/v02/v02_line_chart.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/reveal_once.dart';
 
 import '../_sleep_stubs.dart';
@@ -55,7 +57,7 @@ void main() {
   setUp(() => store = LocalStore.memory());
   tearDown(() => store.close());
 
-  testWidgets('THE MONTH, THE WEEK, AND EVERY NIGHT AS A ROW', (tester) async {
+  testWidgets('THE MONTH AND EVERY NIGHT AS A ROW — NO SECOND STAGE WEEK (R1)', (tester) async {
     tallViewport(tester);
     await tester.pumpWidget(
       todayHost(
@@ -69,8 +71,9 @@ void main() {
     expect(find.text(kSleepHistoryTitle), findsOneWidget);
     expect(find.text(SleepDurationPanel.title), findsOneWidget);
     expect(find.byType(V02LineChart), findsOneWidget);
-    expect(find.text(NightStagesPanel.title), findsOneWidget);
-    expect(find.byType(HStackedSleep), findsOneWidget);
+    // The 7-night stage chart lives on Sleep ("Your week, stage by stage");
+    // drawing the identical chart here was the repeat the owner reported (R1).
+    expect(find.byType(HStackedSleep), findsNothing);
     expect(find.text('Open a night'), findsOneWidget);
     // The fixture carries thirty nights and the window is thirty.
     expect(find.byType(NightRow), findsNWidgets(30));
@@ -126,6 +129,32 @@ void main() {
     expect(panel.series.where((value) => value == 0), isEmpty);
     expect(panel.measured, 29);
     expect(panel.note, startsWith('29 dated samples through '));
+  });
+
+  testWidgets('DURATION READS IN HOURS AND MINUTES, NEVER RAW MINUTES (B4)', (
+    tester,
+  ) async {
+    tallViewport(tester);
+    final nights = sleepPageFixture().nights.take(30).toList();
+    final latest = nights.first.tstMin.valueOrNull!;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SleepDurationPanel(nights: nights, reveals: RevealRegistry()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(hoursMinutes(latest)), findsOneWidget);
+    expect(find.text('min'), findsNothing);
+    final chart = tester.widget<V02LineChart>(find.byType(V02LineChart));
+    // The axis is in hours, so its ticks read 6 · 7 · 8 rather than 360 · 420.
+    expect(chart.values.whereType<double>().first, lessThan(24));
+    expect(chart.format!(6.5), '6h 30m');
   });
 
   testWidgets('A ROW IS A BUTTON: IT REPORTS THE NIGHT IT OPENS', (

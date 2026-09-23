@@ -145,9 +145,5 @@ bool? favorableDirection(String metric, double? z) {
 String clockDuration(int minutes) =>
     '${minutes ~/ 60}:${(minutes % 60).toString().padLeft(2, '0')}';
 
-/// `6h 20m` from minutes. Legacy's `_ReadinessBlock` and `_SleepHealthModule`.
-String hoursMinutes(num minutes) =>
-    '${minutes ~/ 60}h ${(minutes % 60).round()}m';
-
 /// `6.3h` from minutes. Legacy's `_SleepDebtModule.h`.
 String decimalHours(num minutes) => '${(minutes / 60).toStringAsFixed(1)}h';

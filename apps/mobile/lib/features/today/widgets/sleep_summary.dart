@@ -4,6 +4,7 @@ import 'package:healthee/data/device/device_night.dart';
 import 'package:healthee/data/honesty/reading.dart';
 import 'package:healthee/data/models/last_sleep.dart';
 import 'package:healthee/features/today/today_labels.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/states/caveat_scope.dart';
 import 'package:healthee/shared/states/reading_view.dart';
 import 'package:healthee/shared/v02/panel.dart';

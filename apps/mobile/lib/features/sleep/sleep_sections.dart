@@ -15,29 +15,22 @@
 ///   Sleep need & debt          the shortfall, and what it is a shortfall against
 ///   Your week, stage by stage  seven nights, stacked
 ///   Sleep timing               bedtime and wake, and the regularity around them
-///   ══ Beyond a single night ══
-///   Sleep efficiency           the fortnight
-///   Sleep regularity           the fortnight
-///   Heart-rate variability     the fortnight
-///   Naps & your day            the daytime sleep
+///   Naps & your day            the day's own naps — only on a day with one
 ///   footer
 /// ```
 ///
+/// **The prototype's `Beyond a single night` chapter and everything under it
+/// are gone** (F2, `DESIGN_DECISIONS.md`): the owner found the fortnight
+/// trends, the tonight lever and the sleep findings redundant with the panels
+/// above, Sleep history and Insights.
+///
 /// ## What is on this screen that the prototype has no box for
 ///
-/// Four things, and all four sit **after** every panel the prototype draws, so
-/// its order is never interrupted:
-///
-/// - **Tonight** — `/api/sleep/consistency`'s lever.
-/// - **Sleep analysis** — `/api/sleep/insight`'s grounded reading.
-/// - **Findings** — `/api/sleep`'s own sleep-scoped correlations, drawn only
-///   when the list is non-empty; a heading over an empty list is a section that
-///   exists to say there is nothing in it.
-///
-/// The fourth is the **stale banner**, and it is the exception that sits near
-/// the top: it says *everything below is from an older night*, and a sentence
-/// like that is worth nothing under the thing it qualifies. That is the honesty
-/// layer, which is the one place this rebuild has latitude.
+/// - **Sleep analysis** — `/api/sleep/insight`'s grounded reading, first.
+/// - The **stale banner**, near the top: it says *everything below is from an
+///   older night*, and a sentence like that is worth nothing under the thing it
+///   qualifies. That is the honesty layer, which is the one place this rebuild
+///   has latitude.
 ///
 /// ## What survived the redesign
 ///
@@ -61,23 +54,16 @@ import 'package:healthee/features/sleep/v02/night_panels.dart';
 import 'package:healthee/features/sleep/v02/sleep_reading.dart';
 import 'package:healthee/features/sleep/v02/tail_panels.dart';
 import 'package:healthee/features/sleep/v02/timing_panel.dart';
-import 'package:healthee/features/sleep/v02/trend_panels.dart';
 import 'package:healthee/features/sleep/v02/vitals_panel.dart';
 import 'package:healthee/features/sleep/v02/week_panel.dart';
 import 'package:healthee/features/sleep/v02/withheld_night.dart';
-import 'package:healthee/shared/findings_section.dart';
 import 'package:healthee/shared/page_section.dart';
 import 'package:healthee/shared/reveal_once.dart';
 import 'package:healthee/shared/section_list.dart';
-import 'package:healthee/shared/v02/chapter.dart';
 import 'package:healthee/shared/v02/data_footer.dart';
 import 'package:healthee/shared/v02/page_header.dart';
 import 'package:healthee/shared/v02/past_day.dart';
 import 'package:healthee/shared/v02/view_day.dart';
-import 'package:solar_icons/solar_icons.dart';
-
-/// `H.chapter('sleep-trends','Beyond a single night','sleep','insights')`.
-const String kSleepTrendsChapter = 'Beyond a single night';
 
 /// The one panel a past night cannot carry, and the prototype's own heading.
 const String kSleepDebtPastTitle = 'Sleep need & debt';
@@ -86,9 +72,6 @@ const String kSleepDebtPastTitle = 'Sleep need & debt';
 const String kSleepDebtPast =
     'Historical sleep-need and debt analyses are not included. The latest debt '
     'is not carried backward.';
-
-/// The tail of the screen — the lever, the analysis, the correlations.
-const String kSleepTonightPastTitle = 'Tonight’s lever and this week’s analysis';
 
 /// When the chosen day is older than every night the window holds.
 const String kNoNightTitle = 'No night on or before this day';
@@ -251,57 +234,22 @@ List<PageSection> sleepSections({
         consistency: past ? null : consistency,
         reveals: reveals,
       ),
-    )
-    ..gap(PageSpacing.block)
-    ..add(
-      const ChapterHeading(
-        title: kSleepTrendsChapter,
-        icon: SolarIconsOutline.chartSquare,
-      ),
     );
-  for (final trend in kSleepTrends) {
+  // ⛔ **Nothing from `Beyond a single night` down** (F2, the owner): the three
+  // fortnight trends, the tonight lever and the sleep findings were redundant
+  // with the panels above, Sleep history and Insights.
+  //
+  // Only the day's NAPS stay, and only on a day that has one: the strap
+  // records a nap perhaps once a month, and a card saying "no nap" on the other
+  // days was noise. They are dated like the night, so a past day draws its own.
+  final naps = <SleepNap>[
+    for (final nap in page.naps)
+      if (nap.date == night.date) nap,
+  ];
+  if (naps.isNotEmpty) {
     sections
-      ..add(
-        SleepTrendPanel(
-          trend: trend,
-          recent: windows.recent,
-          reveals: reveals,
-          onDetails: extras.onOpenMetric,
-        ),
-      )
-      ..gap(PageSpacing.panel);
-  }
-  // Everything from here down is about tonight or about now: the nap list the
-  // server sends for the current window, the lever for the night ahead, the
-  // written analysis of the latest data, and the correlations recomputed each
-  // night. None of them takes a day, so none of them may wear an older one.
-  if (!past) {
-    sections
-      ..add(
-        NapsPanel(naps: page.naps),
-      )
-      ..gap(PageSpacing.block);
-  }
-  // **No `Sleep recommendations` link.** It sat between the naps card and the
-  // analysis, a bare link out to a destination the tab bar already carries as
-  // `Actions` — the reader is one tap from it from anywhere in the app, and a
-  // link to a tab is a control that answers a question nobody was asking here.
-  if (past) {
-    sections.add(
-      const PastDayNotice(title: kSleepTonightPastTitle, body: kPastDayReason),
-    );
-  } else {
-    if (consistency?.tonight case final TonightLever lever) {
-      sections
-        ..add(TonightPanel(lever: lever))
-        ..gap(PageSpacing.panel);
-    }
-    // `/api/sleep`'s own sleep-scoped correlations, and only when there are any.
-    if (page.findings.isNotEmpty) {
-      sections
-        ..gap(PageSpacing.block)
-        ..add(FindingsSection(findings: page.findings));
-    }
+      ..gap(PageSpacing.panel)
+      ..add(NapsPanel(naps: naps));
   }
   sections
     ..gap(PageSpacing.block)

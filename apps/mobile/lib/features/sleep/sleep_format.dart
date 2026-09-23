@@ -15,13 +15,6 @@ library;
 
 import 'package:healthee/core/theme/stage_colors.dart';
 
-/// Minutes → `7h 05m`. Legacy's `_hm`, without its null branch.
-String hoursMinutes(num minutes) {
-  final whole = minutes.round();
-  final rest = (whole % 60).toString().padLeft(2, '0');
-  return '${whole ~/ 60}h ${rest}m';
-}
-
 /// An instant → `11:30p`. Legacy's `_clock`.
 String clock(DateTime at) {
   final hour = at.hour % 12 == 0 ? 12 : at.hour % 12;

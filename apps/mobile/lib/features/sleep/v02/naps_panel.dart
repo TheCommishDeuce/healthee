@@ -57,6 +57,7 @@ import 'package:healthee/core/theme/tone.dart';
 import 'package:healthee/core/theme/type_scale.dart';
 import 'package:healthee/data/models/sleep_page.dart';
 import 'package:healthee/features/sleep/sleep_format.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/v02/panel.dart';
 import 'package:healthee/shared/v02/panel_head.dart';
 import 'package:healthee/shared/v02/panel_parts.dart';

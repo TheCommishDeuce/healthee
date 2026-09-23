@@ -257,13 +257,22 @@ void main() {
       expect(server.sent.single.uri.toString(), '$_url/api/today');
     });
 
-    test('with no session the build default stands, and no header is added', () async {
+    test('with no session an /api/* read never leaves at all (B2)', () async {
       final server = ScriptedServer();
-      await _appClient(FakeSecretStore(), server).get<Object?>('/api/today');
+      await expectLater(
+        _appClient(FakeSecretStore(), server).get<Object?>('/api/today'),
+        throwsA(isA<DioException>()),
+      );
+      expect(server.sent, isEmpty);
+    });
+
+    test('with no session any other path keeps the build default, no header', () async {
+      final server = ScriptedServer();
+      await _appClient(FakeSecretStore(), server).get<Object?>('/ingest/samples');
 
       expect(
         server.sent.single.uri.toString(),
-        'https://compiled-in.example.com/api/today',
+        'https://compiled-in.example.com/ingest/samples',
       );
       expect(server.sent.single.headers.containsKey('Authorization'), isFalse);
     });

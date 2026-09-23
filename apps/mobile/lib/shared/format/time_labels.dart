@@ -61,6 +61,16 @@ String untilLabel(DateTime at, {required DateTime now}) {
 
 int _ceilUnits(int amount, int perUnit) => (amount + perUnit - 1) ~/ perUnit;
 
+/// Minutes → `7h 05m`: THE hours-and-minutes label for sleep and every other
+/// duration drawn that way (R10). Rounds the whole count first, so it never
+/// writes `60m`, and always pads the minutes, so one night reads one way on
+/// every screen. It replaced three copies that disagreed (`7h 0m` vs `7h 00m`).
+String hoursMinutes(num minutes) {
+  final whole = minutes.round();
+  final rest = (whole % 60).toString().padLeft(2, '0');
+  return '${whole ~/ 60}h ${rest}m';
+}
+
 /// A duration in minutes as `7h 20m`, or `48m` under an hour.
 ///
 /// Used for sleep and workouts. Never decimal hours — "6.3 h of sleep" is a

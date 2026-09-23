@@ -277,7 +277,6 @@ void main() {
       );
 
       expect(detail.window.first.date, chosen);
-      expect(detail.week.last.date, chosen);
       expect(
         detail.window.length,
         lessThan(page.nights.length),

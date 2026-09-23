@@ -3050,6 +3050,181 @@ mutate 'the loopback fallback is prefilled as if it were an answer' \
 
 
 
+# B4, from the owner's phone: Sleep history drew the month in minutes (416)
+# beside rows that say 6h 56m. The panel's headline and the chart's reading must
+# both speak hours-minutes, and the chart must honour the format it is handed.
+mutate 'sleep duration headline back to raw minutes' \
+  test/features/sleep_history_screen_test.dart lib/features/sleep/v02/history_panels.dart \
+  "latest == null ? '—' : hoursMinutes(latest)," \
+  "latest == null ? '—' : latest.round().toString(),"
+mutate 'the line chart ignores the format it is handed' \
+  test/shared/v02_charts_series_test.dart lib/shared/charts/v02/v02_line_chart.dart \
+  '      format?.call(value) ??
+      ' \
+  '      '
+
+
+# B3, from the owner's phone: "439 records across 7 months" for history spanning
+# August and September — it counted stream-months. Both the held summary and the
+# run message must count calendar months.
+mutate 'mirror stats count stream-months as months' \
+  test/mirror/mirror_sync_test.dart lib/data/mirror/mirror_sync.dart \
+  'months: rows.map((row) => row.month).toSet().length,' \
+  'months: rows.length,'
+mutate 'a mirror run counts stream-months as months' \
+  test/mirror/mirror_sync_test.dart lib/data/mirror/mirror_sync.dart \
+  'fetchedMonths: fetchedMonths.length,' \
+  'fetchedMonths: fetched,'
+
+
+# B2, from the owner's phone: signed out, Today said "Couldn't reach your server
+# for today's judgements" beside "not signed in". No request may be made, the
+# refusal must read as "sign in", and Today must not say it twice.
+mutate 'signed out, /api/today is requested anyway' \
+  test/data/today_signed_out_test.dart lib/data/today_repository.dart \
+  '  if (!session.signedIn) {
+    throw const NotSignedIn();
+  }
+' \
+  ''
+mutate 'a sign-in refusal is drawn as a server fault' \
+  test/features/today_signin_entry_test.dart lib/shared/screen_data.dart \
+  'isNotSignedIn(server.error)' \
+  'server.error is Never'
+mutate 'signed-out Today blames the server beside the sign-in card' \
+  test/features/today_signin_entry_test.dart lib/features/today/today_sections.dart \
+  '  if (data.serverFailure case final PageSection failure
+      when extras.signedIn != false) {' \
+  '  if (data.serverFailure case final PageSection failure) {'
+mutate 'a sign-in refusal is retried with backoff' \
+  test/signin/provider_retry_test.dart lib/data/api/provider_retry.dart \
+  '  if (isNotSignedIn(error)) return null;' \
+  ''
+
+
+# F2, from the owner's phone: every row of "Your body overnight" opened HRV. The
+# rows must carry canonical history ids, and a row with no history series must
+# not be a link (the history screen falls back to HRV for an unknown id).
+mutate 'an overnight row reports the sleep payload key, not the history id' \
+  test/features/overnight_links_test.dart lib/features/sleep/v02/vitals_panel.dart \
+  '      metric: HistoryMetric.oxygen.id,' \
+  "      metric: 'spo2_avg',"
+mutate 'a vital with no history series is still a link' \
+  test/features/overnight_links_test.dart lib/shared/v02/vitals_table.dart \
+  'onOpen: onOpenMetric == null || !_hasHistory(vitals[i].metric)' \
+  'onOpen: onOpenMetric == null'
+
+
+# B1, from the owner's phone: after pairing, Today kept "No strap is paired" from
+# the launch sync that ran before there was a strap. Pairing must run the sync.
+mutate 'pairing does not re-run the sync that failed before it' \
+  test/pairing/pairing_resyncs_test.dart lib/features/pairing/pairing_controller.dart \
+  '    unawaited(ref.read(syncControllerProvider.notifier).syncNow());
+' \
+  ''
+
+
+# F2, the owner: naps show only on a day that has one, and only that day's.
+mutate 'every nap in the window is drawn on every day' \
+  test/features/sleep_order_test.dart lib/features/sleep/sleep_sections.dart \
+  '      if (nap.date == night.date) nap,' \
+  '      nap,'
+mutate 'a day with no nap still draws the naps panel' \
+  test/features/sleep_order_test.dart lib/features/sleep/sleep_sections.dart \
+  '  if (naps.isNotEmpty) {
+    sections
+      ..gap(PageSpacing.panel)
+      ..add(NapsPanel(naps: naps));' \
+  '  {
+    sections
+      ..gap(PageSpacing.panel)
+      ..add(NapsPanel(naps: naps));'
+
+
+# F3, the owner: Activity's two destinations are entry cards, the recovery card
+# carries the server's own score, and no fitness term means no age card.
+mutate 'the recovery card drops the server score' \
+  test/features/activity_order_test.dart lib/features/activity/activity_sections.dart \
+  '    score: snapshot?.recovery.valueOrNull?.recovery,' \
+  '    score: null,'
+mutate 'an age card is drawn with no fitness term' \
+  test/features/activity_order_test.dart lib/features/activity/activity_sections.dart \
+  '    years == null
+        ? recovery
+        : EntryGrid(
+            // Opens the age screen itself, as it does on Insights.
+            left: AgeEntryCard(years: years),' \
+  '    false
+        ? recovery
+        : EntryGrid(
+            // Opens the age screen itself, as it does on Insights.
+            left: AgeEntryCard(years: years ?? 0),'
+mutate 'the recovery card opens nothing' \
+  test/features/v02_screen_links_test.dart lib/features/activity/activity_sections.dart \
+  '    onOpen: extras.onOpenRecovery,' \
+  '    onOpen: null,'
+
+
+# F1, the owner: Today carries the day — steps, heart rate, stress — as its own
+# cards. Hours sit on the clock with gaps kept as gaps, and every figure is a
+# reading someone else produced.
+mutate 'day-card hours are packed together instead of placed on the clock' \
+  test/features/today_day_cards_test.dart lib/features/today/v02/day_cards.dart \
+  '  return <double?>[for (var hour = 0; hour <= last; hour++) byHour[hour]];' \
+  '  return <double?>[for (final point in points) pick(point)];'
+mutate 'a missing step hour is left out instead of counted as zero' \
+  test/features/today_day_cards_test.dart lib/features/today/v02/day_cards.dart \
+  '    return <double?>[for (var hour = 0; hour <= last; hour++) hours[hour] ?? 0];' \
+  '    return <double?>[for (final v in hours.values) v];'
+mutate 'the heart-rate range reads the hourly averages, not the samples' \
+  test/features/today_day_cards_test.dart lib/features/today/v02/day_cards.dart \
+  '    final lows = hourly.map((p) => p.minimum).whereType<double>();' \
+  '    final lows = hourly.map((p) => p.average).whereType<double>();'
+mutate 'the stress peak is the first hour, not the highest' \
+  test/features/today_day_cards_test.dart lib/features/today/v02/day_cards.dart \
+  '      : hourly.reduce((a, b) => b.average > a.average ? b : a);' \
+  '      : hourly.first;'
+mutate 'Today drops the day cards again' \
+  test/features/today_order_test.dart lib/features/today/today_sections.dart \
+  '  _theDay(sections, data, extras);
+' \
+  ''
+
+
+# B2, carried to every server-backed screen: with no session an /api/* request
+# is refused before it leaves, typed, and each screen says "sign in".
+mutate 'a signed-out /api/* request is sent anyway' \
+  test/signin/credential_routing_test.dart lib/data/api/interceptors.dart \
+  "      if (options.path.startsWith('/api/')) {" \
+  "      if (options.path.startsWith('/never/')) {"
+mutate 'the interceptor-shaped refusal is not recognised' \
+  test/signin/credential_routing_test.dart lib/data/api/not_signed_in.dart \
+  '    error is NotSignedIn || (error is DioException && error.error is NotSignedIn);' \
+  '    error is NotSignedIn;'
+mutate 'Sleep blames the server when signed out' \
+  test/features/signed_out_screens_test.dart lib/features/sleep/sleep_screen.dart \
+  '                    if (isNotSignedIn(error))' \
+  '                    if (false)'
+mutate 'Recovery blames the server when signed out' \
+  test/features/signed_out_screens_test.dart lib/features/today/recovery_screen.dart \
+  '          if (isNotSignedIn(error))' \
+  '          if (false)'
+
+
+# R10: one hoursMinutes, padded and rounded first; minute readings on Recovery
+# use it (the baseline row read "416 min" beside Sleep's "6h 56m").
+mutate 'hoursMinutes stops padding its minutes' \
+  test/shared/hours_minutes_test.dart lib/shared/format/time_labels.dart \
+  "  final rest = (whole % 60).toString().padLeft(2, '0');" \
+  "  final rest = (whole % 60).toString();"
+mutate 'hoursMinutes rounds after splitting again' \
+  test/shared/hours_minutes_test.dart lib/shared/format/time_labels.dart \
+  "  return '\${whole ~/ 60}h \${rest}m';" \
+  "  return '\${minutes ~/ 60}h \${rest}m';"
+mutate 'a Recovery minute reading goes back to raw minutes' \
+  test/features/recovery_honesty_fields_test.dart lib/features/today/v02/recovery_detail_panels.dart \
+  "  if (unit == 'min') {" \
+  "  if (unit == 'never') {"
 # R9: SpO2 and breathing are derived on /api/sleep now. A night the server has not
 # derived must say it is waiting, not that the strap took no readings.
 mutate 'an underived night blames the strap for missing SpO2' \

@@ -56,7 +56,6 @@ class ActivityScreen extends ConsumerWidget {
           onOpenMetric: (metric) => openMetricHistory(context, metric),
           onOpenRecovery: () => unawaited(context.push(Routes.recovery)),
           onOpenFitness: () => unawaited(context.push(Routes.fitness)),
-          onOpenBody: () => unawaited(context.push(Routes.body)),
         ),
       ),
     );

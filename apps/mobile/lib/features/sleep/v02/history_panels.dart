@@ -1,4 +1,4 @@
-/// The three blocks of `#sleep-history`: the month, the week, and the list.
+/// The blocks of `#sleep-history`: the month and the list.
 ///
 /// `design/mobile-preview/sleep-history-view.js`:
 ///
@@ -26,27 +26,22 @@
 ///
 /// ## Straight segments, never a spline
 ///
-/// One total per night. `chart_curve.dart` and `trend_panels.dart` both argue
+/// One total per night. `chart_curve.dart` argues
 /// it: a monotone curve between two nightly totals draws a duration nobody
 /// slept.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:healthee/core/theme/instrument_hues.dart';
-import 'package:healthee/core/theme/stage_colors.dart';
 import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/tone.dart';
 import 'package:healthee/core/theme/type_scale.dart';
-import 'package:healthee/data/models/sleep_history.dart';
 import 'package:healthee/data/models/sleep_night.dart';
 import 'package:healthee/features/sleep/sleep_format.dart';
-import 'package:healthee/shared/charts/h_stacked_sleep.dart';
 import 'package:healthee/shared/charts/v02/chart_curve.dart';
 import 'package:healthee/shared/charts/v02/v02_line_chart.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 import 'package:healthee/shared/instrument/h_tap.dart';
-import 'package:healthee/shared/metric_info/metric_detail.dart';
 import 'package:healthee/shared/reveal_once.dart';
-import 'package:healthee/shared/v02/colour_key.dart';
 import 'package:healthee/shared/v02/panel.dart';
 import 'package:healthee/shared/v02/panel_head.dart';
 import 'package:healthee/shared/v02/panel_parts.dart';
@@ -80,9 +75,15 @@ class SleepDurationPanel extends StatelessWidget {
   /// Opens the sleep-duration metric history.
   final VoidCallback? onDetails;
 
-  /// Oldest first, with an unmeasured night kept as a gap.
-  List<double?> get series =>
-      <double?>[for (final night in nights.reversed) night.tstMin.valueOrNull];
+  /// Oldest first, in HOURS, with an unmeasured night kept as a gap.
+  ///
+  /// Hours so the axis reads `6 · 7 · 8`; the readout says `6h 56m`, the
+  /// same words the night rows use. Minutes (`416`) made the owner do the
+  /// division (B4).
+  List<double?> get series => <double?>[
+    for (final night in nights.reversed)
+      if (night.tstMin.valueOrNull case final minutes?) minutes / 60 else null,
+  ];
 
   /// One short date per night, oldest first.
   List<String> get dates =>
@@ -118,8 +119,7 @@ class SleepDurationPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           PanelValue(
-            latest == null ? '—' : latest.round().toString(),
-            unit: 'min',
+            latest == null ? '—' : hoursMinutes(latest),
             context_: dates.isEmpty ? null : dates.last,
           ),
           const SizedBox(height: chartGap),
@@ -130,79 +130,18 @@ class SleepDurationPanel extends StatelessWidget {
               series,
               progress: t,
               height: chartHeight,
-              unit: 'min',
+              unit: 'hours',
+              format: (hours) => hoursMinutes(hours * 60),
               // Nightly totals. See the library docstring.
               curve: SeriesCurve.straight,
               captions: dates.isEmpty
                   ? const <String>[]
                   : <String>[dates.first, dates.last],
               sampleLabels: dates,
-              semanticLabel: 'Sleep duration in minutes, night by night',
+              semanticLabel: 'Sleep duration in hours, night by night',
             ),
           ),
           PanelNote(note),
-        ],
-      ),
-    );
-  }
-}
-
-/// `Seven nights of stages` — the same stacked chart the Sleep screen draws.
-class NightStagesPanel extends StatelessWidget {
-  /// [nights] is oldest first and never padded to reach seven.
-  const NightStagesPanel({
-    required this.nights,
-    required this.reveals,
-    super.key,
-  });
-
-  /// The prototype's title.
-  static const String title = 'Seven nights of stages';
-
-  /// The stack's height.
-  static const double chartHeight = 130;
-
-  /// The gap above the legend.
-  static const double legendGap = 10;
-
-  /// The week, oldest first.
-  final List<SleepNightSummary> nights;
-
-  /// Where "already revealed" is remembered.
-  final RevealRegistry reveals;
-
-  @override
-  Widget build(BuildContext context) {
-    final hues = context.hues;
-    return Panel(
-      tone: Tone.sleep,
-      label: 'Sleep stages · seven nights',
-      head: const PanelHead(
-        title: title,
-        icon: SolarIconsOutline.moonSleep,
-        infoKey: 'sleep',
-        detail: MetricDetail(
-          method: <String>['Each stage keeps the same colour throughout the app.'],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          RevealOnce(
-            id: 'sleep-history.stage-week',
-            registry: reveals,
-            builder: (context, t) =>
-                HStackedSleep(nights, progress: t, height: chartHeight),
-          ),
-          const SizedBox(height: legendGap),
-          ColourKey(<ColourKeyEntry>[
-            for (final stage in kSleepStages)
-              ColourKeyEntry(
-                sleepStageLabel(stage),
-                colour: sleepStageColor(hues, stage),
-              ),
-          ]),
         ],
       ),
     );

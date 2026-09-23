@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthee/data/models/recovery_score.dart';
 import 'package:healthee/features/today/today_sections.dart';
+import 'package:healthee/features/today/v02/day_cards.dart';
 import 'package:healthee/features/today/v02/today_header.dart';
 import 'package:healthee/features/today/widgets/data_health_section.dart';
 import 'package:healthee/features/today/widgets/illness_banner.dart';
@@ -17,7 +18,7 @@ int indexOf<T>(List<PageSection> list) =>
 
 void main() {
   test(
-    'Today has exactly three content sections after its status and safety notices',
+    'Today is sleep, recovery and weight, then the day: steps, heart rate, stress (F1)',
     () {
       final list = todaySections(
         screenData(server: todayView()),
@@ -30,6 +31,9 @@ void main() {
         SleepSummary,
         ReadingView<RecoveryScore>,
         WeightEntry,
+        StepsDayCard,
+        HeartRateDayCard,
+        StressDayCard,
       ]);
       expect(list.every((section) => section.pinnedExtent == null), isTrue);
     },
@@ -57,6 +61,10 @@ void main() {
     expect(indexOf<SleepSummary>(list), isNonNegative);
     expect(indexOf<WeightEntry>(list), isNonNegative);
     expect(indexOf<ReadingView<RecoveryScore>>(list), -1);
+    // The strap's own half of the day cards needs no server either.
+    expect(indexOf<StepsDayCard>(list), isNonNegative);
+    expect(indexOf<HeartRateDayCard>(list), isNonNegative);
+    expect(indexOf<StressDayCard>(list), isNonNegative);
     expect(list.every((section) => section.pinnedExtent == null), isTrue);
   });
 
@@ -65,7 +73,7 @@ void main() {
       screenData(server: todayView()),
       const TodayExtras(),
     );
-    expect(list, hasLength(6));
-    expect(list.last.child, isA<WeightEntry>());
+    expect(list, hasLength(9));
+    expect(list.last.child, isA<StressDayCard>());
   });
 }

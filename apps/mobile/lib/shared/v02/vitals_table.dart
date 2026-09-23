@@ -21,6 +21,9 @@
 /// occurrence that section 1 says to extract instead. So the table moved here
 /// and the two panels above it stayed where they are.
 ///
+/// Recovery stopped drawing its copy in R2 (the owner found the repeat
+/// redundant; Sleep is one link away), so Sleep is the one caller today.
+///
 /// ## Five families in one panel, and no widget takes a colour
 ///
 /// `data-tone` sits on the **row**, not the panel, so each row's glyph and its
@@ -42,6 +45,7 @@ import 'package:healthee/core/theme/sleep_type_scale.dart';
 import 'package:healthee/core/theme/tokens.dart';
 import 'package:healthee/core/theme/tone.dart';
 import 'package:healthee/core/theme/tone_scope.dart';
+import 'package:healthee/data/history/history_metric.dart';
 import 'package:healthee/data/honesty/reading.dart';
 import 'package:healthee/shared/charts/v02/v02_sparkline.dart';
 import 'package:healthee/shared/instrument/h_tap.dart';
@@ -135,6 +139,9 @@ class VitalsTable extends StatelessWidget {
         '${vital.label}: ${disclosure.message}',
   ];
 
+  static bool _hasHistory(String metric) =>
+      HistoryMetric.values.any((known) => known.id == metric);
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -146,7 +153,9 @@ class VitalsTable extends StatelessWidget {
           reveals: reveals,
           revealPrefix: revealPrefix,
           last: i == vitals.length - 1,
-          onOpen: onOpenMetric == null
+          // A metric with no history series is no link: the history screen
+          // would open its first metric (HRV) instead (F2).
+          onOpen: onOpenMetric == null || !_hasHistory(vitals[i].metric)
               ? null
               : () => onOpenMetric!(vitals[i].metric),
         ),

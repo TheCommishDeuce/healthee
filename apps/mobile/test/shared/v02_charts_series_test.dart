@@ -207,6 +207,30 @@ void main() {
       expect(find.text('Touch the chart to explore · bpm'), findsOneWidget);
     });
 
+    testWidgets('a format writes the reading instead of digits and unit', (
+      tester,
+    ) async {
+      await pumpChart(
+        tester,
+        V02LineChart(
+          _hrDay,
+          progress: 1,
+          unit: 'bpm',
+          format: (value) => '${value.round()} beats',
+          sampleLabels: _hours,
+        ),
+      );
+      final box = ChartMetrics.series.box(paintSize(tester, chart));
+      final origin = tester.getTopLeft(painterOf(chart));
+      await tester.tapAt(
+        origin + Offset(box.x(12, _hrDay.length), box.plot.center.dy),
+      );
+      await tester.pump();
+      expect(find.text('12:00 · 80 beats'), findsOneWidget);
+      expect(painterFor<SeriesPainter>(tester, chart).bubbleText, '80 beats');
+      await tester.pump(ChartScrub.linger * 2);
+    });
+
     testWidgets('says "not measured" rather than inventing one', (tester) async {
       final holed = List<double?>.from(_hrDay)..[12] = null;
       await pumpChart(tester, _day(values: holed));

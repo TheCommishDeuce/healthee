@@ -36,7 +36,7 @@ import 'package:healthee/core/theme/instrument_hues.dart';
 import 'package:healthee/core/theme/sleep_type_scale.dart';
 import 'package:healthee/core/theme/stage_colors.dart';
 import 'package:healthee/core/theme/tokens.dart';
-import 'package:healthee/shared/charts/chart_primitives.dart';
+import 'package:healthee/shared/format/time_labels.dart';
 
 /// The four rows, in the order the night is read: awake at the top, deep last.
 const List<String> kShareOrder = <String>['awake', 'rem', 'light', 'deep'];
