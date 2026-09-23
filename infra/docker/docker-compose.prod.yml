@@ -84,6 +84,7 @@ services:
       # TO START in that state (core/config) rather than serving a dead AI layer
       # behind a green /healthz.
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
       DEFAULT_MODEL: ${DEFAULT_MODEL:-}
       COACH_MODEL: ${COACH_MODEL:-}
       COACH_REASONING: ${COACH_REASONING:-on}
@@ -180,6 +181,7 @@ services:
       # nightly chain, so a blank id 400s every recs/briefing run. The scheduler
       # refuses to start in that state, same as the api (core/config).
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
       DEFAULT_MODEL: ${DEFAULT_MODEL:-}
       COACH_MODEL: ${COACH_MODEL:-}
       COACH_REASONING: ${COACH_REASONING:-on}

@@ -23,6 +23,7 @@ from types import SimpleNamespace
 from typing import Any, Protocol
 
 from healthee.core.config import get_settings
+from healthee.core.llm_endpoint import is_openrouter
 from healthee.core.logging import get_logger
 from healthee.insights import client_stream, transport_health
 
@@ -96,9 +97,6 @@ def tier_of(model: str) -> str:
     if model == settings.default_model:
         return "default"
     return "unconfigured"
-
-
-_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 @dataclass(frozen=True)
@@ -190,7 +188,7 @@ class OpenRouterClient:
 
             self._sdk = OpenAI(
                 api_key=settings.openrouter_api_key,
-                base_url=_OPENROUTER_BASE_URL,
+                base_url=settings.llm_base_url,
                 timeout=settings.llm_timeout_s,
                 max_retries=settings.llm_max_retries,
             )
@@ -259,15 +257,16 @@ class OpenRouterClient:
         if response_format is not None:
             kwargs["response_format"] = response_format
         # `usage: {"include": true}` is OpenRouter's own extension for the provider-
-        # BILLED `cost` field (Usage.cost) — sent unconditionally, unlike `reasoning`/
-        # `provider` below, which stay opt-in so the request is otherwise unchanged.
-        extra_body: dict[str, Any] = {"usage": {"include": True}}
-        if reasoning is False:
-            extra_body["reasoning"] = {"enabled": False}
-        provider = _provider_routing(model)
-        if provider is not None:
-            extra_body["provider"] = provider
-        kwargs["extra_body"] = extra_body
+        # BILLED `cost` field (Usage.cost); `reasoning`/`provider` stay opt-in. None of
+        # the three is sent to another endpoint (`core.llm_endpoint`).
+        if is_openrouter(settings.llm_base_url):
+            extra_body: dict[str, Any] = {"usage": {"include": True}}
+            if reasoning is False:
+                extra_body["reasoning"] = {"enabled": False}
+            provider = _provider_routing(model)
+            if provider is not None:
+                extra_body["provider"] = provider
+            kwargs["extra_body"] = extra_body
         sdk = self._client()
         started = time.monotonic()
         deadline_s = settings.llm_deadline_s

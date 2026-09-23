@@ -142,9 +142,10 @@ class LlmWatch:
             return
         self._next_balance_probe = now + self._balance_interval_s
         reading = credits.read_balance(force=True)
-        if reading.status == credits.UNCONFIGURED:
-            # No key ⇒ this deployment runs without the AI layer on purpose. Watching a
-            # balance that does not exist would page an operator about a choice they made.
+        if reading.status in (credits.UNCONFIGURED, credits.NO_BALANCE):
+            # No key ⇒ this deployment runs without the AI layer on purpose; a local model
+            # has no account balance at all. Watching a balance that does not exist would
+            # page an operator about a choice they made.
             return
         state = credits.balance_state(reading)
         if state == self._balance_alerted:
