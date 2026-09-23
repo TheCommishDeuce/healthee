@@ -30,9 +30,12 @@ Later the same session (owner: "proceed"; accepted the F5 recommendations):
 Full mutation run after F5: **311 caught, 0 survived** (more added since, each checked).
 
 **Open now:**
-- **R9** (server, one-definition): plan in REDUNDANCY_INVENTORY.md. Own branch + PR.
-- **Owner-gated, deferred until everything else is done** (owner's words): unpair +
-  re-pair to see B1 on the phone; sign out + QR re-enrol to see B2 on the phone.
+- ~~R9~~ **done**: PR #10 merged (`7fc9c99`) and deployed via `deploy.sh` 2026-09-23
+  (image `sha-7fc9c99`, digest `sha256:3d583569…`; rollback tag `sha-1b14b71`). Backup
+  taken by the deploy: `/var/backups/healthee/healthee_2026-09-23_155939.sql.gz`
+  (584 KB, gzip verified). The app half of R9 (absence wording) is on `main`, not yet on
+  this branch — merge `main` in before the debug branch's PR.
+- ~~B1/B2 on the phone~~ **confirmed by the owner** after a QR re-enrol.
 - `V02LinkedChart` has no caller since R3 (kept with its tests on purpose).
 - `RecoveryDetail.now` is unused since R2 (harmless; the screen's `now` feeds it).
 - `durationLabel` (`48m`, workouts) and `hoursMinutes` (`0h 48m`, sleep) are two
