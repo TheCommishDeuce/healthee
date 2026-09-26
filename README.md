@@ -1,5 +1,9 @@
 # Healthee
 
+> **Frozen 2026-09-26.** This fork is no longer developed. The owner's app, server and
+> knowledge corpus moved to [TheCommishDeuce/strap](https://github.com/TheCommishDeuce/strap);
+> the healthee server was retired 2026-09-25 and its history imported there.
+
 <p align="center">
   <a href="https://github.com/afkcodes/healthee/releases/latest"><img src="https://img.shields.io/github/downloads/afkcodes/healthee/total?style=flat-square&label=downloads&logo=android" alt="Total downloads" /></a>
   <a href="https://github.com/afkcodes/healthee/releases/latest"><img src="https://img.shields.io/github/v/release/afkcodes/healthee?style=flat-square&label=latest" alt="Latest release" /></a>

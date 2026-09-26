@@ -1,5 +1,8 @@
 # packages/knowledge — the evidence base
 
+> **Frozen 2026-09-26.** Not edited here any more; the maintained copy of this corpus is
+> `knowledge/` in [TheCommishDeuce/strap](https://github.com/TheCommishDeuce/strap) (its decision D16).
+
 Everything interpretive Healthee says must trace to a note in this package.
 Two collections, one destination format:
 
